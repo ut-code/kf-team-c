@@ -2,8 +2,6 @@ node_modules/
 dist/
 .venv/
 __pycache__/
-test-results/
-playwright-report/
 *.tsbuildinfo
 
 # 個人用のエージェント設定・認証情報
