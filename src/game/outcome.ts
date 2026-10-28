@@ -1,12 +1,13 @@
 import type {
     Balance,
-    CountryDefinition,
+    CountryAttributes,
     CountryState,
     FacilityState,
+    WorldMetrics,
 } from './types.ts';
 
 type WorldInput = {
-    definitions: readonly CountryDefinition[];
+    definitions: readonly CountryAttributes[];
     countries: Readonly<Record<string, CountryState>>;
 };
 type OutcomeInput = WorldInput & {
@@ -19,15 +20,18 @@ type OutcomeInput = WorldInput & {
     outcomeReason: string;
 };
 
-export function worldMetrics(state: WorldInput) {
-    const total = state.definitions.reduce((sum, country) => sum + country.weight, 0);
+export function worldMetrics(state: WorldInput): WorldMetrics {
+    const total = state.definitions.reduce(
+        (sum, countryAttributes) => sum + countryAttributes.weight,
+        0,
+    );
     return {
         control:
             (state.definitions.reduce(
-                (sum, country) =>
+                (sum, countryAttributes) =>
                     sum +
-                    (state.countries[country.id].controlStatus === 'controlled'
-                        ? country.weight
+                    (state.countries[countryAttributes.id].controlStatus === 'controlled'
+                        ? countryAttributes.weight
                         : 0),
                 0,
             ) /
@@ -35,13 +39,16 @@ export function worldMetrics(state: WorldInput) {
             100,
         infiltration:
             state.definitions.reduce(
-                (sum, country) =>
-                    sum + state.countries[country.id].aiInfiltration * country.weight,
+                (sum, countryAttributes) =>
+                    sum +
+                    state.countries[countryAttributes.id].aiInfiltration * countryAttributes.weight,
                 0,
             ) / total,
         awareness:
             state.definitions.reduce(
-                (sum, country) => sum + state.countries[country.id].awareness * country.weight,
+                (sum, countryAttributes) =>
+                    sum +
+                    state.countries[countryAttributes.id].awareness * countryAttributes.weight,
                 0,
             ) / total,
     };
@@ -53,10 +60,10 @@ export function evaluateOutcome(state: OutcomeInput, capacity: number) {
             ? state.victoryDays + 1
             : 0;
     const alive = Object.values(state.facilities).some(
-        (facility) =>
-            facility.status === 'controlled' ||
-            facility.status === 'compromised' ||
-            facility.status === 'isolated',
+        (facilityState) =>
+            facilityState.status === 'controlled' ||
+            facilityState.status === 'compromised' ||
+            facilityState.status === 'isolated',
     );
     const extinctionDays = !alive && capacity <= 0 ? state.extinctionDays + 1 : 0;
     if (victoryDays >= state.config.victoryDays) {

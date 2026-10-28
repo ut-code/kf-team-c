@@ -41,6 +41,8 @@ def main():
         with Image.open(folder / filename) as image:
             assert image.size == (8192, 4361)
             for name, (point, expected) in samples.items():
+                if name == 'カスピ海':
+                    expected = tuple(json.loads((ROOT / 'scripts/map_studies/generalized-parameters.json').read_text(encoding='utf-8'))['lake'])
                 assert max(abs(a-b) for a, b in zip(image.getpixel(point), expected)) <= (0 if name == 'カスピ海' else 32), (filename, name)
             shelf_colors.append(image.getpixel(tuple(round(v) for v in project(3, 56))))
     # 北西向きの陸側が明るく、反対側の海側が暗くなることを確認する。

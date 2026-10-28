@@ -11,9 +11,9 @@
     "mean_absolute_elevation_change_m": 14.381417274475098
   },
   "climate_regions": {
-    "forest": 247,
-    "desert": 90,
-    "ice": 68
+    "forest": 148,
+    "desert": 43,
+    "ice": 24
   },
   "size": [
     8192,
@@ -43,33 +43,33 @@
       0.25,
       0.65
     ],
-    "climate_tolerance_degrees": 0.4,
+    "climate_tolerance_degrees": 0.18,
     "climate_minimum_area_deg2": 2.5,
     "climate_transition_degrees": 0.18,
-    "relief_strength": 90,
+    "relief_strength": 48,
     "vertical_exaggeration": 12.0,
-    "normal_smooth_mix": 0.75,
+    "normal_smooth_mix": 1.0,
     "light_azimuth_degrees": 315,
     "light_altitude_degrees": 48,
     "forest": [
-      62,
-      85,
-      74
-    ],
-    "land": [
-      86,
-      94,
+      65,
+      100,
       87
     ],
+    "land": [
+      105,
+      121,
+      100
+    ],
     "desert": [
-      126,
-      115,
-      94
+      162,
+      148,
+      111
     ],
     "ice": [
-      145,
-      160,
-      163
+      195,
+      210,
+      210
     ],
     "ocean": [
       17,
@@ -83,13 +83,14 @@
     ],
     "massif_peak_prominence_m": 550,
     "massif_gap_radius_degrees": 0.3,
-    "massif_max_valley_fill_m": 220
+    "massif_max_valley_fill_m": 220,
+    "climate_shape_scale_degrees": 0.85
   },
-  "script_sha256": "f38eb8ec6fe1e1aba4c9b233baa8dbbf815ff0443ecea0522be483eb32ab8b3a",
+  "script_sha256": "424653ce39a5a3baba12a1bb27982c909dd1c0867f96e9e87d6052b08443d20c",
   "inputs": [
     {
       "file": "scripts/map_studies/generalized-parameters.json",
-      "sha256": "27cbf0b4bc5671eaf8ce4a9ad2e4eef8243137ac52b0118f1cf99a6957cb3fc6"
+      "sha256": "0740b6ba0b24aa84ff93ab67a57a6ab88867a093f120248cd10cd4ec1928dd79"
     },
     {
       "file": "data/map-studies/raw/earth_relief_06m_p.grd",
@@ -101,16 +102,16 @@
     },
     {
       "file": "data/map-studies/raw/HYP_50M_SR.tfw",
-      "sha256": "7f1cc97126a52814c874ec326a8275c7ded3edc4d7bced417f76d71a995069bd"
+      "sha256": "641762b1eaae2364ae75c0e28fa80c38c00a37f6c012100e6e3b68133f2cb0e4"
     },
     {
       "file": "data/map-studies/raw/ne_110m_land.geojson",
-      "sha256": "9e0729ee253ca7d7a5c4ae9395fb1902264c5377c52e224d13dd85010e2835d9"
+      "sha256": "3d34c10cebfdba17f5f97180dd7c5100c8c5e05f2f583061aa8de2e9f942a904"
     },
     {
       "file": "data/map-studies/raw/ne_110m_lakes.geojson",
-      "sha256": "eb02ecc86c82004fccbf979058bfabbbd6c2d07968c7844d38eb1c9152d2ffc9"
+      "sha256": "7b88f5377b5c6785ae478dea79b090801fd1119488aa6527a02614c6256cc7b4"
     }
   ],
-  "output_sha256": "c13cbd6cb5dd94daf5a452bd6f57e0f32514c8c2ffc4287da7b02a487125950d"
+  "output_sha256": "19fce51a34f2393e008d3e6986e602a9b791ebf9f6737ea48db7bb140ac880d0"
 }

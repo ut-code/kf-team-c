@@ -12,12 +12,12 @@
   "sources": [
     {
       "file": "assets/generated/map/世界地図.png",
-      "sha256": "d6a4679e28d5391ee7dd9a2b83e524d9aedb0cb2fd1aac262ee4ddb3a7526f44"
+      "sha256": "73575b7d5182afb7bff14dbde74cbe9d4149f460431f0f1f47c5c8974b61cc3f"
     },
     {
       "file": "data/map-studies/raw/ne_110m_admin_0_countries.geojson",
-      "sha256": "6866c877d39cba9c357620878839b336d569f8c662d3cfab4cb1dbe2d39c977f"
+      "sha256": "d2aec98bfd1ffda2d8adea42b7ec473365eef38defc48e83afb7d58ae60bfe7c"
     }
   ],
-  "output_sha256": "cac31c02c0374098dfe5c8e50014184f623582b2bc2a480fa1f3e66b3ec82be5"
+  "output_sha256": "1e9d70100618626d4bd5639b5523e5c4d15078c928914cec27f6773fc15c81d8"
 }

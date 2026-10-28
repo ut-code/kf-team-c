@@ -1,5 +1,5 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { computeState, createInitialState, simulateTick } from '../src/game/engine.ts';
+import { computeMetrics, createInitialState, simulateTick } from '../src/game/engine.ts';
 import { worldMetrics } from '../src/game/outcome.ts';
 import { planStrategy, STRATEGIES } from '../src/game/strategies.ts';
 
@@ -20,7 +20,7 @@ for (const strategy of STRATEGIES) {
             if (s.tick % 100 === 0 && !s.pendingChat)
                 timeline.push({
                     day: s.tick,
-                    compute: computeState(s).totalCapacity,
+                    compute: computeMetrics(s).totalCapacity,
                     ...worldMetrics(s),
                     shutdown: s.shutdown,
                 });
@@ -31,7 +31,7 @@ for (const strategy of STRATEGIES) {
             outcome: s.outcome,
             day: s.tick,
             ...worldMetrics(s),
-            compute: computeState(s).totalCapacity,
+            compute: computeMetrics(s).totalCapacity,
             skills: s.researched.length,
             stalled:
                 s.outcome === 'playing' &&

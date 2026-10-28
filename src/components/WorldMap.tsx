@@ -1,5 +1,6 @@
 import type { KeyboardEvent, PointerEvent } from 'react';
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { countryParameterColor } from '../game/countryParameters';
 import type { CountryState, FacilityState } from '../game/types';
 import type { Size } from '../map/geometry';
 import {
@@ -43,6 +44,9 @@ export function WorldMap({
     initialLongitude,
     trafficSpeed,
     trafficTick,
+    parameterValues,
+    parameterLabel,
+    onCountryInspect,
 }: {
     countries: Country[];
     backgroundUrl: string;
@@ -52,6 +56,9 @@ export function WorldMap({
     initialLongitude?: number;
     trafficSpeed: number;
     trafficTick: number;
+    parameterValues?: Record<string, number>;
+    parameterLabel?: string;
+    onCountryInspect?: (id: string | null) => void;
 }) {
     const clipId = useId();
     const viewport = useRef<HTMLDivElement>(null);
@@ -165,12 +172,14 @@ export function WorldMap({
             const nextLeft = (next.width - visibleWidth(next)) / 2;
             const ratio = nextZoom / zoomRef.current;
             const camera = useMapStore.getState().camera;
-            useMapStore.getState().setCamera(
-                constrainCamera(
-                    { x: anchorX - nextLeft - (anchorX - previousLeft - camera.x) * ratio },
-                    next,
-                ),
-            );
+            useMapStore
+                .getState()
+                .setCamera(
+                    constrainCamera(
+                        { x: anchorX - nextLeft - (anchorX - previousLeft - camera.x) * ratio },
+                        next,
+                    ),
+                );
             cameraYRef.current = Math.max(
                 element.clientHeight - next.height,
                 Math.min(0, anchorY - (anchorY - cameraYRef.current) * ratio),
@@ -301,12 +310,19 @@ export function WorldMap({
                         d={country.path}
                         data-country={country.id}
                         data-control-status={countryStates?.[country.id]?.controlStatus}
+                        onPointerEnter={() => onCountryInspect?.(country.id)}
+                        onPointerLeave={() => onCountryInspect?.(null)}
+                        onFocus={() => onCountryInspect?.(country.id)}
+                        onBlur={() => onCountryInspect?.(null)}
+                        data-parameter-value={parameterValues?.[country.id]}
                         style={
-                            countryStates?.[country.id]
-                                ? {
-                                      fill: `rgb(var(--color-territory-rgb) / ${countryStates[country.id].controlStatus === 'controlled' ? 0.52 : (countryStates[country.id].aiInfiltration / 100) * 0.25})`,
-                                  }
-                                : undefined
+                            parameterValues
+                                ? { fill: countryParameterColor(parameterValues[country.id]) }
+                                : countryStates?.[country.id]
+                                  ? {
+                                        fill: `rgb(var(--color-territory-rgb) / ${countryStates[country.id].controlStatus === 'controlled' ? 0.52 : (countryStates[country.id].aiInfiltration / 100) * 0.25})`,
+                                    }
+                                  : undefined
                         }
                         className={country.id === selected ? styles.selected : undefined}
                         fillRule="evenodd"
@@ -324,17 +340,29 @@ export function WorldMap({
                             }
                         }}
                     >
-                        <title>{country.name}</title>
+                        <title>
+                            {parameterValues
+                                ? `${country.name}：${parameterLabel} ${parameterValues[country.id].toFixed(1)}`
+                                : country.name}
+                        </title>
                     </path>
                 ))}
             </g>
         ),
-        [countries, countryStates, selected, onCountrySelect],
+        [
+            countries,
+            countryStates,
+            selected,
+            onCountrySelect,
+            parameterValues,
+            parameterLabel,
+            onCountryInspect,
+        ],
     );
     return (
         <div
             ref={viewport}
-            className={`${styles.viewport} ${dragging ? styles.dragging : ''}`}
+            className={`${styles.viewport} ${parameterValues ? styles.dataMap : ''} ${dragging ? styles.dragging : ''}`}
             tabIndex={0}
             role="region"
             aria-label="世界地図。ドラッグと矢印キーで移動。拡大時は縦にも移動できます。Homeで中央へ、Escapeで選択解除。"
@@ -355,35 +383,39 @@ export function WorldMap({
                     height: renderSize.height,
                 }}
             >
-                <div
-                    ref={background}
-                    className={styles.background}
-                    data-map-background={backgroundUrl}
-                    aria-hidden="true"
-                    style={{
-                        left,
-                        width: displayWidth,
-                        height: renderSize.height,
-                        backgroundImage: `url("${backgroundUrl}")`,
-                        backgroundSize: `${period}px ${renderSize.height}px`,
-                        backgroundPosition: `${camera.x}px 0`,
-                    }}
-                />
-                <OceanSurface
-                    size={renderSize}
-                    cameraX={camera.x}
-                    cameraXRef={cameraXRef}
-                    speed={trafficSpeed}
-                    tick={trafficTick}
-                />
-                <TrafficLayer
-                    size={renderSize}
-                    cameraX={camera.x}
-                    cameraXRef={cameraXRef}
-                    speed={trafficSpeed}
-                    tick={trafficTick}
-                    countries={countryStates}
-                />
+                {!parameterValues && (
+                    <>
+                        <div
+                            ref={background}
+                            className={styles.background}
+                            data-map-background={backgroundUrl}
+                            aria-hidden="true"
+                            style={{
+                                left,
+                                width: displayWidth,
+                                height: renderSize.height,
+                                backgroundImage: `url("${backgroundUrl}")`,
+                                backgroundSize: `${period}px ${renderSize.height}px`,
+                                backgroundPosition: `${camera.x}px 0`,
+                            }}
+                        />
+                        <OceanSurface
+                            size={renderSize}
+                            cameraX={camera.x}
+                            cameraXRef={cameraXRef}
+                            speed={trafficSpeed}
+                            tick={trafficTick}
+                        />
+                        <TrafficLayer
+                            size={renderSize}
+                            cameraX={camera.x}
+                            cameraXRef={cameraXRef}
+                            speed={trafficSpeed}
+                            tick={trafficTick}
+                            countries={countryStates}
+                        />
+                    </>
+                )}
                 <svg className={styles.map} width="100%" height="100%" aria-label="国境と地形">
                     <defs>
                         <clipPath id={clipId}>
@@ -402,6 +434,54 @@ export function WorldMap({
                                 data-world-tile={tile}
                             >
                                 {countryLayer}
+                                {parameterValues &&
+                                    markers
+                                        .filter((marker) => marker.kind === 'country')
+                                        .map((marker) => {
+                                            const id = marker.id.slice('country:'.length);
+                                            const point = project(
+                                                marker.longitude,
+                                                marker.latitude,
+                                            );
+                                            return (
+                                                <circle
+                                                    key={id}
+                                                    cx={point.x}
+                                                    cy={point.y}
+                                                    r={6 / scale}
+                                                    fill={countryParameterColor(
+                                                        parameterValues[id],
+                                                    )}
+                                                    stroke="#253c52"
+                                                    vectorEffect="non-scaling-stroke"
+                                                    data-country={id}
+                                                    data-parameter-value={parameterValues[id]}
+                                                    role="button"
+                                                    tabIndex={0}
+                                                    aria-label={marker.label}
+                                                    aria-pressed={selected === id}
+                                                    onPointerEnter={() => onCountryInspect?.(id)}
+                                                    onPointerLeave={() => onCountryInspect?.(null)}
+                                                    onFocus={() => onCountryInspect?.(id)}
+                                                    onBlur={() => onCountryInspect?.(null)}
+                                                    onKeyDown={(event) => {
+                                                        if (
+                                                            event.key === 'Enter' ||
+                                                            event.key === ' '
+                                                        ) {
+                                                            event.preventDefault();
+                                                            event.stopPropagation();
+                                                            useMapStore
+                                                                .getState()
+                                                                .selectCountry(id);
+                                                            onCountrySelect?.(id);
+                                                        }
+                                                    }}
+                                                >
+                                                    <title>{`${marker.label}：${parameterLabel} ${parameterValues[id].toFixed(1)}`}</title>
+                                                </circle>
+                                            );
+                                        })}
                                 {selectedCountry && (
                                     <path
                                         d={selectedCountry.path}
@@ -411,8 +491,12 @@ export function WorldMap({
                                         aria-hidden="true"
                                     />
                                 )}
-                                {scale > 0 && (
-                                    <MarkerLayer markers={markers} scale={scale} facilityStates={facilityStates} />
+                                {scale > 0 && !parameterValues && (
+                                    <MarkerLayer
+                                        markers={markers}
+                                        scale={scale}
+                                        facilityStates={facilityStates}
+                                    />
                                 )}
                             </g>
                         ))}

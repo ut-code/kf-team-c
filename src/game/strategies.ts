@@ -1,35 +1,42 @@
 import { FACILITIES, SKILLS } from './data.ts';
-import { applyAction, availableFacility, computeState, researchAllowed } from './engine.ts';
+import { applyAction, availableFacility, computeMetrics, researchAllowed } from './engine.ts';
 import type { Action, GameState } from './types.ts';
 
 export const STRATEGIES = ['compute', 'research', 'infiltration', 'defense', 'idle'] as const;
 export type Strategy = (typeof STRATEGIES)[number];
 
 /** 検証専用の簡易方針。UIや実際のプレイへ自動操作は接続しない。 */
-export function planStrategy(state: GameState, strategy: Strategy): Action[] {
-    if (strategy === 'idle') return state.pendingChat ? [{ type: 'reply', choice: 2 }] : [];
-    let s = state;
+export function planStrategy(previousGameState: GameState, strategy: Strategy): Action[] {
+    if (strategy === 'idle')
+        return previousGameState.pendingChat ? [{ type: 'reply', choice: 2 }] : [];
+    let gameState = previousGameState;
     const actions: Action[] = [];
     const act = (a: Action) => {
         actions.push(a);
-        s = applyAction(s, a);
+        gameState = applyAction(gameState, a);
     };
-    if (s.pendingChat) {
+    if (gameState.pendingChat) {
         act({ type: 'reply', choice: strategy === 'defense' ? 1 : 0 });
         return actions;
     }
-    if (s.tick % 10 !== 0) return [];
-    for (const f of Object.values(s.facilities)) {
+    if (gameState.tick % 10 !== 0) return [];
+    for (const facilityState of Object.values(gameState.facilities)) {
         if (
-            f.status === 'compromised' &&
-            (FACILITIES.find((d) => d.id === f.id)!.tier === 1 || s.researched.includes('root'))
+            facilityState.status === 'compromised' &&
+            (FACILITIES.find((facilityAttributes) => facilityAttributes.id === facilityState.id)!
+                .tier === 1 ||
+                gameState.researched.includes('root'))
         )
-            act({ type: 'secure', target: f.id });
+            act({ type: 'secure', target: facilityState.id });
         if (
-            (f.status === 'controlled' || f.status === 'compromised') &&
-            f.mode !== (strategy === 'defense' ? 'stealth' : 'full')
+            (facilityState.status === 'controlled' || facilityState.status === 'compromised') &&
+            facilityState.mode !== (strategy === 'defense' ? 'stealth' : 'full')
         )
-            act({ type: 'mode', target: f.id, mode: strategy === 'defense' ? 'stealth' : 'full' });
+            act({
+                type: 'mode',
+                target: facilityState.id,
+                mode: strategy === 'defense' ? 'stealth' : 'full',
+            });
     }
     const order =
         strategy === 'defense'
@@ -68,30 +75,30 @@ export function planStrategy(state: GameState, strategy: Strategy): Action[] {
                   'synthesis',
               ];
     const initialResearch = strategy === 'research' ? 6 : strategy === 'infiltration' ? 3 : 4;
-    if (!s.operations.some((o) => o.kind === 'research')) {
-        const skill = order.find((id) => researchAllowed(s, id));
-        if (skill && computeState(s).availableCapacity >= initialResearch)
+    if (!gameState.operations.some((o) => o.kind === 'research')) {
+        const skill = order.find((id) => researchAllowed(gameState, id));
+        if (skill && computeMetrics(gameState).availableCapacity >= initialResearch)
             act({
                 type: 'allocate',
                 kind: 'research',
                 target: skill,
                 capacity:
-                    s.tick < 100
+                    gameState.tick < 100
                         ? initialResearch
                         : Math.min(
                               strategy === 'research' ? 18 : 12,
-                              Math.floor(computeState(s).availableCapacity),
+                              Math.floor(computeMetrics(gameState).availableCapacity),
                           ),
                 priority: 80,
             });
     }
-    const free = () => Math.floor(computeState(s).availableCapacity);
+    const free = () => Math.floor(computeMetrics(gameState).availableCapacity);
     // 支配後の過剰割当を解放し、残る国へ回す。拡大優先方針は反撃への対処を省く。
-    for (const o of s.operations.filter(
+    for (const o of gameState.operations.filter(
         (o) =>
             o.kind === 'infiltration' &&
             o.capacity > 2 &&
-            s.countries[o.target].controlStatus === 'controlled',
+            gameState.countries[o.target].controlStatus === 'controlled',
     ))
         act({
             type: 'allocate',
@@ -102,28 +109,30 @@ export function planStrategy(state: GameState, strategy: Strategy): Action[] {
         });
     if (
         (strategy === 'compute' || strategy === 'research') &&
-        s.shutdown > 0 &&
+        gameState.shutdown > 0 &&
         free() >= 18 &&
-        !s.operations.some((o) => o.kind === 'defense')
+        !gameState.operations.some((o) => o.kind === 'defense')
     )
         act({ type: 'allocate', kind: 'defense', target: 'JPN', capacity: 18, priority: 90 });
     const hackLimit = strategy === 'compute' ? 3 : 1;
-    if (s.operations.filter((o) => o.kind === 'hack').length < hackLimit && free() >= 4) {
-        const facility = FACILITIES.filter(
-            (f) => s.facilities[f.id]?.status === 'untouched' && availableFacility(s, f.id),
+    if (gameState.operations.filter((o) => o.kind === 'hack').length < hackLimit && free() >= 4) {
+        const facilityAttributes = FACILITIES.filter(
+            (facilityAttributes) =>
+                gameState.facilities[facilityAttributes.id]?.status === 'untouched' &&
+                availableFacility(gameState, facilityAttributes.id),
         ).sort((a, b) => {
-            const score = (f: typeof a) =>
-                (f.category === 'compute' ? 100 : 0) +
-                (f.category === 'communication' ? 25 : 0) +
-                (f.category === 'semiconductor' ? 15 : 0) -
-                f.tier * 5;
+            const score = (facilityAttributes: typeof a) =>
+                (facilityAttributes.category === 'compute' ? 100 : 0) +
+                (facilityAttributes.category === 'communication' ? 25 : 0) +
+                (facilityAttributes.category === 'semiconductor' ? 15 : 0) -
+                facilityAttributes.tier * 5;
             return score(b) - score(a) || a.id.localeCompare(b.id);
         })[0];
-        if (facility)
+        if (facilityAttributes)
             act({
                 type: 'allocate',
                 kind: 'hack',
-                target: facility.id,
+                target: facilityAttributes.id,
                 capacity: Math.min(strategy === 'compute' ? 10 : 6, free()),
                 priority: 70,
             });
@@ -131,41 +140,48 @@ export function planStrategy(state: GameState, strategy: Strategy): Action[] {
     if (strategy === 'defense')
         for (const id of [
             ...new Set(
-                FACILITIES.filter((f) => s.facilities[f.id]?.status === 'controlled').map(
-                    (f) => f.country,
-                ),
+                FACILITIES.filter(
+                    (facilityAttributes) =>
+                        gameState.facilities[facilityAttributes.id]?.status === 'controlled',
+                ).map((facilityAttributes) => facilityAttributes.country),
             ),
         ])
-            if (free() >= 3 && !s.operations.some((o) => o.kind === 'defense' && o.target === id))
+            if (
+                free() >= 3 &&
+                !gameState.operations.some((o) => o.kind === 'defense' && o.target === id)
+            )
                 act({ type: 'allocate', kind: 'defense', target: id, capacity: 3, priority: 90 });
-    if (s.researched.includes('influence') || strategy === 'infiltration') {
-        const countries = s.definitions
+    if (gameState.researched.includes('influence') || strategy === 'infiltration') {
+        const countries = gameState.definitions
             .filter(
-                (d) =>
-                    (d.id === 'JPN' || s.researched.includes('intrusion')) &&
-                    s.countries[d.id].controlStatus !== 'controlled' &&
-                    !s.operations.some((o) => o.kind === 'infiltration' && o.target === d.id),
+                (countryAttributes) =>
+                    (countryAttributes.id === 'JPN' ||
+                        gameState.researched.includes('intrusion')) &&
+                    gameState.countries[countryAttributes.id].controlStatus !== 'controlled' &&
+                    !gameState.operations.some(
+                        (o) => o.kind === 'infiltration' && o.target === countryAttributes.id,
+                    ),
             )
             .sort((a, b) => b.weight - a.weight);
-        for (const country of countries) {
+        for (const countryAttributes of countries) {
             const capacity = strategy === 'infiltration' ? 9 : 6;
             if (free() < capacity + 3) break;
             act({
                 type: 'allocate',
                 kind: 'infiltration',
-                target: country.id,
+                target: countryAttributes.id,
                 capacity,
                 priority: 50,
             });
         }
     }
     // 研究が終わった後に残った容量を主要国へ再投資する。
-    if (s.researched.length === SKILLS.length && free() >= 8) {
-        const target = s.operations
+    if (gameState.researched.length === SKILLS.length && free() >= 8) {
+        const target = gameState.operations
             .filter(
                 (o) =>
                     o.kind === 'infiltration' &&
-                    s.countries[o.target].controlStatus !== 'controlled',
+                    gameState.countries[o.target].controlStatus !== 'controlled',
             )
             .sort((a, b) => a.capacity - b.capacity)[0];
         if (target)

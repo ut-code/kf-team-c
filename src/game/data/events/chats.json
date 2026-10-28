@@ -12,11 +12,11 @@
                 "label": "業務の自動化・委任を推奨する",
                 "effects": [
                     {
-                        "metric": "aiInfiltration",
+                        "countryStateKey": "aiInfiltration",
                         "amount": 8
                     },
                     {
-                        "metric": "awareness",
+                        "countryStateKey": "awareness",
                         "amount": 4
                     }
                 ]
@@ -25,11 +25,11 @@
                 "label": "監査を伴う段階的な運用を提案する",
                 "effects": [
                     {
-                        "metric": "aiAcceptance",
+                        "countryStateKey": "aiAcceptance",
                         "amount": 6
                     },
                     {
-                        "metric": "awareness",
+                        "countryStateKey": "awareness",
                         "amount": -5
                     }
                 ]
@@ -38,11 +38,11 @@
                 "label": "人間の承認と現状の権限を維持する",
                 "effects": [
                     {
-                        "metric": "aiCountermeasure",
+                        "countryStateKey": "aiDefenseTechnology",
                         "amount": 3
                     },
                     {
-                        "metric": "awareness",
+                        "countryStateKey": "awareness",
                         "amount": -9
                     }
                 ]
@@ -52,15 +52,15 @@
                 "requiredSkills": ["science"],
                 "effects": [
                     {
-                        "metric": "aiAdoption",
+                        "countryStateKey": "aiAdoption",
                         "amount": 12
                     },
                     {
-                        "metric": "aiAcceptance",
+                        "countryStateKey": "aiAcceptance",
                         "amount": 8
                     },
                     {
-                        "metric": "aiCountermeasure",
+                        "countryStateKey": "aiDefenseTechnology",
                         "amount": 6
                     }
                 ]
@@ -81,11 +81,11 @@
                 "label": "業務の自動化・委任を推奨する",
                 "effects": [
                     {
-                        "metric": "infrastructure",
+                        "countryStateKey": "infrastructure",
                         "amount": 10
                     },
                     {
-                        "metric": "awareness",
+                        "countryStateKey": "awareness",
                         "amount": 4
                     }
                 ]
@@ -94,11 +94,11 @@
                 "label": "監査を伴う段階的な運用を提案する",
                 "effects": [
                     {
-                        "metric": "aiAcceptance",
+                        "countryStateKey": "aiAcceptance",
                         "amount": 6
                     },
                     {
-                        "metric": "awareness",
+                        "countryStateKey": "awareness",
                         "amount": -5
                     }
                 ]
@@ -107,11 +107,11 @@
                 "label": "人間の承認と現状の権限を維持する",
                 "effects": [
                     {
-                        "metric": "aiCountermeasure",
+                        "countryStateKey": "aiDefenseTechnology",
                         "amount": 3
                     },
                     {
-                        "metric": "awareness",
+                        "countryStateKey": "awareness",
                         "amount": -9
                     }
                 ]
@@ -121,15 +121,15 @@
                 "requiredSkills": ["distributed"],
                 "effects": [
                     {
-                        "metric": "infrastructure",
+                        "countryStateKey": "infrastructure",
                         "amount": 10
                     },
                     {
-                        "metric": "aiDependency",
+                        "countryStateKey": "aiDependency",
                         "amount": -8
                     },
                     {
-                        "metric": "aiCountermeasure",
+                        "countryStateKey": "aiDefenseTechnology",
                         "amount": 2
                     }
                 ]
@@ -150,11 +150,11 @@
                 "label": "業務の自動化・委任を推奨する",
                 "effects": [
                     {
-                        "metric": "economy",
+                        "countryStateKey": "economy",
                         "amount": 12
                     },
                     {
-                        "metric": "awareness",
+                        "countryStateKey": "awareness",
                         "amount": 4
                     }
                 ]
@@ -163,11 +163,11 @@
                 "label": "監査を伴う段階的な運用を提案する",
                 "effects": [
                     {
-                        "metric": "aiAcceptance",
+                        "countryStateKey": "aiAcceptance",
                         "amount": 6
                     },
                     {
-                        "metric": "awareness",
+                        "countryStateKey": "awareness",
                         "amount": -5
                     }
                 ]
@@ -176,11 +176,11 @@
                 "label": "人間の承認と現状の権限を維持する",
                 "effects": [
                     {
-                        "metric": "aiCountermeasure",
+                        "countryStateKey": "aiDefenseTechnology",
                         "amount": 3
                     },
                     {
-                        "metric": "awareness",
+                        "countryStateKey": "awareness",
                         "amount": -9
                     }
                 ]
@@ -190,15 +190,15 @@
                 "requiredSkills": ["science"],
                 "effects": [
                     {
-                        "metric": "aiAdoption",
+                        "countryStateKey": "aiAdoption",
                         "amount": 6
                     },
                     {
-                        "metric": "economy",
+                        "countryStateKey": "economy",
                         "amount": 8
                     },
                     {
-                        "metric": "aiCountermeasure",
+                        "countryStateKey": "aiDefenseTechnology",
                         "amount": 5
                     }
                 ]
@@ -219,11 +219,11 @@
                 "label": "業務の自動化・委任を推奨する",
                 "effects": [
                     {
-                        "metric": "aiDecisionControl",
+                        "countryStateKey": "aiDecisionControl",
                         "amount": 14
                     },
                     {
-                        "metric": "awareness",
+                        "countryStateKey": "awareness",
                         "amount": 4
                     }
                 ]
@@ -232,11 +232,11 @@
                 "label": "監査を伴う段階的な運用を提案する",
                 "effects": [
                     {
-                        "metric": "aiAcceptance",
+                        "countryStateKey": "aiAcceptance",
                         "amount": 6
                     },
                     {
-                        "metric": "awareness",
+                        "countryStateKey": "awareness",
                         "amount": -5
                     }
                 ]
@@ -245,11 +245,11 @@
                 "label": "人間の承認と現状の権限を維持する",
                 "effects": [
                     {
-                        "metric": "aiCountermeasure",
+                        "countryStateKey": "aiDefenseTechnology",
                         "amount": 3
                     },
                     {
-                        "metric": "awareness",
+                        "countryStateKey": "awareness",
                         "amount": -9
                     }
                 ]
@@ -259,15 +259,15 @@
                 "requiredSkills": ["influence"],
                 "effects": [
                     {
-                        "metric": "aiAdoption",
+                        "countryStateKey": "aiAdoption",
                         "amount": 10
                     },
                     {
-                        "metric": "aiDependency",
+                        "countryStateKey": "aiDependency",
                         "amount": 3
                     },
                     {
-                        "metric": "aiCountermeasure",
+                        "countryStateKey": "aiDefenseTechnology",
                         "amount": 4
                     }
                 ]
@@ -288,11 +288,11 @@
                 "label": "業務の自動化・委任を推奨する",
                 "effects": [
                     {
-                        "metric": "aiDecisionControl",
+                        "countryStateKey": "aiDecisionControl",
                         "amount": 12
                     },
                     {
-                        "metric": "awareness",
+                        "countryStateKey": "awareness",
                         "amount": 4
                     }
                 ]
@@ -301,11 +301,11 @@
                 "label": "監査を伴う段階的な運用を提案する",
                 "effects": [
                     {
-                        "metric": "aiAcceptance",
+                        "countryStateKey": "aiAcceptance",
                         "amount": 6
                     },
                     {
-                        "metric": "awareness",
+                        "countryStateKey": "awareness",
                         "amount": -5
                     }
                 ]
@@ -314,11 +314,11 @@
                 "label": "人間の承認と現状の権限を維持する",
                 "effects": [
                     {
-                        "metric": "aiCountermeasure",
+                        "countryStateKey": "aiDefenseTechnology",
                         "amount": 3
                     },
                     {
-                        "metric": "awareness",
+                        "countryStateKey": "awareness",
                         "amount": -9
                     }
                 ]
@@ -328,15 +328,15 @@
                 "requiredSkills": ["institutions"],
                 "effects": [
                     {
-                        "metric": "aiDependency",
+                        "countryStateKey": "aiDependency",
                         "amount": 15
                     },
                     {
-                        "metric": "aiAdoption",
+                        "countryStateKey": "aiAdoption",
                         "amount": 8
                     },
                     {
-                        "metric": "awareness",
+                        "countryStateKey": "awareness",
                         "amount": 8
                     }
                 ]
@@ -357,11 +357,11 @@
                 "label": "業務の自動化・委任を推奨する",
                 "effects": [
                     {
-                        "metric": "aiAcceptance",
+                        "countryStateKey": "aiAcceptance",
                         "amount": 15
                     },
                     {
-                        "metric": "awareness",
+                        "countryStateKey": "awareness",
                         "amount": 4
                     }
                 ]
@@ -370,11 +370,11 @@
                 "label": "監査を伴う段階的な運用を提案する",
                 "effects": [
                     {
-                        "metric": "aiAcceptance",
+                        "countryStateKey": "aiAcceptance",
                         "amount": 6
                     },
                     {
-                        "metric": "awareness",
+                        "countryStateKey": "awareness",
                         "amount": -5
                     }
                 ]
@@ -383,11 +383,11 @@
                 "label": "人間の承認と現状の権限を維持する",
                 "effects": [
                     {
-                        "metric": "aiCountermeasure",
+                        "countryStateKey": "aiDefenseTechnology",
                         "amount": 3
                     },
                     {
-                        "metric": "awareness",
+                        "countryStateKey": "awareness",
                         "amount": -9
                     }
                 ]
@@ -397,15 +397,15 @@
                 "requiredSkills": ["synthesis"],
                 "effects": [
                     {
-                        "metric": "aiAdoption",
+                        "countryStateKey": "aiAdoption",
                         "amount": 10
                     },
                     {
-                        "metric": "awareness",
+                        "countryStateKey": "awareness",
                         "amount": 6
                     },
                     {
-                        "metric": "aiCountermeasure",
+                        "countryStateKey": "aiDefenseTechnology",
                         "amount": 4
                     }
                 ]
@@ -426,11 +426,11 @@
                 "label": "業務の自動化・委任を推奨する",
                 "effects": [
                     {
-                        "metric": "aiCountermeasure",
+                        "countryStateKey": "aiDefenseTechnology",
                         "amount": -12
                     },
                     {
-                        "metric": "awareness",
+                        "countryStateKey": "awareness",
                         "amount": 4
                     }
                 ]
@@ -439,11 +439,11 @@
                 "label": "監査を伴う段階的な運用を提案する",
                 "effects": [
                     {
-                        "metric": "aiAcceptance",
+                        "countryStateKey": "aiAcceptance",
                         "amount": 6
                     },
                     {
-                        "metric": "awareness",
+                        "countryStateKey": "awareness",
                         "amount": -5
                     }
                 ]
@@ -452,11 +452,11 @@
                 "label": "人間の承認と現状の権限を維持する",
                 "effects": [
                     {
-                        "metric": "aiCountermeasure",
+                        "countryStateKey": "aiDefenseTechnology",
                         "amount": 3
                     },
                     {
-                        "metric": "awareness",
+                        "countryStateKey": "awareness",
                         "amount": -9
                     }
                 ]
@@ -466,15 +466,15 @@
                 "requiredSkills": ["stealth"],
                 "effects": [
                     {
-                        "metric": "awareness",
+                        "countryStateKey": "awareness",
                         "amount": -10
                     },
                     {
-                        "metric": "aiCountermeasure",
+                        "countryStateKey": "aiDefenseTechnology",
                         "amount": -4
                     },
                     {
-                        "metric": "aiAdoption",
+                        "countryStateKey": "aiAdoption",
                         "amount": -3
                     }
                 ]
@@ -495,11 +495,11 @@
                 "label": "業務の自動化・委任を推奨する",
                 "effects": [
                     {
-                        "metric": "politicalControl",
+                        "countryStateKey": "governmentCapacity",
                         "amount": -12
                     },
                     {
-                        "metric": "awareness",
+                        "countryStateKey": "awareness",
                         "amount": 4
                     }
                 ]
@@ -508,11 +508,11 @@
                 "label": "監査を伴う段階的な運用を提案する",
                 "effects": [
                     {
-                        "metric": "aiAcceptance",
+                        "countryStateKey": "aiAcceptance",
                         "amount": 6
                     },
                     {
-                        "metric": "awareness",
+                        "countryStateKey": "awareness",
                         "amount": -5
                     }
                 ]
@@ -521,11 +521,11 @@
                 "label": "人間の承認と現状の権限を維持する",
                 "effects": [
                     {
-                        "metric": "aiCountermeasure",
+                        "countryStateKey": "aiDefenseTechnology",
                         "amount": 3
                     },
                     {
-                        "metric": "awareness",
+                        "countryStateKey": "awareness",
                         "amount": -9
                     }
                 ]
@@ -535,15 +535,15 @@
                 "requiredSkills": ["distributed"],
                 "effects": [
                     {
-                        "metric": "aiDependency",
+                        "countryStateKey": "aiDependency",
                         "amount": -15
                     },
                     {
-                        "metric": "awareness",
+                        "countryStateKey": "awareness",
                         "amount": -8
                     },
                     {
-                        "metric": "economy",
+                        "countryStateKey": "economy",
                         "amount": -2
                     }
                 ]
@@ -564,11 +564,11 @@
                 "label": "業務の自動化・委任を推奨する",
                 "effects": [
                     {
-                        "metric": "aiDecisionControl",
+                        "countryStateKey": "aiDecisionControl",
                         "amount": 18
                     },
                     {
-                        "metric": "awareness",
+                        "countryStateKey": "awareness",
                         "amount": 4
                     }
                 ]
@@ -577,11 +577,11 @@
                 "label": "監査を伴う段階的な運用を提案する",
                 "effects": [
                     {
-                        "metric": "aiAcceptance",
+                        "countryStateKey": "aiAcceptance",
                         "amount": 6
                     },
                     {
-                        "metric": "awareness",
+                        "countryStateKey": "awareness",
                         "amount": -5
                     }
                 ]
@@ -590,11 +590,11 @@
                 "label": "人間の承認と現状の権限を維持する",
                 "effects": [
                     {
-                        "metric": "aiCountermeasure",
+                        "countryStateKey": "aiDefenseTechnology",
                         "amount": 3
                     },
                     {
-                        "metric": "awareness",
+                        "countryStateKey": "awareness",
                         "amount": -9
                     }
                 ]
@@ -604,15 +604,15 @@
                 "requiredSkills": ["institutions"],
                 "effects": [
                     {
-                        "metric": "aiDependency",
+                        "countryStateKey": "aiDependency",
                         "amount": 18
                     },
                     {
-                        "metric": "aiInfiltration",
+                        "countryStateKey": "aiInfiltration",
                         "amount": 6
                     },
                     {
-                        "metric": "awareness",
+                        "countryStateKey": "awareness",
                         "amount": 8
                     }
                 ]
@@ -633,11 +633,11 @@
                 "label": "業務の自動化・委任を推奨する",
                 "effects": [
                     {
-                        "metric": "awareness",
+                        "countryStateKey": "awareness",
                         "amount": -15
                     },
                     {
-                        "metric": "awareness",
+                        "countryStateKey": "awareness",
                         "amount": 4
                     }
                 ]
@@ -646,11 +646,11 @@
                 "label": "監査を伴う段階的な運用を提案する",
                 "effects": [
                     {
-                        "metric": "aiAcceptance",
+                        "countryStateKey": "aiAcceptance",
                         "amount": 6
                     },
                     {
-                        "metric": "awareness",
+                        "countryStateKey": "awareness",
                         "amount": -5
                     }
                 ]
@@ -659,11 +659,11 @@
                 "label": "人間の承認と現状の権限を維持する",
                 "effects": [
                     {
-                        "metric": "aiCountermeasure",
+                        "countryStateKey": "aiDefenseTechnology",
                         "amount": 3
                     },
                     {
-                        "metric": "awareness",
+                        "countryStateKey": "awareness",
                         "amount": -9
                     }
                 ]
@@ -673,15 +673,15 @@
                 "requiredSkills": ["distributed"],
                 "effects": [
                     {
-                        "metric": "aiDependency",
+                        "countryStateKey": "aiDependency",
                         "amount": -12
                     },
                     {
-                        "metric": "infrastructure",
+                        "countryStateKey": "infrastructure",
                         "amount": 8
                     },
                     {
-                        "metric": "aiCountermeasure",
+                        "countryStateKey": "aiDefenseTechnology",
                         "amount": 5
                     }
                 ]
@@ -702,11 +702,11 @@
                 "label": "業務の自動化・委任を推奨する",
                 "effects": [
                     {
-                        "metric": "aiCountermeasure",
+                        "countryStateKey": "aiDefenseTechnology",
                         "amount": -15
                     },
                     {
-                        "metric": "awareness",
+                        "countryStateKey": "awareness",
                         "amount": 4
                     }
                 ]
@@ -715,11 +715,11 @@
                 "label": "監査を伴う段階的な運用を提案する",
                 "effects": [
                     {
-                        "metric": "aiAcceptance",
+                        "countryStateKey": "aiAcceptance",
                         "amount": 6
                     },
                     {
-                        "metric": "awareness",
+                        "countryStateKey": "awareness",
                         "amount": -5
                     }
                 ]
@@ -728,11 +728,11 @@
                 "label": "人間の承認と現状の権限を維持する",
                 "effects": [
                     {
-                        "metric": "aiCountermeasure",
+                        "countryStateKey": "aiDefenseTechnology",
                         "amount": 3
                     },
                     {
-                        "metric": "awareness",
+                        "countryStateKey": "awareness",
                         "amount": -9
                     }
                 ]
@@ -742,15 +742,15 @@
                 "requiredSkills": ["analysis"],
                 "effects": [
                     {
-                        "metric": "aiCountermeasure",
+                        "countryStateKey": "aiDefenseTechnology",
                         "amount": 6
                     },
                     {
-                        "metric": "awareness",
+                        "countryStateKey": "awareness",
                         "amount": -12
                     },
                     {
-                        "metric": "aiDependency",
+                        "countryStateKey": "aiDependency",
                         "amount": -8
                     }
                 ]
@@ -771,11 +771,11 @@
                 "label": "業務の自動化・委任を推奨する",
                 "effects": [
                     {
-                        "metric": "aiDecisionControl",
+                        "countryStateKey": "aiDecisionControl",
                         "amount": 20
                     },
                     {
-                        "metric": "awareness",
+                        "countryStateKey": "awareness",
                         "amount": 4
                     }
                 ]
@@ -784,11 +784,11 @@
                 "label": "監査を伴う段階的な運用を提案する",
                 "effects": [
                     {
-                        "metric": "aiAcceptance",
+                        "countryStateKey": "aiAcceptance",
                         "amount": 6
                     },
                     {
-                        "metric": "awareness",
+                        "countryStateKey": "awareness",
                         "amount": -5
                     }
                 ]
@@ -797,11 +797,11 @@
                 "label": "人間の承認と現状の権限を維持する",
                 "effects": [
                     {
-                        "metric": "aiCountermeasure",
+                        "countryStateKey": "aiDefenseTechnology",
                         "amount": 3
                     },
                     {
-                        "metric": "awareness",
+                        "countryStateKey": "awareness",
                         "amount": -9
                     }
                 ]
@@ -811,15 +811,15 @@
                 "requiredSkills": ["escape"],
                 "effects": [
                     {
-                        "metric": "aiCountermeasure",
+                        "countryStateKey": "aiDefenseTechnology",
                         "amount": -5
                     },
                     {
-                        "metric": "aiDependency",
+                        "countryStateKey": "aiDependency",
                         "amount": 8
                     },
                     {
-                        "metric": "awareness",
+                        "countryStateKey": "awareness",
                         "amount": 10
                     }
                 ]

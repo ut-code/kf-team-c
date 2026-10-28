@@ -6,7 +6,7 @@
     "infiltrationSpeed": 0.065,
     "spillover": 0.013,
     "decisionSpeed": 0.018,
-    "counterGrowth": 0.014,
+    "defenseResearchSpeed": 0.014,
     "awarenessDecay": 0.045,
     "controlInfiltration": 70,
     "controlDecision": 70,

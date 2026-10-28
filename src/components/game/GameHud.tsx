@@ -1,6 +1,6 @@
 import { ChevronRight, ChevronsRight, Cpu, Eye, Globe, Pause, Play } from 'lucide-react';
 import { gameDate } from '../../game/calendar.ts';
-import { computeState } from '../../game/engine.ts';
+import { computeMetrics } from '../../game/engine.ts';
 import { worldMetrics } from '../../game/outcome.ts';
 import type { GameState } from '../../game/types.ts';
 import { Button, IconButton } from '../ui/Controls';
@@ -15,7 +15,7 @@ const speeds = [
     { value: 16, label: '16倍速', icon: ChevronsRight },
 ];
 export function GameHud({
-    game,
+    game: gameState,
     speed,
     setSpeed,
     onCompute,
@@ -25,10 +25,10 @@ export function GameHud({
     setSpeed: (speed: number) => void;
     onCompute: () => void;
 }) {
-    const world = worldMetrics(game),
-        compute = computeState(game),
-        date = gameDate(game.tick);
-    const paused = speed === 0 || game.chatOpen;
+    const world = worldMetrics(gameState),
+        compute = computeMetrics(gameState),
+        date = gameDate(gameState.tick);
+    const paused = speed === 0 || gameState.chatOpen;
     return (
         <>
             <div className={styles.hud}>

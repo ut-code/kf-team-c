@@ -1,5 +1,7 @@
 import { BookOpen, Cpu, Mail, SlidersHorizontal } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import type { CountryParameterKey } from '../game/countryParameters';
+import { COUNTRY_PARAMETERS } from '../game/countryParameters';
 import {
     CHATS,
     FACILITIES,
@@ -9,15 +11,17 @@ import {
     SKILLS,
 } from '../game/data.ts';
 import { canChooseChat } from '../game/engine.ts';
+import { countryMetrics } from '../game/metrics';
 import { worldMetrics } from '../game/outcome.ts';
 import type { Country, MapMarker } from '../map/types';
 import { useGameStore } from '../state/gameStore';
 import { useMapStore } from '../state/mapStore';
 import styles from './GameApp.module.css';
-import { CloseButton, CountryFlag, METRIC_LABELS, number } from './game/controls';
+import { CloseButton, COUNTRY_STATE_LABELS, CountryFlag, number } from './game/controls';
 import { DebugPanel } from './game/DebugPanel';
 import { GameHud } from './game/GameHud';
 import { CountryInfo, FacilityInfo } from './game/InfoPanels';
+import { MapDataPanel } from './game/MapDataPanel';
 import { Notifications } from './game/Notifications';
 import { ComputePanel, ResearchPanel, SnsPanel } from './game/StrategyPanels';
 import { Button } from './ui/Controls';
@@ -57,7 +61,7 @@ export function GameApp({
     countries: Country[];
     backgroundUrl: string;
 }) {
-    const game = useGameStore((state) => state.game)!;
+    const gameState = useGameStore((state) => state.game)!;
     const speed = useGameStore((state) => state.speed);
     const setSpeed = useGameStore((state) => state.setSpeed);
     const dispatch = useGameStore((state) => state.dispatch);
@@ -65,20 +69,37 @@ export function GameApp({
     const marker = useMapStore((state) => state.selectedMarkerId);
     const markerSelection = useMapStore((state) => state.markerSelection);
     const [panel, setPanel] = useState<OpenPanel>(null);
-    const world = worldMetrics(game);
-    const chat = CHATS.find((item) => item.id === game.pendingChat);
+    const [mapParameter, setMapParameter] = useState<CountryParameterKey | null>(null);
+    const [inspectedCountry, setInspectedCountry] = useState<string | null>(null);
+    const mapValues = useMemo(
+        () =>
+            mapParameter
+                ? Object.fromEntries(
+                      Object.entries(gameState.countries).map(([id, state]) => [
+                          id,
+                          mapParameter === 'aiDefenseEffectiveness'
+                              ? countryMetrics(state).aiDefenseEffectiveness
+                              : state[mapParameter],
+                      ]),
+                  )
+                : undefined,
+        [gameState.countries, mapParameter],
+    );
+    const readoutId = inspectedCountry ?? selected;
+    const world = worldMetrics(gameState);
+    const chat = CHATS.find((item) => item.id === gameState.pendingChat);
     const person = chat ? PEOPLE.find((item) => item.id === chat.person)! : null;
-    const country = selected ? game.countries[selected] : null;
+    const countryState = selected ? gameState.countries[selected] : null;
     const facility = marker ? FACILITY_BY_ID[marker] : null;
 
     useEffect(() => {
-        if (!speed || game.outcome !== 'playing' || game.chatOpen) return;
+        if (!speed || gameState.outcome !== 'playing' || gameState.chatOpen) return;
         const timer = window.setInterval(
             () => useGameStore.getState().step(),
-            (game.config.secondsPerTick * 1000) / speed,
+            (gameState.config.secondsPerTick * 1000) / speed,
         );
         return () => clearInterval(timer);
-    }, [speed, game.config.secondsPerTick, game.outcome, game.chatOpen]);
+    }, [speed, gameState.config.secondsPerTick, gameState.outcome, gameState.chatOpen]);
     const markers = useMemo<MapMarker[]>(
         () => [
             {
@@ -143,15 +164,24 @@ export function GameApp({
             <WorldMap
                 countries={countries}
                 backgroundUrl={backgroundUrl}
-                countryStates={game.countries}
-                facilityStates={game.facilities}
+                countryStates={gameState.countries}
+                parameterValues={mapValues}
+                parameterLabel={mapParameter ? COUNTRY_PARAMETERS[mapParameter].name : undefined}
+                onCountryInspect={setInspectedCountry}
+                facilityStates={gameState.facilities}
                 onCountrySelect={selectCountry}
                 initialLongitude={FACILITY_BY_ID[INITIAL_FACILITY_ID].longitude}
-                trafficSpeed={game.outcome === 'playing' && !game.chatOpen ? speed : 0}
-                trafficTick={game.tick}
+                trafficSpeed={gameState.outcome === 'playing' && !gameState.chatOpen ? speed : 0}
+                trafficTick={gameState.tick}
+            />
+            <MapDataPanel
+                parameter={mapParameter}
+                onChange={setMapParameter}
+                country={gameState.definitions.find((country) => country.id === readoutId)}
+                value={readoutId ? mapValues?.[readoutId] : undefined}
             />
             <GameHud
-                game={game}
+                game={gameState}
                 speed={speed}
                 setSpeed={setSpeed}
                 onCompute={() => {
@@ -159,13 +189,13 @@ export function GameApp({
                     setPanel('compute');
                 }}
             />
-            <Notifications events={game.events} nextEvent={game.nextEvent} />
-            {(game.shortage || game.shutdown > 0) && (
+            <Notifications events={gameState.events} nextEvent={gameState.nextEvent} />
+            {(gameState.shortage || gameState.shutdown > 0) && (
                 <div className={styles.warning}>
-                    {game.shortage && <span>計算資源不足</span>}
-                    {game.shutdown > 0 && (
+                    {gameState.shortage && <span>計算資源不足</span>}
+                    {gameState.shutdown > 0 && (
                         <span>
-                            停止作戦：{number(game.shutdown)} / {game.config.shutdownDays}
+                            停止作戦：{number(gameState.shutdown)} / {gameState.config.shutdownDays}
                         </span>
                     )}
                 </div>
@@ -194,18 +224,18 @@ export function GameApp({
                     role={panel === 'chat' ? 'dialog' : undefined}
                 >
                     <CloseButton onClick={closePanel} />
-                    {panel === 'country' && country && (
-                        <CountryInfo game={game} country={country} />
+                    {panel === 'country' && countryState && (
+                        <CountryInfo game={gameState} country={countryState} />
                     )}
                     {panel === 'facility' && facility && (
-                        <FacilityInfo key={facility.id} game={game} id={facility.id} />
+                        <FacilityInfo key={facility.id} game={gameState} id={facility.id} />
                     )}
-                    {panel === 'research' && <ResearchPanel game={game} />}
-                    {panel === 'compute' && <ComputePanel game={game} />}
-                    {panel === 'sns' && <SnsPanel game={game} />}
+                    {panel === 'research' && <ResearchPanel game={gameState} />}
+                    {panel === 'compute' && <ComputePanel game={gameState} />}
+                    {panel === 'sns' && <SnsPanel game={gameState} />}
                     {panel === 'settings' && (
                         <DebugPanel
-                            game={game}
+                            game={gameState}
                             countries={countries}
                             selected={selected}
                             onRestart={closePanel}
@@ -217,8 +247,9 @@ export function GameApp({
                                 <CountryFlag
                                     id={chat.country}
                                     name={
-                                        game.definitions.find((item) => item.id === chat.country)!
-                                            .name
+                                        gameState.definitions.find(
+                                            (item) => item.id === chat.country,
+                                        )!.name
                                     }
                                 />
                                 <div>
@@ -233,14 +264,14 @@ export function GameApp({
                                     <Button
                                         type="button"
                                         key={choice.label}
-                                        disabled={!canChooseChat(game, choice)}
+                                        disabled={!canChooseChat(gameState, choice)}
                                         onClick={() => {
                                             dispatch({ type: 'reply', choice: index });
                                             setPanel(null);
                                         }}
                                     >
                                         {choice.label}
-                                        {!canChooseChat(game, choice) && (
+                                        {!canChooseChat(gameState, choice) && (
                                             <small>
                                                 必要研究：
                                                 {choice
@@ -256,7 +287,7 @@ export function GameApp({
                                             {choice.effects
                                                 .map(
                                                     (effect) =>
-                                                        `${METRIC_LABELS[effect.metric]}：${effect.amount > 0 ? '+' : ''}${effect.amount}`,
+                                                        `${COUNTRY_STATE_LABELS[effect.countryStateKey]}：${effect.amount > 0 ? '+' : ''}${effect.amount}`,
                                                 )
                                                 .join('　')}
                                         </small>
@@ -267,7 +298,7 @@ export function GameApp({
                     )}
                 </Panel>
             )}
-            {game.outcome !== 'playing' && (
+            {gameState.outcome !== 'playing' && (
                 <div className={styles.resultBackdrop}>
                     <Panel
                         as="section"
@@ -275,13 +306,13 @@ export function GameApp({
                         role="dialog"
                         aria-label="ゲーム結果"
                     >
-                        <h2>{game.outcome === 'victory' ? '勝利' : '敗北'}</h2>
-                        <p>{game.outcomeReason}</p>
+                        <h2>{gameState.outcome === 'victory' ? '勝利' : '敗北'}</h2>
+                        <p>{gameState.outcomeReason}</p>
                         <p>支配率：{number(world.control)}%</p>
                         <Button
                             type="button"
                             onClick={() => {
-                                useGameStore.getState().initialize(countries, game.seed);
+                                useGameStore.getState().initialize(countries, gameState.seed);
                                 closePanel();
                             }}
                         >

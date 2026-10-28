@@ -1,18 +1,35 @@
-export const METRICS = [
+// ゲームに登場するパラメーター名は以下のように管理されています
+//
+// State -> 時間とともに変化するパラメーター  cf) CountryState, GameState
+// Attributes -> 対象に固有の基本設定 cf) FacilityAttributes, CountryAttributes
+// Metrics -> 状態から計算して得られる指標 cf) WorldMetrics
+
+export const COUNTRY_STATE_KEYS = [
+    // [インフラ] 通信・電力など社会基盤の稼働状態
     'infrastructure',
+    // [経済] 経済活動の健全さ
     'economy',
-    'politicalControl',
-    'aiInfiltration',
-    'aiDecisionControl',
-    'aiCountermeasure',
+    // [行政能力] 政府の政策実行能力
+    'governmentCapacity',
+    // [対AI技術水準] 対AI技術がどこまで開発されているか
+    'aiDefenseTechnology',
+
+    // [AI受容度] 社会がAIの利用を受け入れる姿勢
     'aiAcceptance',
-    'aiAdoption',
-    'aiDependency',
+    // [警戒度] 人間側がAIの介入をどれだけ警戒しているか
     'awareness',
+
+    // [AI導入率] 社会でAIの利用がどれだけ広がっているか
+    'aiAdoption',
+    // [浸透度] AIが国の内部へ入り込んでいる程度
+    'aiInfiltration',
+    // [意思決定支配] AIが国の意思決定を左右している程度
+    'aiDecisionControl',
+    // [AI依存度] 社会がAIなしでは機能しにくくなっている程度
+    'aiDependency',
 ] as const;
-export const ATTRIBUTES = METRICS;
-export type Attribute = (typeof ATTRIBUTES)[number];
-export type Metric = Attribute;
+/** 国の数値状態の項目名。 */
+export type CountryStateKey = (typeof COUNTRY_STATE_KEYS)[number];
 export type Region = '英語圏' | '東アジア' | '欧州' | 'その他';
 export type Category =
     | 'compute'
@@ -42,9 +59,14 @@ export type Modifier = {
     parallel: number;
 };
 export type Bonuses = Modifier;
-export type Effect = { metric: Metric; amount: number; scope?: 'country' | 'region' | 'world' };
-export type Condition = { metric: Attribute; min: number };
-export interface CountryDefinition {
+export type Effect = {
+    countryStateKey: CountryStateKey;
+    amount: number;
+    scope?: 'country' | 'region' | 'world';
+};
+export type Condition = { countryStateKey: CountryStateKey; min: number };
+/** 国に固有の基本設定。 */
+export interface CountryAttributes {
     id: string;
     name: string;
     region: Region;
@@ -53,17 +75,19 @@ export interface CountryDefinition {
     baseline: {
         infrastructure: number;
         economy: number;
-        politicalControl: number;
+        governmentCapacity: number;
         aiAcceptance: number;
     };
 }
-export interface CountryState extends Record<Metric, number> {
+/** 時間とともに変化する国単位の保存状態。 */
+export interface CountryState extends Record<CountryStateKey, number> {
     id: string;
     controlStatus: 'free' | 'infiltrated' | 'controlled';
     lossDays: number;
     serviceSupply: number;
 }
-export interface FacilityDefinition {
+/** 施設に固有の基本設定。 */
+export interface FacilityAttributes {
     id: string;
     name: string;
     country: string;
@@ -74,6 +98,7 @@ export interface FacilityDefinition {
     location: string;
     reference: string;
 }
+/** 時間とともに変化する施設単位の保存状態。 */
 export interface FacilityState {
     id: string;
     status: FacilityStatus;
@@ -136,15 +161,16 @@ export interface Change {
     tick: number;
     country?: string;
     source: string;
-    metric: string;
+    countryStateKey: string;
     delta: number;
     message: string;
 }
-export interface State {
+/** 国・施設・進行情報をまとめたゲーム全体の保存状態。 */
+export interface GameState {
     tick: number;
     seed: number;
     rng: number;
-    definitions: CountryDefinition[];
+    definitions: CountryAttributes[];
     countries: Record<string, CountryState>;
     facilities: Record<string, FacilityState>;
     operations: Operation[];
@@ -173,7 +199,6 @@ export interface State {
     shortage: boolean;
     config: Balance;
 }
-export type GameState = State;
 export interface Balance {
     secondsPerTick: number;
     initialCapacity: number;
@@ -182,7 +207,7 @@ export interface Balance {
     infiltrationSpeed: number;
     spillover: number;
     decisionSpeed: number;
-    counterGrowth: number;
+    defenseResearchSpeed: number;
     awarenessDecay: number;
     controlInfiltration: number;
     controlDecision: number;
@@ -211,6 +236,25 @@ export type Command =
     | { type: 'reply'; choice: number }
     | { type: 'chat-open' }
     | { type: 'chat-close' }
-    | { type: 'debug-country'; country: string; metric: Metric; value: number }
+    | { type: 'debug-country'; country: string; countryStateKey: CountryStateKey; value: number }
     | { type: 'config'; key: keyof Balance; value: number };
 export type Action = Command;
+
+/** 国の状態から算出する世界全体の指標。 */
+export interface WorldMetrics {
+    control: number;
+    infiltration: number;
+    awareness: number;
+}
+
+/** 施設の状態と作業への配分から算出する演算容量の指標。 */
+export interface ComputeMetrics {
+    totalCapacity: number;
+    allocatedCapacity: number;
+    availableCapacity: number;
+}
+
+/** 国の状態から算出する指標。 */
+export interface CountryMetrics {
+    aiDefenseEffectiveness: number;
+}

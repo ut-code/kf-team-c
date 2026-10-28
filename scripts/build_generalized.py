@@ -8,7 +8,7 @@ import sys
 import numpy as np
 from netCDF4 import Dataset
 from PIL import Image, ImageDraw
-from scipy.ndimage import maximum_filter, minimum_filter, label, find_objects, distance_transform_edt, grey_closing
+from scipy.ndimage import maximum_filter, minimum_filter, label, find_objects, distance_transform_edt, grey_closing, gaussian_filter
 from scipy.spatial import Delaunay
 from skimage.measure import find_contours, approximate_polygon
 from skimage.morphology import reconstruction
@@ -45,6 +45,7 @@ def climate_regions(field, settings, step):
     result = np.zeros(field.shape, dtype=np.float32)
     counts = 0
     # 画面端に達する領域も閉曲線にする。外周の1画素は後で取り除く。
+    field = gaussian_filter(field, settings['climate_shape_scale_degrees']/step, mode=('nearest', 'wrap'))
     padded = np.pad(field, 1)
     for threshold in settings['climate_thresholds']:
         image = Image.new('L', (field.shape[1] + 2, field.shape[0] + 2))
@@ -168,7 +169,7 @@ def main():
     rgb += shade[..., None] * settings['relief_strength']
     rgb += terrain.smoothstep(500, 5000, elevation)[..., None]*4
     rgb = rgb*(1-lakes[..., None]) + np.array(settings['lake'])*lakes[..., None]
-    rgb = rgb*land[..., None] + np.array(settings['ocean'])*(1-land[..., None])
+    # 海との被覆率合成は最終投影後に一度だけ行う。
     flat = Image.fromarray(np.uint8(np.clip(rgb, 0, 255)))
     config = json.loads(terrain.PARAMETERS.read_text(encoding='utf-8'))
     projection = terrain.Projection(config['projection'])

@@ -3,13 +3,13 @@
         "major": {
             "infrastructure": 82,
             "economy": 78,
-            "politicalControl": 74,
+            "governmentCapacity": 74,
             "aiAcceptance": 48
         },
         "other": {
             "infrastructure": 66,
             "economy": 60,
-            "politicalControl": 62,
+            "governmentCapacity": 62,
             "aiAcceptance": 48
         }
     },

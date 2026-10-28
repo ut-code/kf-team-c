@@ -3,7 +3,7 @@ import settings from './data/simulation/society.json' with { type: 'json' };
 import type {
     ChatDefinition,
     Condition,
-    CountryDefinition,
+    CountryAttributes,
     CountryState,
     Effect,
 } from './types.ts';
@@ -27,23 +27,23 @@ export function choiceAvailable(
 }
 
 export function selectNews(input: {
-    definitions: readonly CountryDefinition[];
+    definitions: readonly CountryAttributes[];
     countries: Readonly<Record<string, CountryState>>;
     researched: readonly string[];
     seenNews: readonly string[];
-}): { item: NewsDefinition; country: CountryDefinition } | null {
+}): { item: NewsDefinition; country: CountryAttributes } | null {
     const countries = [...input.definitions].sort((a, b) => a.id.localeCompare(b.id));
     for (const item of NEWS) {
         if (!item.requiredSkills.every((id) => input.researched.includes(id))) continue;
-        const country = countries.find(
+        const countryAttributes = countries.find(
             (candidate) =>
                 !input.seenNews.includes(`${item.id}:${candidate.id}`) &&
                 item.conditions.every(
                     (condition) =>
-                        input.countries[candidate.id][condition.metric] >= condition.min,
+                        input.countries[candidate.id][condition.countryStateKey] >= condition.min,
                 ),
         );
-        if (country) return { item, country };
+        if (countryAttributes) return { item, country: countryAttributes };
     }
     return null;
 }

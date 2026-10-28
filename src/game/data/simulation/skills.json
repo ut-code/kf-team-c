@@ -143,7 +143,7 @@
         "id": "stealth",
         "name": "活動秘匿",
         "branch": "自己防衛",
-        "description": "活動の露見を35%低減。",
+        "description": "活動による察知度の上昇を35%低減。",
         "prerequisites": [],
         "work": 110,
         "bonuses": {

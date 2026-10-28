@@ -12,22 +12,22 @@
   ],
   "settings": {
     "deep": [
-      16,
-      31,
-      43
+      24,
+      48,
+      65
     ],
     "quiet_shallow": [
-      18,
-      34,
-      46
+      28,
+      56,
+      72
     ],
     "shelf": [
-      27,
-      49,
-      61
+      37,
+      72,
+      85
     ],
-    "shelf_strength": 0.85,
-    "shelf_transition_degrees": 0.08,
+    "shelf_strength": 0.45,
+    "shelf_transition_degrees": 0.3,
     "shelf_contour_tolerance_degrees": 0.16,
     "shelf_minimum_area_deg2": 0.08,
     "ridge_tint": [
@@ -72,12 +72,12 @@
   "land_materials": {},
   "shelf_regions": 669,
   "checks": {
-    "protected_pixels_before_coast_processing": 11800800,
-    "boundary_only_changed_pixels": 447303,
-    "boundary_only_changed_ratio": 0.012520618434347054,
-    "max_boundary_rgb_difference": 14,
-    "coast_highlight_pixels": 176033,
-    "coast_shadow_pixels": 210403,
+    "protected_pixels_before_coast_processing": 11917928,
+    "boundary_only_changed_pixels": 676773,
+    "boundary_only_changed_ratio": 0.018943795368393145,
+    "max_boundary_rgb_difference": 7,
+    "coast_highlight_pixels": 0,
+    "coast_shadow_pixels": 0,
     "land_interior_unchanged": true
   },
   "source_description": "Reduced by Gaussian Cartesian filtering (31.5 km fullwidth) from SRTM15_V2.7.nc [Tozer et al., 2019; https://doi.org/10.1029/2019EA000658]",
@@ -88,15 +88,15 @@
     },
     {
       "file": "assets/generated/terrain/地形整理.png",
-      "sha256": "ab8767f018f164835325321d4ba9ad141dbda0ac3eee48835350a8d0fe89815b"
+      "sha256": "919655c44a40f6dd7839886f2f3768fe43cfd4cd865579ff58c24e583986176a"
     },
     {
       "file": "data/map-studies/raw/ne_110m_land.geojson",
-      "sha256": "9e0729ee253ca7d7a5c4ae9395fb1902264c5377c52e224d13dd85010e2835d9"
+      "sha256": "3d34c10cebfdba17f5f97180dd7c5100c8c5e05f2f583061aa8de2e9f942a904"
     },
     {
       "file": "scripts/map_studies/ocean-parameters.json",
-      "sha256": "479e7e3c736a54434bc95eede5194ab1a7f0ca8a65898671a7cf0c997875b981"
+      "sha256": "84de45b99844f0735fbc6132d3c3008f4af7a40da3dc6df799d53b81d5e58358"
     },
     {
       "file": "scripts/map_studies/land-materials.json",
@@ -104,21 +104,21 @@
     },
     {
       "file": "scripts/build_oceans.py",
-      "sha256": "e7598e0fdd09489c5b82fc5acd9b760c30b7236e2635877c3a89e907ef525817"
+      "sha256": "5dedad425e7b7f3cfa590aa0ccc3946871b24a6e6fd84ad2e5928ced3057841c"
     },
     {
       "file": "scripts/build_generalized.py",
-      "sha256": "f38eb8ec6fe1e1aba4c9b233baa8dbbf815ff0443ecea0522be483eb32ab8b3a"
+      "sha256": "424653ce39a5a3baba12a1bb27982c909dd1c0867f96e9e87d6052b08443d20c"
     }
   ],
   "outputs": [
     {
       "file": "assets/generated/map/世界地図.png",
-      "sha256": "d6a4679e28d5391ee7dd9a2b83e524d9aedb0cb2fd1aac262ee4ddb3a7526f44"
+      "sha256": "73575b7d5182afb7bff14dbde74cbe9d4149f460431f0f1f47c5c8974b61cc3f"
     },
     {
       "file": "assets/generated/map/世界地図.webp",
-      "sha256": "cac31c02c0374098dfe5c8e50014184f623582b2bc2a480fa1f3e66b3ec82be5"
+      "sha256": "1e9d70100618626d4bd5639b5523e5c4d15078c928914cec27f6773fc15c81d8"
     }
   ]
 }

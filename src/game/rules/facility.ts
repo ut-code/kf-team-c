@@ -66,7 +66,10 @@ export function facilitySupportEffect(
     decisionUnlocked: boolean,
     targetInfiltration: number,
 ): Effect | null {
-    if (effect.metric === 'aiDecisionControl' && (!decisionUnlocked || targetInfiltration < 25))
+    if (
+        effect.countryStateKey === 'aiDecisionControl' &&
+        (!decisionUnlocked || targetInfiltration < 25)
+    )
         return null;
     return { ...effect, amount: effect.amount * accessMultiplier * (infrastructure / 100) };
 }
