@@ -1,0 +1,154 @@
+/* 上部は統計だけ。日付と速度は左下に独立させる。 */
+.hud {
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: max-content;
+}
+.stats {
+    display: flex;
+    align-items: center;
+    gap: 26px;
+    min-height: 60px;
+    padding: 8px 22px;
+    border-radius: var(--panel-radius);
+}
+.stat {
+    display: grid;
+    grid-template-columns: 18px auto;
+    align-items: center;
+    gap: 3px 8px;
+    min-width: 90px;
+    text-align: left;
+    white-space: nowrap;
+}
+.stat svg {
+    width: 18px;
+    height: 18px;
+    color: var(--color-text-muted);
+    stroke-width: 1.6;
+}
+.stat strong {
+    grid-column: 2;
+    font-size: 19px;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.2;
+}
+.label {
+    font-size: 11px;
+    line-height: 1.3;
+    color: var(--color-text-muted);
+}
+.stat small {
+    font-size: 12px;
+    color: var(--color-text-muted);
+}
+.stats button {
+    min-height: 29px;
+    padding: 0;
+    border: 0;
+    background: none;
+}
+/* 停止表示は統計の面から離した独立表示。 */
+.paused {
+    position: absolute;
+    top: 82px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 3px 20px 4px;
+    text-align: center;
+    border: 1px solid var(--color-paused-border);
+    border-radius: 2px;
+    background: var(--color-paused-background);
+    color: var(--color-paused-text);
+    font-size: 15px;
+    font-weight: 500;
+    line-height: 1.5;
+    letter-spacing: 0.08em;
+    pointer-events: none;
+}
+.clock {
+    position: absolute;
+    left: 20px;
+    bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 4px 7px 4px 12px;
+}
+.clock time {
+    font-size: 16px;
+    white-space: nowrap;
+}
+.speeds {
+    display: flex;
+    gap: 1px;
+}
+.speeds button {
+    width: 25px;
+    min-height: 27px;
+    padding: 4px;
+}
+@media (max-width: 900px) {
+    .clock {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 3px;
+        padding: 8px;
+    }
+    .clock time {
+        font-size: 14px;
+    }
+}
+@media (max-width: 600px) {
+    .stats {
+        gap: 10px;
+        padding: 8px 12px;
+    }
+    .clock {
+        left: 10px;
+        bottom: 92px;
+        gap: 0;
+    }
+    .clock time {
+        font-size: 13px;
+    }
+    .speeds button {
+        min-height: 25px;
+    }
+}
+
+@media (max-width: 600px) {
+    .hud {
+        width: calc(100% - 20px);
+        max-width: 430px;
+    }
+    .stats {
+        justify-content: space-between;
+        min-height: 58px;
+        gap: 10px;
+    }
+    .stat {
+        min-width: 0;
+        gap: 3px 5px;
+        grid-template-columns: 15px auto;
+    }
+    .stat svg {
+        width: 15px;
+        height: 15px;
+    }
+    .stat strong {
+        font-size: 17px;
+    }
+    .stat small {
+        font-size: 11px;
+    }
+    .label {
+        font-size: 10px;
+    }
+    .paused {
+        top: 80px;
+    }
+}

@@ -1,0 +1,21 @@
+{
+  "status": "passed",
+  "adopted": true,
+  "approved_baseline_relief_opacity": 0.3,
+  "boundary_only_changed_ratio": 0.012520618434347054,
+  "coast_light_and_wrap": "passed",
+  "protected_reference_points": [
+    "サハラ",
+    "シベリア",
+    "アンデス",
+    "カスピ海"
+  ],
+  "shelf_reference_colors": [
+    [
+      25,
+      46,
+      58
+    ]
+  ],
+  "input_and_output_hashes": 9
+}

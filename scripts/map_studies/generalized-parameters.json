@@ -1,0 +1,58 @@
+{
+  "contour_levels_m": [
+    600,
+    1600,
+    3000,
+    4500
+  ],
+  "contour_tolerance_degrees": 0.5,
+  "minimum_contour_area_deg2": 0.6,
+  "anchor_spacing_degrees": 3.5,
+  "peak_spacing_degrees": 3.5,
+  "minimum_peak_m": 1350,
+  "climate_thresholds": [
+    0.25,
+    0.65
+  ],
+  "climate_tolerance_degrees": 0.4,
+  "climate_minimum_area_deg2": 2.5,
+  "climate_transition_degrees": 0.18,
+  "relief_strength": 90,
+  "vertical_exaggeration": 12.0,
+  "normal_smooth_mix": 0.75,
+  "light_azimuth_degrees": 315,
+  "light_altitude_degrees": 48,
+  "forest": [
+    62,
+    85,
+    74
+  ],
+  "land": [
+    86,
+    94,
+    87
+  ],
+  "desert": [
+    126,
+    115,
+    94
+  ],
+  "ice": [
+    145,
+    160,
+    163
+  ],
+  "ocean": [
+    17,
+    32,
+    43
+  ],
+  "lake": [
+    22,
+    39,
+    49
+  ],
+  "massif_peak_prominence_m": 550,
+  "massif_gap_radius_degrees": 0.3,
+  "massif_max_valley_fill_m": 220
+}

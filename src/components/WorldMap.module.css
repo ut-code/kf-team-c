@@ -1,0 +1,202 @@
+:global(*) {
+    box-sizing: border-box;
+}
+:global(html),
+:global(body),
+:global(#root) {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+}
+:global(body) {
+    background: #080f13;
+    font-family: sans-serif;
+}
+
+.viewport {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    position: relative;
+    background: #080f13;
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+    outline: none;
+}
+
+.viewport:focus-visible {
+    box-shadow: inset 0 0 0 1px #b7c6cc;
+}
+.map {
+    display: block;
+    position: relative;
+}
+.background {
+    position: absolute;
+    top: 0;
+    pointer-events: none;
+    background-repeat: repeat-x;
+    filter: brightness(var(--map-brightness));
+}
+.countries path {
+    fill: transparent;
+    stroke: #d4dfe2;
+    stroke-opacity: 0.32;
+    stroke-width: 0.7px;
+    stroke-linejoin: round;
+    cursor: pointer;
+    outline: none;
+}
+.countries path:hover,
+.countries path:focus-visible {
+    fill: rgb(219 234 239 / 8%);
+    stroke: #e2ecef;
+    stroke-opacity: 0.9;
+}
+.countries path.selected {
+    fill: rgb(207 230 238 / 14%);
+    stroke: #eef7fa;
+    stroke-opacity: 1;
+    stroke-width: 1.3px;
+}
+.selectedOutline {
+    fill: none;
+    stroke: #eef7fa;
+    stroke-opacity: 1;
+    stroke-width: 1.5px;
+    stroke-linejoin: round;
+    pointer-events: none;
+}
+.dragging,
+.dragging .countries path {
+    cursor: grabbing;
+}
+.markers {
+    pointer-events: none;
+}
+.markers [data-marker] {
+    pointer-events: auto;
+    cursor: pointer;
+    outline: none;
+}
+.markerLeader {
+    fill: none;
+    stroke: var(--color-text-muted);
+    stroke-width: 0.7;
+    opacity: 0.7;
+    pointer-events: none;
+}
+.markerGlyph {
+    fill: none;
+    stroke: var(--color-text);
+    stroke-width: 1.1;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    pointer-events: none;
+}
+.markerOutline {
+    fill: none;
+    stroke: transparent;
+    stroke-width: 1;
+}
+:where(.markers) [data-marker]:hover .markerOutline,
+:where(.markers) [data-marker]:focus-visible .markerOutline,
+.markers [data-selected="true"] .markerOutline {
+    stroke: var(--color-accent-soft);
+}
+:where(.markers) [data-marker]:hover .markerGlyph {
+    stroke: var(--color-text-strong);
+}
+.statusDot {
+    fill: var(--color-text-muted);
+    stroke: rgb(var(--color-surface-rgb));
+    stroke-width: 1;
+}
+.markers [data-status="controlled"] .statusDot,
+.markers [data-status="compromised"] .statusDot {
+    fill: var(--color-accent-soft);
+}
+.markers [data-status="isolated"] .statusDot {
+    fill: var(--color-danger);
+}
+.markers [data-status="infiltrating"] .statusDot {
+    fill: var(--color-accent-soft);
+}
+.unreadDot {
+    fill: var(--color-accent);
+    stroke: rgb(var(--color-surface-rgb));
+    stroke-width: 1.5;
+}
+.markers [data-kind="person"] .markerGlyph {
+    stroke: var(--color-accent-soft);
+}
+.screenReaderOnly {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+.error {
+    position: absolute;
+    left: 24px;
+    bottom: 24px;
+    color: #f7b6a8;
+    font-size: 14px;
+}
+
+.markerSurface {
+    fill: rgb(var(--color-surface-rgb) / 84%);
+    stroke: var(--color-border);
+    stroke-width: 1;
+}
+
+.mapControls {
+    position: absolute;
+    right: 12px;
+    top: 82px;
+    z-index: 2;
+}
+.mapControls button,
+.clusterPanel button {
+    color: var(--color-text);
+    background: rgb(var(--color-surface-rgb));
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    padding: 10px 14px;
+    cursor: pointer;
+    font: inherit;
+}
+.clusterPanel {
+    position: absolute;
+    right: 12px;
+    top: 132px;
+    width: min(320px, calc(100% - 24px));
+    max-height: 55%;
+    overflow: auto;
+    padding: 10px;
+    background: rgb(var(--color-surface-rgb));
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    color: var(--color-text);
+    z-index: 3;
+    cursor: auto;
+    display: grid;
+    gap: 6px;
+}
+.clusterPanel > div {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.clusterCount {
+    fill: var(--color-text);
+    font-size: 13px;
+    font-weight: bold;
+    pointer-events: none;
+}

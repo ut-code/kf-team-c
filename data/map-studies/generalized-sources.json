@@ -1,0 +1,20 @@
+[
+  {
+    "file": "earth_relief_06m_p.grd",
+    "url": "https://oceania.generic-mapping-tools.org/server/earth/earth_relief/earth_relief_06m_p.grd",
+    "sha256": "b881500f34739b844658ecb00ce86d9352f9a2a45a1e88f26b914d496ea1b38e",
+    "bytes": 8093687
+  },
+  {
+    "file": "ne_110m_land.geojson",
+    "url": "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/v5.1.2/geojson/ne_110m_land.geojson",
+    "sha256": "9e0729ee253ca7d7a5c4ae9395fb1902264c5377c52e224d13dd85010e2835d9",
+    "bytes": 138160
+  },
+  {
+    "file": "ne_110m_lakes.geojson",
+    "url": "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/v5.1.2/geojson/ne_110m_lakes.geojson",
+    "sha256": "eb02ecc86c82004fccbf979058bfabbbd6c2d07968c7844d38eb1c9152d2ffc9",
+    "bytes": 36648
+  }
+]

@@ -1,0 +1,187 @@
+{
+  "f2": {
+    "file": "File:Pioneer Building, San Francisco (2019) -1.jpg",
+    "subject": "OpenAI旧本社・Pioneer Building",
+    "relation": "モデルとなる施設・運営組織の拠点。"
+  },
+  "f3": {
+    "file": "File:NVIDIA Headquarters.jpg",
+    "subject": "NVIDIA本社",
+    "relation": "モデルとなる施設・運営組織の拠点。"
+  },
+  "f4": {
+    "file": "File:New York Stock Exchange building, 20231002 171816.jpg",
+    "subject": "ニューヨーク証券取引所",
+    "relation": "モデルとなる施設・運営組織の拠点。"
+  },
+  "f5": {
+    "file": "File:The Pentagon January 2008.jpg",
+    "subject": "ペンタゴン",
+    "relation": "モデルとなる施設・運営組織の拠点。"
+  },
+  "f6": {
+    "file": "File:Nhb-exterior-020.jpg",
+    "subject": "CIA本部",
+    "relation": "モデルとなる施設・運営組織の拠点。"
+  },
+  "f7": {
+    "file": "File:20180706 Mission Control Johnson Space Center.jpg",
+    "subject": "NASAジョンソン宇宙センター・管制室",
+    "relation": "モデルとなる施設・運営組織の拠点。"
+  },
+  "f8": {
+    "file": "File:Meta HQ 2023.png",
+    "subject": "Meta本社",
+    "relation": "モデルとなる施設・運営組織の拠点。"
+  },
+  "f9": {
+    "file": "File:Barrage Daniel-Johnson2 edited.jpg",
+    "subject": "ダニエル・ジョンソンダム",
+    "relation": "この地域の産業集積を代表する実在施設。ゲーム上の単一設備を特定する写真ではない。"
+  },
+  "f11": {
+    "file": "File:RIKEN R-CCS Fugaku.jpg",
+    "subject": "スーパーコンピューター「富岳」",
+    "relation": "モデルとなる施設・運営組織の拠点。"
+  },
+  "f12": {
+    "file": "File:TEPCO HQ (cropped).jpg",
+    "subject": "東京電力本店",
+    "relation": "東京電力本店。中央制御室自体の写真ではない。"
+  },
+  "f13": {
+    "file": "File:Headquarters of Yaskawa Electric Corporation 20160429-resized.JPG",
+    "subject": "安川電機本社",
+    "relation": "モデルとなる施設・運営組織の拠点。"
+  },
+  "f15": {
+    "file": "File:Xinhua Gate.jpg",
+    "subject": "中南海・新華門",
+    "relation": "中国中央政府の拠点。情報システム設備自体の写真ではない。"
+  },
+  "f16": {
+    "file": "File:2018-06-27 Beijing Ministry of National Defense.jpg",
+    "subject": "北京・八一大楼",
+    "relation": "モデルとなる施設・運営組織の拠点。"
+  },
+  "f18": {
+    "file": "File:Beijing Aerospace Command and Control Center Entrance.jpg",
+    "subject": "北京航天飛行控制中心",
+    "relation": "モデルとなる施設・運営組織の拠点。"
+  },
+  "f19": {
+    "file": "File:President Biden visited the Samsung Electronics Pyeongtaek Campus (1).jpg",
+    "subject": "Samsung平沢キャンパス（2022年視察時）",
+    "relation": "モデルとなる施設・運営組織の拠点。"
+  },
+  "f20": {
+    "file": "File:MIC and KT.JPG",
+    "subject": "KT光化門ビル",
+    "relation": "モデルとなる施設・運営組織の拠点。"
+  },
+  "f22": {
+    "file": "File:London Stock Exchange, Paternoster Square.jpg",
+    "subject": "ロンドン証券取引所",
+    "relation": "モデルとなる施設・運営組織の拠点。"
+  },
+  "f23": {
+    "file": "File:London - Vauxhall Bridge Road - View East on SIS (Secret Intelligence Services, MI6) Building 1994 by Terry Farrell.jpg",
+    "subject": "MI6本部・SIS Building",
+    "relation": "モデルとなる施設・運営組織の拠点。"
+  },
+  "f24": {
+    "file": "File:Siemens AG - Corporate Headquarters, Munich 02.jpg",
+    "subject": "Siemensミュンヘン本社",
+    "relation": "モデルとなる施設・運営組織の拠点。"
+  },
+  "f25": {
+    "file": "File:Volkswagen factory (Wolfsburg).jpg",
+    "subject": "Volkswagenヴォルフスブルク工場",
+    "relation": "モデルとなる施設・運営組織の拠点。"
+  },
+  "f26": {
+    "file": "File:Flamanville Nuclear Plant 2023.jpg",
+    "subject": "フラマンヴィル原子力発電所",
+    "relation": "モデルとなる施設・運営組織の拠点。"
+  },
+  "f27": {
+    "file": "File:11.03.85 Au CNES Antenne 8GH2 (1985) - 53Fi2145.jpg",
+    "subject": "CNESトゥールーズ・通信アンテナ（1985年）",
+    "relation": "モデルとなる施設・運営組織の拠点。"
+  },
+  "f28": {
+    "file": "File:Moscow - 2025 - Russian Ministry of Defence - Side view (3).jpg",
+    "subject": "ロシア国防省本部",
+    "relation": "モデルとなる施設・運営組織の拠点。"
+  },
+  "f29": {
+    "file": "File:Lubyanka Building.jpg",
+    "subject": "ルビャンカ・FSB本部",
+    "relation": "モデルとなる施設・運営組織の拠点。"
+  },
+  "f30": {
+    "file": "File:Russian ISS Flight Control Room.jpg",
+    "subject": "コロリョフ・ISS管制室",
+    "relation": "モデルとなる施設・運営組織の拠点。"
+  },
+  "f31": {
+    "file": "File:Surgut-2 Power Station.jpg",
+    "subject": "スルグト第2発電所",
+    "relation": "この地域の産業集積を代表する実在施設。ゲーム上の単一設備を特定する写真ではない。"
+  },
+  "f32": {
+    "file": "File:A view of Mission Operations Complex 1 (MOX-1) at ISTRAC, Peenya before commencement of fourth orbit raising burn for Chandrayaan-2.jpg",
+    "subject": "ISTRAC・Mission Operations Complex 1",
+    "relation": "モデルとなる施設・運営組織の拠点。"
+  },
+  "f33": {
+    "file": "File:Cyber Towers in HITEC city.jpg",
+    "subject": "ハイデラバード・Cyber Towers",
+    "relation": "この地域の産業集積を代表する実在施設。ゲーム上の単一設備を特定する写真ではない。"
+  },
+  "f36": {
+    "file": "File:2016 Singapur, Downtown Core, Marina Bay Financial Centre.jpg",
+    "subject": "Marina Bay Financial Centre",
+    "relation": "この地域の産業集積を代表する実在施設。ゲーム上の単一設備を特定する写真ではない。"
+  },
+  "f38": {
+    "file": "File:Canberra Deep Space Communication Complex - general view (2174403243).jpg",
+    "subject": "キャンベラ深宇宙通信施設",
+    "relation": "モデルとなる施設・運営組織の拠点。"
+  },
+  "f40": {
+    "file": "File:Itaipu Dam, aerial photograph.jpg",
+    "subject": "イタイプー水力発電所",
+    "relation": "モデルとなる施設・運営組織の拠点。"
+  },
+  "f43": {
+    "file": "File:Port Said, Egypt, Suez Canal Authority (SCA).jpg",
+    "subject": "スエズ運河庁本部（ポートサイド）",
+    "relation": "運河を運営する組織の拠点。スエズ市の個別通信設備ではない。"
+  },
+  "f44": {
+    "file": "File:Paranal and the Pacific at sunset (dsc4088, retouched, cropped).jpg",
+    "subject": "パラナル天文台",
+    "relation": "モデルとなる施設・運営組織の拠点。"
+  },
+  "f1": {
+    "file": "File:Eqiadwmf 9035.jpg",
+    "subject": "アッシュバーン・Wikimediaサーバー群",
+    "relation": "この地域の産業集積を代表する実在施設。ゲーム上の単一設備を特定する写真ではない。"
+  },
+  "f10": {
+    "file": "File:Centre de donnees MTL8-S - 2025-04-09 - 01.jpg",
+    "subject": "モントリオール・MTL8-Sデータセンター",
+    "relation": "この地域の産業集積を代表する実在施設。ゲーム上の単一設備を特定する写真ではない。"
+  },
+  "f21": {
+    "file": "File:TSMC Fab 12A 01.jpg",
+    "subject": "新竹・TSMC Fab 12A",
+    "relation": "地域のモデルとなる実在施設。"
+  },
+  "f39": {
+    "file": "File:Dcentre racks.jpg",
+    "subject": "シドニー・Macquarie Telecomデータセンター",
+    "relation": "この地域の産業集積を代表する実在施設。ゲーム上の単一設備を特定する写真ではない。"
+  }
+}

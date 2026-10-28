@@ -1,0 +1,23 @@
+{
+  "projection": "EPSG:3857",
+  "extent": [
+    -180,
+    -60,
+    180,
+    75
+  ],
+  "width": 8192,
+  "height": 4361,
+  "background": "地形整理・110m海岸・海底の低周波化・ambientCG地表質感・海岸の立体感",
+  "sources": [
+    {
+      "file": "assets/generated/map/世界地図.png",
+      "sha256": "d6a4679e28d5391ee7dd9a2b83e524d9aedb0cb2fd1aac262ee4ddb3a7526f44"
+    },
+    {
+      "file": "data/map-studies/raw/ne_110m_admin_0_countries.geojson",
+      "sha256": "6866c877d39cba9c357620878839b336d569f8c662d3cfab4cb1dbe2d39c977f"
+    }
+  ],
+  "output_sha256": "cac31c02c0374098dfe5c8e50014184f623582b2bc2a480fa1f3e66b3ec82be5"
+}

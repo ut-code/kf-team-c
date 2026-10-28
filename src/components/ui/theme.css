@@ -1,0 +1,33 @@
+/* 基本色はこのファイルで編集する。RGB変数は半透明の面にも共用する。 */
+:root {
+    --color-surface-rgb: 15 16 18;
+    --color-control-rgb: 37 39 43;
+    --color-text: #c5c3be;
+    --color-text-muted: #929298;
+    --color-text-strong: #ded9ce;
+    --color-accent: #d68a45;
+    --color-accent-soft: #b7a17b;
+    --color-danger: #b97564;
+    --color-paused-border: rgb(188 87 79 / 70%);
+    --color-paused-background: rgb(42 20 22 / 78%);
+    --color-paused-text: #d5b2ac;
+    --color-button-border: rgb(186 181 170 / 38%);
+    --color-border: rgb(186 181 170 / 18%);
+    --color-focus: #baaa8c;
+    --color-territory-rgb: 190 170 126;
+
+    /* 面の透明度・かすれ・地図の明るさ。1が地図の元の明るさ。 */
+    --surface-opacity: 0.84;
+    --surface-grain-opacity: 0.065;
+    --map-brightness: 1.08;
+    --panel-radius: 3px;
+    --control-radius: 3px;
+
+    --font-interface: "Noto Sans JP", sans-serif;
+}
+@font-face {
+    font-family: "Noto Sans JP";
+    src: url("/fonts/NotoSansJP.ttf") format("truetype");
+    font-weight: 100 900;
+    font-display: swap;
+}

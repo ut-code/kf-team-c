@@ -1,0 +1,116 @@
+{
+  "representative_vertices": 7998,
+  "triangles": 15678,
+  "elevation_contours": 153,
+  "massif_aggregation": {
+    "peak_prominence_m": 550,
+    "valley_fill_limit_m": 220,
+    "connection_radius_degrees": 0.3,
+    "maximum_elevation_before_m": 6276.0,
+    "maximum_elevation_after_m": 5726.0,
+    "mean_absolute_elevation_change_m": 14.381417274475098
+  },
+  "climate_regions": {
+    "forest": 247,
+    "desert": 90,
+    "ice": 68
+  },
+  "size": [
+    8192,
+    4361
+  ],
+  "projection": "EPSG:3857",
+  "extent": [
+    -180,
+    -60,
+    180,
+    75
+  ],
+  "source_description": "Reduced by Gaussian Cartesian filtering (31.5 km fullwidth) from SRTM15_V2.7.nc [Tozer et al., 2019; https://doi.org/10.1029/2019EA000658]",
+  "settings": {
+    "contour_levels_m": [
+      600,
+      1600,
+      3000,
+      4500
+    ],
+    "contour_tolerance_degrees": 0.5,
+    "minimum_contour_area_deg2": 0.6,
+    "anchor_spacing_degrees": 3.5,
+    "peak_spacing_degrees": 3.5,
+    "minimum_peak_m": 1350,
+    "climate_thresholds": [
+      0.25,
+      0.65
+    ],
+    "climate_tolerance_degrees": 0.4,
+    "climate_minimum_area_deg2": 2.5,
+    "climate_transition_degrees": 0.18,
+    "relief_strength": 90,
+    "vertical_exaggeration": 12.0,
+    "normal_smooth_mix": 0.75,
+    "light_azimuth_degrees": 315,
+    "light_altitude_degrees": 48,
+    "forest": [
+      62,
+      85,
+      74
+    ],
+    "land": [
+      86,
+      94,
+      87
+    ],
+    "desert": [
+      126,
+      115,
+      94
+    ],
+    "ice": [
+      145,
+      160,
+      163
+    ],
+    "ocean": [
+      17,
+      32,
+      43
+    ],
+    "lake": [
+      22,
+      39,
+      49
+    ],
+    "massif_peak_prominence_m": 550,
+    "massif_gap_radius_degrees": 0.3,
+    "massif_max_valley_fill_m": 220
+  },
+  "script_sha256": "f38eb8ec6fe1e1aba4c9b233baa8dbbf815ff0443ecea0522be483eb32ab8b3a",
+  "inputs": [
+    {
+      "file": "scripts/map_studies/generalized-parameters.json",
+      "sha256": "27cbf0b4bc5671eaf8ce4a9ad2e4eef8243137ac52b0118f1cf99a6957cb3fc6"
+    },
+    {
+      "file": "data/map-studies/raw/earth_relief_06m_p.grd",
+      "sha256": "b881500f34739b844658ecb00ce86d9352f9a2a45a1e88f26b914d496ea1b38e"
+    },
+    {
+      "file": "data/map-studies/raw/HYP_50M_SR.tif",
+      "sha256": "18320396c1ec7d9dc6096fcd288543e9b5e02811be87459761eb6a069e57714f"
+    },
+    {
+      "file": "data/map-studies/raw/HYP_50M_SR.tfw",
+      "sha256": "7f1cc97126a52814c874ec326a8275c7ded3edc4d7bced417f76d71a995069bd"
+    },
+    {
+      "file": "data/map-studies/raw/ne_110m_land.geojson",
+      "sha256": "9e0729ee253ca7d7a5c4ae9395fb1902264c5377c52e224d13dd85010e2835d9"
+    },
+    {
+      "file": "data/map-studies/raw/ne_110m_lakes.geojson",
+      "sha256": "eb02ecc86c82004fccbf979058bfabbbd6c2d07968c7844d38eb1c9152d2ffc9"
+    }
+  ],
+  "output_sha256": "c13cbd6cb5dd94daf5a452bd6f57e0f32514c8c2ffc4287da7b02a487125950d"
+}

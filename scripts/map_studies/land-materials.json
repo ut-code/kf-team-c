@@ -1,0 +1,39 @@
+{
+  "tile_size_px": 2048,
+  "detail_resolution": 192,
+  "boundary_height_strength": 0.22,
+  "boundary_width": 0.2,
+  "materials": {
+    "forest": {
+      "name": "森林",
+      "asset": "Ground037",
+      "contrast": 3,
+      "tint_strength": 0.08
+    },
+    "grassland": {
+      "name": "草地・一般地表",
+      "asset": "Grass004",
+      "contrast": 2.5,
+      "tint_strength": 0.06
+    },
+    "desert": {
+      "name": "砂漠・乾燥地",
+      "asset": "Ground054",
+      "contrast": 3,
+      "tint_strength": 0.08
+    },
+    "ice": {
+      "name": "雪氷",
+      "asset": "Snow001",
+      "contrast": 2,
+      "tint_strength": 0.03
+    },
+    "rock": {
+      "name": "高山・岩地",
+      "asset": "Rock035",
+      "contrast": 4,
+      "tint_strength": 0.04
+    }
+  },
+  "enabled": false
+}

@@ -1,0 +1,8 @@
+{
+    "strength": 0.045,
+    "timeScale": 0.8,
+    "maximumPixelRatio": 2,
+    "maximumPixels": 2073600,
+    "maximumSpeed": 2,
+    "framesPerSecond": 30
+}

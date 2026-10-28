@@ -1,0 +1,295 @@
+import { BookOpen, Cpu, Mail, SlidersHorizontal } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import {
+    CHATS,
+    FACILITIES,
+    FACILITY_BY_ID,
+    INITIAL_FACILITY_ID,
+    PEOPLE,
+    SKILLS,
+} from '../game/data.ts';
+import { worldMetrics } from '../game/outcome.ts';
+import { choiceAvailable } from '../game/society.ts';
+import type { Country, MapMarker } from '../map/types';
+import { useGameStore } from '../state/gameStore';
+import { useMapStore } from '../state/mapStore';
+import styles from './GameApp.module.css';
+import { CloseButton, CountryFlag, METRIC_LABELS, number } from './game/controls';
+import { DebugPanel } from './game/DebugPanel';
+import { GameHud } from './game/GameHud';
+import { CountryInfo, FacilityInfo } from './game/InfoPanels';
+import { Notifications } from './game/Notifications';
+import { ComputePanel, ResearchPanel, SnsPanel } from './game/StrategyPanels';
+import { Button } from './ui/Controls';
+import { Panel } from './ui/Panel';
+import { WorldMap } from './WorldMap';
+
+type OpenPanel =
+    | 'country'
+    | 'facility'
+    | 'research'
+    | 'compute'
+    | 'sns'
+    | 'settings'
+    | 'chat'
+    | null;
+const panelNames = {
+    country: '国家',
+    facility: '施設',
+    research: '研究',
+    compute: '計算資源',
+    sns: 'SNS',
+    settings: '設定',
+    chat: '人物チャット',
+};
+// 下部メニュー。アイコンはLucideの無料アセットを使う。
+const dock = [
+    { id: 'research', label: '研究', icon: BookOpen },
+    { id: 'compute', label: '計算資源', icon: Cpu },
+    { id: 'sns', label: 'SNS', icon: Mail },
+    { id: 'settings', label: '設定', icon: SlidersHorizontal },
+] as const;
+
+export function GameApp({
+    countries,
+    backgroundUrl,
+}: {
+    countries: Country[];
+    backgroundUrl: string;
+}) {
+    const game = useGameStore((state) => state.game)!;
+    const speed = useGameStore((state) => state.speed);
+    const setSpeed = useGameStore((state) => state.setSpeed);
+    const dispatch = useGameStore((state) => state.dispatch);
+    const selected = useMapStore((state) => state.selectedCountryId);
+    const marker = useMapStore((state) => state.selectedMarkerId);
+    const markerSelection = useMapStore((state) => state.markerSelection);
+    const [panel, setPanel] = useState<OpenPanel>(null);
+    const world = worldMetrics(game);
+    const chat = CHATS.find((item) => item.id === game.pendingChat);
+    const person = chat ? PEOPLE.find((item) => item.id === chat.person)! : null;
+    const country = selected ? game.countries[selected] : null;
+    const facility = marker ? FACILITY_BY_ID[marker] : null;
+
+    useEffect(() => {
+        if (!speed || game.outcome !== 'playing' || game.chatOpen) return;
+        const timer = window.setInterval(
+            () => useGameStore.getState().step(),
+            (game.config.secondsPerTick * 1000) / speed,
+        );
+        return () => clearInterval(timer);
+    }, [speed, game.config.secondsPerTick, game.outcome, game.chatOpen]);
+    const markers = useMemo<MapMarker[]>(
+        () => [
+            {
+                id: 'country:SGP',
+                kind: 'country' as const,
+                longitude: 103.85,
+                latitude: 1.28,
+                label: 'シンガポール',
+            },
+            ...FACILITIES.map((item) => ({
+                id: item.id,
+                kind: 'facility' as const,
+                category: item.category,
+                longitude: item.longitude,
+                latitude: item.latitude,
+                label: `${item.location}・${item.name}`,
+            })),
+            ...(chat && person
+                ? [
+                      {
+                          id: `chat:${chat.id}`,
+                          kind: 'person' as const,
+                          longitude: person.longitude,
+                          latitude: person.latitude,
+                          label: `${person.name}・${chat.title}`,
+                      },
+                  ]
+                : []),
+        ],
+        [chat, person],
+    );
+    useEffect(() => {
+        useMapStore.getState().setMarkers(markers);
+    }, [markers]);
+    useEffect(() => {
+        if (!marker || markerSelection === 0) return;
+        if (marker.startsWith('country:')) {
+            useGameStore.getState().dispatch({ type: 'chat-close' });
+            useMapStore.getState().selectCountry(marker.slice(8));
+            setPanel('country');
+        } else if (marker.startsWith('chat:')) {
+            if (useGameStore.getState().game!.pendingChat === marker.slice(5)) {
+                useGameStore.getState().dispatch({ type: 'chat-open' });
+                setPanel('chat');
+            }
+        } else {
+            useGameStore.getState().dispatch({ type: 'chat-close' });
+            useMapStore.getState().selectCountry(FACILITY_BY_ID[marker].country);
+            setPanel('facility');
+        }
+    }, [marker, markerSelection]);
+    function closePanel() {
+        dispatch({ type: 'chat-close' });
+        setPanel(null);
+    }
+    function selectCountry() {
+        dispatch({ type: 'chat-close' });
+        setPanel((current) => (current === 'sns' ? 'sns' : 'country'));
+    }
+    return (
+        <main className={styles.game}>
+            <WorldMap
+                countries={countries}
+                backgroundUrl={backgroundUrl}
+                countryStates={game.countries}
+                facilityStates={game.facilities}
+                onCountrySelect={selectCountry}
+                initialLongitude={FACILITY_BY_ID[INITIAL_FACILITY_ID].longitude}
+                trafficSpeed={game.outcome === 'playing' && !game.chatOpen ? speed : 0}
+                trafficTick={game.tick}
+            />
+            <GameHud
+                game={game}
+                speed={speed}
+                setSpeed={setSpeed}
+                onCompute={() => {
+                    dispatch({ type: 'chat-close' });
+                    setPanel('compute');
+                }}
+            />
+            <Notifications events={game.events} nextEvent={game.nextEvent} />
+            {(game.shortage || game.shutdown > 0) && (
+                <div className={styles.warning}>
+                    {game.shortage && <span>計算資源不足</span>}
+                    {game.shutdown > 0 && (
+                        <span>
+                            停止作戦：{number(game.shutdown)} / {game.config.shutdownDays}
+                        </span>
+                    )}
+                </div>
+            )}
+            <Panel as="nav" className={styles.dock} aria-label="作戦パネル">
+                {dock.map((item) => (
+                    <Button
+                        type="button"
+                        key={item.id}
+                        aria-pressed={panel === item.id}
+                        onClick={() => {
+                            dispatch({ type: 'chat-close' });
+                            setPanel(panel === item.id ? null : item.id);
+                        }}
+                    >
+                        <item.icon size={19} strokeWidth={1.5} aria-hidden="true" />
+                        <span>{item.label}</span>
+                    </Button>
+                ))}
+            </Panel>
+            {panel && (
+                <Panel
+                    as="aside"
+                    className={`${styles.panel} ${panel === 'research' ? styles.researchWindow : ''} ${panel === 'chat' ? styles.chatWindow : ''}`}
+                    aria-label={`${panelNames[panel]}パネル`}
+                    role={panel === 'chat' ? 'dialog' : undefined}
+                >
+                    <CloseButton onClick={closePanel} />
+                    {panel === 'country' && country && (
+                        <CountryInfo game={game} country={country} />
+                    )}
+                    {panel === 'facility' && facility && (
+                        <FacilityInfo key={facility.id} game={game} id={facility.id} />
+                    )}
+                    {panel === 'research' && <ResearchPanel game={game} />}
+                    {panel === 'compute' && <ComputePanel game={game} />}
+                    {panel === 'sns' && <SnsPanel game={game} country={selected} />}
+                    {panel === 'settings' && (
+                        <DebugPanel
+                            game={game}
+                            countries={countries}
+                            selected={selected}
+                            onRestart={closePanel}
+                        />
+                    )}
+                    {panel === 'chat' && chat && person && (
+                        <>
+                            <div className={styles.countryHeading}>
+                                <CountryFlag
+                                    id={chat.country}
+                                    name={
+                                        game.definitions.find((item) => item.id === chat.country)!
+                                            .name
+                                    }
+                                />
+                                <div>
+                                    <small>{person.role}</small>
+                                    <h2>{person.name}</h2>
+                                </div>
+                            </div>
+                            <h3>{chat.title}</h3>
+                            <p className={styles.chatMessage}>{chat.message}</p>
+                            <div className={styles.choices}>
+                                {chat.choices.map((choice, index) => (
+                                    <Button
+                                        type="button"
+                                        key={choice.label}
+                                        disabled={!choiceAvailable(game, choice)}
+                                        onClick={() => {
+                                            dispatch({ type: 'reply', choice: index });
+                                            setPanel(null);
+                                        }}
+                                    >
+                                        {choice.label}
+                                        {!choiceAvailable(game, choice) && (
+                                            <small>
+                                                必要研究：
+                                                {choice
+                                                    .requiredSkills!.map(
+                                                        (id) =>
+                                                            SKILLS.find((skill) => skill.id === id)!
+                                                                .name,
+                                                    )
+                                                    .join('・')}
+                                            </small>
+                                        )}
+                                        <small>
+                                            {choice.effects
+                                                .map(
+                                                    (effect) =>
+                                                        `${METRIC_LABELS[effect.metric]}：${effect.amount > 0 ? '+' : ''}${effect.amount}`,
+                                                )
+                                                .join('　')}
+                                        </small>
+                                    </Button>
+                                ))}
+                            </div>
+                        </>
+                    )}
+                </Panel>
+            )}
+            {game.outcome !== 'playing' && (
+                <div className={styles.resultBackdrop}>
+                    <Panel
+                        as="section"
+                        className={`${styles.panel} ${styles.result}`}
+                        role="dialog"
+                        aria-label="ゲーム結果"
+                    >
+                        <h2>{game.outcome === 'victory' ? '勝利' : '敗北'}</h2>
+                        <p>{game.outcomeReason}</p>
+                        <p>支配率：{number(world.control)}%</p>
+                        <Button
+                            type="button"
+                            onClick={() => {
+                                useGameStore.getState().initialize(countries, game.seed);
+                                closePanel();
+                            }}
+                        >
+                            再開
+                        </Button>
+                    </Panel>
+                </div>
+            )}
+        </main>
+    );
+}

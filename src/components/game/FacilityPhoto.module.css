@@ -1,0 +1,36 @@
+.photo {
+    margin: 0 0 16px;
+}
+.photo img {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+    border: 1px solid var(--color-border);
+    border-radius: var(--panel-radius);
+    filter: saturate(0.7) brightness(0.87);
+}
+.photo figcaption {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 2px 10px;
+    margin-top: 5px;
+    font-size: 10px;
+    line-height: 1.6;
+    color: var(--color-text-muted);
+}
+.photo details[open] {
+    flex-basis: 100%;
+}
+.photo summary {
+    cursor: pointer;
+}
+.photo a {
+    color: inherit;
+    text-underline-offset: 2px;
+}
+.photo p {
+    overflow-wrap: anywhere;
+}

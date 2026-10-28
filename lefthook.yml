@@ -1,0 +1,5 @@
+# コミット前に検査する。自動整形や自動ステージは行わない。
+pre-commit:
+  commands:
+    biome:
+      run: npm run check

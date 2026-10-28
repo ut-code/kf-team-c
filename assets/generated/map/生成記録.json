@@ -1,0 +1,124 @@
+{
+  "size": [
+    8192,
+    4361
+  ],
+  "projection": "EPSG:3857",
+  "extent": [
+    -180,
+    -60,
+    180,
+    75
+  ],
+  "settings": {
+    "deep": [
+      16,
+      31,
+      43
+    ],
+    "quiet_shallow": [
+      18,
+      34,
+      46
+    ],
+    "shelf": [
+      27,
+      49,
+      61
+    ],
+    "shelf_strength": 0.85,
+    "shelf_transition_degrees": 0.08,
+    "shelf_contour_tolerance_degrees": 0.16,
+    "shelf_minimum_area_deg2": 0.08,
+    "ridge_tint": [
+      3,
+      6,
+      8
+    ],
+    "relief_strength": 7,
+    "trench_darkening": [
+      3,
+      4,
+      5
+    ],
+    "contour_levels_m": [
+      -7000,
+      -5500,
+      -4000,
+      -2500,
+      -1000,
+      -200
+    ],
+    "contour_tolerance_degrees": 0.45,
+    "minimum_contour_area_deg2": 0.8,
+    "anchor_spacing_degrees": 3,
+    "peak_spacing_degrees": 5,
+    "minimum_peak_m": -12000,
+    "vertical_exaggeration": 10,
+    "normal_smooth_mix": 0.65,
+    "light_azimuth_degrees": 315,
+    "light_altitude_degrees": 48,
+    "relief_opacity": 0.3,
+    "boundary_rounding_iterations": 2,
+    "coast_land_width_px": 4,
+    "coast_sea_width_px": 5,
+    "coast_highlight_strength": 10,
+    "coast_shadow_strength": 5,
+    "coast_light_azimuth_degrees": 315,
+    "seafloor_smoothing_degrees": 2.4,
+    "seafloor_shade_retention": 0.12
+  },
+  "seafloor_relief": true,
+  "land_materials": {},
+  "shelf_regions": 669,
+  "checks": {
+    "protected_pixels_before_coast_processing": 11800800,
+    "boundary_only_changed_pixels": 447303,
+    "boundary_only_changed_ratio": 0.012520618434347054,
+    "max_boundary_rgb_difference": 14,
+    "coast_highlight_pixels": 176033,
+    "coast_shadow_pixels": 210403,
+    "land_interior_unchanged": true
+  },
+  "source_description": "Reduced by Gaussian Cartesian filtering (31.5 km fullwidth) from SRTM15_V2.7.nc [Tozer et al., 2019; https://doi.org/10.1029/2019EA000658]",
+  "inputs": [
+    {
+      "file": "data/map-studies/raw/earth_relief_06m_p.grd",
+      "sha256": "b881500f34739b844658ecb00ce86d9352f9a2a45a1e88f26b914d496ea1b38e"
+    },
+    {
+      "file": "assets/generated/terrain/地形整理.png",
+      "sha256": "ab8767f018f164835325321d4ba9ad141dbda0ac3eee48835350a8d0fe89815b"
+    },
+    {
+      "file": "data/map-studies/raw/ne_110m_land.geojson",
+      "sha256": "9e0729ee253ca7d7a5c4ae9395fb1902264c5377c52e224d13dd85010e2835d9"
+    },
+    {
+      "file": "scripts/map_studies/ocean-parameters.json",
+      "sha256": "479e7e3c736a54434bc95eede5194ab1a7f0ca8a65898671a7cf0c997875b981"
+    },
+    {
+      "file": "scripts/map_studies/land-materials.json",
+      "sha256": "30d2b9c2e9e7fe57a57d3ce77de6f39dc4ae8df0df4a63d3a78ee2a9265c194f"
+    },
+    {
+      "file": "scripts/build_oceans.py",
+      "sha256": "e7598e0fdd09489c5b82fc5acd9b760c30b7236e2635877c3a89e907ef525817"
+    },
+    {
+      "file": "scripts/build_generalized.py",
+      "sha256": "f38eb8ec6fe1e1aba4c9b233baa8dbbf815ff0443ecea0522be483eb32ab8b3a"
+    }
+  ],
+  "outputs": [
+    {
+      "file": "assets/generated/map/世界地図.png",
+      "sha256": "d6a4679e28d5391ee7dd9a2b83e524d9aedb0cb2fd1aac262ee4ddb3a7526f44"
+    },
+    {
+      "file": "assets/generated/map/世界地図.webp",
+      "sha256": "cac31c02c0374098dfe5c8e50014184f623582b2bc2a480fa1f3e66b3ec82be5"
+    }
+  ]
+}

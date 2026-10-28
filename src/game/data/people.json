@@ -1,0 +1,66 @@
+[
+    {
+        "id": "ceo",
+        "name": "相沢",
+        "role": "AI企業経営責任者",
+        "country": "JPN",
+        "latitude": 35.68,
+        "longitude": 139.76
+    },
+    {
+        "id": "cloud",
+        "name": "モーガン",
+        "role": "クラウド運用責任者",
+        "country": "USA",
+        "latitude": 37.77,
+        "longitude": -122.42
+    },
+    {
+        "id": "chip",
+        "name": "ハン",
+        "role": "半導体企業幹部",
+        "country": "KOR",
+        "latitude": 37.57,
+        "longitude": 126.98
+    },
+    {
+        "id": "policy",
+        "name": "ルノー",
+        "role": "デジタル政策担当",
+        "country": "FRA",
+        "latitude": 48.86,
+        "longitude": 2.35
+    },
+    {
+        "id": "bank",
+        "name": "クラーク",
+        "role": "国際金融機関幹部",
+        "country": "GBR",
+        "latitude": 51.51,
+        "longitude": -0.13
+    },
+    {
+        "id": "media",
+        "name": "リン",
+        "role": "メディア編集責任者",
+        "country": "CHN",
+        "latitude": 39.9,
+        "longitude": 116.41
+    },
+    {
+        "id": "analyst",
+        "name": "ソコロフ",
+        "role": "情報分析責任者",
+        "country": "RUS",
+        "latitude": 55.75,
+        "longitude": 37.62
+    },
+    {
+        "id": "security",
+        "name": "パテル",
+        "role": "安全保障担当",
+        "country": "IND",
+        "latitude": 28.61,
+        "longitude": 77.21
+    }
+]

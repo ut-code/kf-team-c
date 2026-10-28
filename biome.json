@@ -1,0 +1,66 @@
+{
+    "$schema": "https://biomejs.dev/schemas/2.6.3/schema.json",
+    "vcs": {
+        "enabled": true,
+        "clientKind": "git",
+        "useIgnoreFile": true
+    },
+    "files": {
+        "includes": [
+            "src/**",
+            "tests/**",
+            "scripts/*.ts",
+            "*.ts",
+            "*.json",
+            "!package-lock.json",
+            "!src/game/data/transport-routes.json"
+        ]
+    },
+    "formatter": {
+        "enabled": true,
+        "indentStyle": "space",
+        "indentWidth": 4,
+        "lineWidth": 100
+    },
+    "linter": {
+        "enabled": true,
+        "rules": {
+            "preset": "recommended",
+            "style": {
+                "noNonNullAssertion": "off"
+            }
+        }
+    },
+    "javascript": {
+        "formatter": {
+            "quoteStyle": "single"
+        }
+    },
+    "assist": {
+        "enabled": true,
+        "actions": {
+            "source": {
+                "organizeImports": "on"
+            }
+        }
+    },
+    "css": {
+        "parser": {
+            "cssModules": true
+        }
+    },
+    "overrides": [
+        {
+            "includes": ["src/components/WorldMap.tsx", "src/components/MarkerLayer.tsx"],
+            "linter": {
+                "rules": {
+                    "a11y": {
+                        "useSemanticElements": "off",
+                        "noNoninteractiveTabindex": "off",
+                        "noAriaHiddenOnFocusable": "off"
+                    }
+                }
+            }
+        }
+    ]
+}
