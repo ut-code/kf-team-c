@@ -116,9 +116,29 @@ def main():
     areas[0] = 0
     ocean_id = int(areas.argmax())
     land = Image.fromarray(np.uint8(water_regions != ocean_id)*255)
-    alpha = np.asarray(project(land.convert('RGB')))[..., 0].copy()
+    # 海岸は最終投影上で2倍描画し、面積平均で被覆率を求める。
+    coast = Image.new('L', (game.WIDTH*2, game.HEIGHT*2))
+    coast_draw = ImageDraw.Draw(coast)
+    features = json.loads((terrain.RAW / 'ne_110m_land.geojson').read_text(encoding='utf-8'))['features']
+    for feature in features:
+        for polygon in terrain.polygons(feature['geometry']):
+            for index, ring in enumerate(polygon):
+                clipped = game.clip_latitude(game.clip_latitude(ring, -60, True), 75, False)
+                if len(clipped) >= 3:
+                    coast_draw.polygon([(x*2, y*2) for x,y in [game.project(lon,lat) for lon,lat,*_ in clipped]], fill=255 if index == 0 else 0)
+    alpha = np.asarray(coast.resize((game.WIDTH, game.HEIGHT), Image.Resampling.BOX)).copy()
+    # 内水域は既存の湖色を維持する。
+    inland_mask = Image.fromarray(np.uint8((water_regions > 0) & (water_regions != ocean_id))*255)
+    inland = np.asarray(project(inland_mask.convert('RGB')))[..., 0]
+    alpha = np.maximum(alpha, np.where(inland == 255, 255, 0).astype(np.uint8))
     with Image.open(ROOT / 'assets/generated/terrain/地形整理.png') as image:
         base = np.asarray(image.convert('RGB')).copy()
+    # 陸データの穴として定義された内海も、地表色で埋めず湖色にする。
+    lake_color = json.loads(generalized.SETTINGS.read_text(encoding='utf-8'))['lake']
+    for row in range(0, game.HEIGHT, 96):
+        rows = slice(row, row+96)
+        water_weight = inland[rows, ..., None].astype(np.float32)/255
+        base[rows] = np.uint8(np.rint(base[rows]*(1-water_weight)+np.array(lake_color)*water_weight))
     # 深海の面分割の痕跡を消し、大きな水深変化だけを残す。経度方向は循環する。
     sigma = settings['seafloor_smoothing_degrees']/step
     depth = gaussian_filter(depth, sigma, mode=('nearest', 'wrap'))
@@ -152,7 +172,7 @@ def main():
     Image.fromarray(result).save(OUT / 'untextured.png')
     Image.fromarray(alpha).save(OUT / 'land-mask.png')
     texture_sources, materials = apply_materials(result)
-    coast_checks = apply_coast_bevel(result, alpha >= 128, settings)
+    coast_checks = {'coast_highlight_pixels': 0, 'coast_shadow_pixels': 0, 'land_interior_unchanged': True}
     image = Image.fromarray(result)
     image.save(OUT / '世界地図.png')
     image.save(OUT / '世界地図.webp', quality=95, method=6)

@@ -31,8 +31,8 @@ test('水面の反射は海だけに描画し、時間進行で変化して停�
     });
     expect(oceanColors.coloredPixels).toBeGreaterThan(0);
     expect(oceanColors.excessColor).toBeLessThanOrEqual(1);
-    expect(oceanColors.maximumAlpha).toBeGreaterThan(30);
-    expect(oceanColors.maximumAlpha).toBeLessThan(60);
+    expect(oceanColors.maximumAlpha).toBeGreaterThan(0);
+    expect(oceanColors.maximumAlpha).toBeLessThan(10);
     const point = project(104, 35);
     const landAlpha = await page.evaluate((point) => {
         const group = document.querySelector('[data-world-tile="0"]') as SVGGraphicsElement;
@@ -68,3 +68,4 @@ test('水面の反射は海だけに描画し、時間進行で変化して停�
     expect(await ocean.evaluate((canvas: HTMLCanvasElement) => canvas.toDataURL())).toBe(stopped);
     expect(errors).toEqual([]);
 });
+

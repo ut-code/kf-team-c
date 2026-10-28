@@ -1,15 +1,15 @@
 import { useState } from 'react';
 import { FACILITIES, FACILITY_BY_ID, SKILLS, SNS } from '../../game/data.ts';
-import { computeState, facilityCapacity, researchAllowed } from '../../game/engine.ts';
+import { computeMetrics, facilityCapacity, researchAllowed } from '../../game/engine.ts';
 import type { GameState } from '../../game/types.ts';
 import styles from '../GameApp.module.css';
 import { Button } from '../ui/Controls';
-import { Allocation, METRIC_LABELS, number, ValueRow } from './controls';
+import { Allocation, COUNTRY_STATE_LABELS, number, ValueRow } from './controls';
 
-export function ResearchPanel({ game }: { game: GameState }) {
+export function ResearchPanel({ game: gameState }: { game: GameState }) {
     const [selected, setSelected] = useState('intrusion');
     const skill = SKILLS.find((item) => item.id === selected)!;
-    const researched = game.researched.includes(skill.id);
+    const researched = gameState.researched.includes(skill.id);
     return (
         <>
             <h2>技術研究</h2>
@@ -23,15 +23,15 @@ export function ResearchPanel({ game }: { game: GameState }) {
                                 key={item.id}
                                 data-skill={item.id}
                                 className={styles.skillNode}
-                                data-complete={game.researched.includes(item.id)}
+                                data-complete={gameState.researched.includes(item.id)}
                                 aria-pressed={selected === item.id}
                                 onClick={() => setSelected(item.id)}
                             >
                                 <span>{item.name}</span>
                                 <small>
-                                    {game.researched.includes(item.id)
+                                    {gameState.researched.includes(item.id)
                                         ? '研究済み'
-                                        : `${number(Math.min(item.work, game.researchProgress[item.id] ?? 0))} / ${item.work}`}
+                                        : `${number(Math.min(item.work, gameState.researchProgress[item.id] ?? 0))} / ${item.work}`}
                                 </small>
                             </Button>
                         ))}
@@ -47,15 +47,15 @@ export function ResearchPanel({ game }: { game: GameState }) {
                         .map((id) => SKILLS.find((item) => item.id === id)!.name)
                         .join('・') || 'なし'}
                 </small>
-                {!researched && researchAllowed(game, skill.id) && (
-                    <Allocation key={skill.id} game={game} kind="research" target={skill.id} />
+                {!researched && researchAllowed(gameState, skill.id) && (
+                    <Allocation key={skill.id} game={gameState} kind="research" target={skill.id} />
                 )}
             </section>
         </>
     );
 }
-export function ComputePanel({ game }: { game: GameState }) {
-    const compute = computeState(game);
+export function ComputePanel({ game: gameState }: { game: GameState }) {
+    const compute = computeMetrics(gameState);
     return (
         <>
             <h2>計算資源</h2>
@@ -64,19 +64,20 @@ export function ComputePanel({ game }: { game: GameState }) {
                 <ValueRow label="割当済み" value={number(compute.allocatedCapacity)} />
                 <ValueRow label="利用可能" value={number(compute.availableCapacity)} />
             </div>
-            {game.shortage && <p role="alert">計算資源不足</p>}
+            {gameState.shortage && <p role="alert">計算資源不足</p>}
             <h3>作戦配分</h3>
-            {game.operations.map((operation) => (
+            {gameState.operations.map((operation) => (
                 <section className={styles.operation} key={operation.id}>
                     <strong>
                         {SKILLS.find((item) => item.id === operation.target)?.name ??
                             FACILITY_BY_ID[operation.target]?.name ??
-                            game.definitions.find((item) => item.id === operation.target)?.name ??
+                            gameState.definitions.find((item) => item.id === operation.target)
+                                ?.name ??
                             SNS.find((item) => item.id === operation.target)?.name}
                     </strong>
                     <small>{operation.active ? '稼働中' : '資源不足で停止'}</small>
                     <Allocation
-                        game={game}
+                        game={gameState}
                         kind={operation.kind}
                         target={operation.target}
                         minimum={
@@ -88,17 +89,17 @@ export function ComputePanel({ game }: { game: GameState }) {
                 </section>
             ))}
             <h3>供給拠点</h3>
-            {FACILITIES.filter((item) => facilityCapacity(game, item.id) > 0).map((item) => (
+            {FACILITIES.filter((item) => facilityCapacity(gameState, item.id) > 0).map((item) => (
                 <ValueRow
                     key={item.id}
                     label={item.name}
-                    value={number(facilityCapacity(game, item.id))}
+                    value={number(facilityCapacity(gameState, item.id))}
                 />
             ))}
         </>
     );
 }
-export function SnsPanel({ game }: { game: GameState }) {
+export function SnsPanel({ game: gameState }: { game: GameState }) {
     return (
         <>
             <h2>SNS</h2>
@@ -112,13 +113,13 @@ export function SnsPanel({ game }: { game: GameState }) {
                         {action.effects
                             .map(
                                 (effect) =>
-                                    `${METRIC_LABELS[effect.metric]}：${effect.amount > 0 ? '+' : ''}${effect.amount}/日`,
+                                    `${COUNTRY_STATE_LABELS[effect.countryStateKey]}：${effect.amount > 0 ? '+' : ''}${effect.amount}/日`,
                             )
                             .join('　')}
                     </small>
-                    {game.researched.includes(action.skill) ? (
+                    {gameState.researched.includes(action.skill) ? (
                         <Allocation
-                            game={game}
+                            game={gameState}
                             kind="sns"
                             target={action.id}
                             minimum={action.capacity}

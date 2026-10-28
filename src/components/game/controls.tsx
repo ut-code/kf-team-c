@@ -1,18 +1,18 @@
 import { X } from 'lucide-react';
 import { useId, useState } from 'react';
 import flags from '../../game/data/ui/flags.json';
-import type { GameState, Metric, Operation } from '../../game/types.ts';
+import type { CountryStateKey, GameState, Operation } from '../../game/types.ts';
 import { useGameStore } from '../../state/gameStore';
 import styles from '../GameApp.module.css';
 import { Button, IconButton, Input, Select } from '../ui/Controls';
 
-export const METRIC_LABELS: Record<Metric, string> = {
+export const COUNTRY_STATE_LABELS: Record<CountryStateKey, string> = {
     infrastructure: 'インフラ',
     economy: '経済',
-    politicalControl: '政治的統制',
+    governmentCapacity: '行政能力',
     aiInfiltration: '浸透度',
     aiDecisionControl: '意思決定支配',
-    aiCountermeasure: '対AI能力',
+    aiDefenseTechnology: '対AI技術水準',
     aiAcceptance: 'AI受容度',
     aiAdoption: 'AI導入率',
     aiDependency: 'AI依存度',
@@ -45,7 +45,7 @@ export function CloseButton({ onClick }: { onClick: () => void }) {
     );
 }
 export function Allocation({
-    game,
+    game: gameState,
     kind,
     target,
     minimum = 1,
@@ -56,7 +56,7 @@ export function Allocation({
     minimum?: number;
 }) {
     const fieldId = useId();
-    const operation = game.operations.find((op) => op.kind === kind && op.target === target);
+    const operation = gameState.operations.find((op) => op.kind === kind && op.target === target);
     const [capacity, setCapacity] = useState(operation?.capacity ?? Math.max(4, minimum));
     const [priority, setPriority] = useState(operation?.priority ?? 50);
     const dispatch = useGameStore((state) => state.dispatch);
@@ -89,9 +89,7 @@ export function Allocation({
             </label>
             <Button
                 type="button"
-                onClick={() =>
-                    dispatch({ type: 'allocate', kind, target, capacity, priority })
-                }
+                onClick={() => dispatch({ type: 'allocate', kind, target, capacity, priority })}
             >
                 {operation ? '変更' : '実行'}
             </Button>

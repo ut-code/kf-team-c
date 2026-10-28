@@ -6,7 +6,7 @@ import { CHATS, FACILITIES, SKILLS, SNS } from '../src/game/data.ts';
 import {
     applyAction,
     availableFacility,
-    computeState,
+    computeMetrics,
     createInitialState,
     facilityCapacity,
     humanStage,
@@ -28,11 +28,11 @@ const initial = () => {
     return s;
 };
 
-test('固定シード・固定操作列の全状態を従来挙動と比較する', () => {
+test('固定シード・固定操作列の全状態を分離後の挙動と比較する', () => {
     let state = createInitialState(countries, 123);
     const commands = [
         { type: 'allocate', kind: 'service', target: 'JPN', capacity: 4 },
-        { type: 'debug-country', country: 'JPN', metric: 'aiAdoption', value: 30 },
+        { type: 'debug-country', country: 'JPN', countryStateKey: 'aiAdoption', value: 30 },
         { type: 'secure', target: 'f11' },
     ] as const;
     for (const command of commands) state = applyAction(state, command);
@@ -40,8 +40,9 @@ test('固定シード・固定操作列の全状態を従来挙動と比較す�
     state = applyAction(state, { type: 'cancel', id: 'o1' });
     state = ticks(state, 12);
     assert.equal(
+        // 対AI技術と防御実効性を分離したルールの固定シード回帰。
         createHash('sha256').update(JSON.stringify(state)).digest('hex'),
-        '3ee4a308cc1388c3afe3f45568bc662e71eab24bba2358dfbbb463029e82495e',
+        'dbf2204cb70fd23b0b0458bf2b854badf561e8e26175599a0a3ef0802296e458',
     );
 });
 function ticks(s: GameState, n: number) {
@@ -77,7 +78,7 @@ test('公共サービスを併用する通常命令でも勝利まで到達す�
         if (
             state.outcome === 'playing' &&
             !state.operations.some((operation) => operation.kind === 'service') &&
-            computeState(state).availableCapacity >= 4
+            computeMetrics(state).availableCapacity >= 4
         )
             state = applyAction(state, {
                 type: 'allocate',
@@ -106,7 +107,7 @@ test('公共サービスの実績で導入が進み、業務統合なしには�
     assert.ok(service.countries.JPN.aiAdoption > 5);
     assert.equal(service.countries.JPN.aiDependency, 0);
     assert.ok(service.countries.JPN.economy > idle.countries.JPN.economy);
-    assert.ok(service.countries.JPN.aiCountermeasure > idle.countries.JPN.aiCountermeasure);
+    assert.ok(service.countries.JPN.aiDefenseTechnology > idle.countries.JPN.aiDefenseTechnology);
     assert.equal(base.countries.JPN.aiAdoption, 0);
     const integrated = structuredClone(service);
     integrated.researched.push('institutions');
@@ -287,15 +288,15 @@ test('容量を超えた割当を拒否し、供給低下は優先度順に停�
     assert.ok(s.shortage);
     assert.equal(s.operations.find((o) => o.kind === 'defense')!.active, true);
     assert.equal(s.operations.find((o) => o.kind === 'infiltration')!.active, false);
-    const c = computeState(s);
+    const c = computeMetrics(s);
     assert.ok(c.availableCapacity >= 0);
     assert.ok(c.allocatedCapacity <= c.totalCapacity);
 });
-test('浸透は投入容量で加速し、対AI能力で抑制される', () => {
+test('浸透は投入容量で加速し、対AI技術水準で抑制される', () => {
     const s = strong();
     const run = (capacity: number, counter = 8) => {
         let x = structuredClone(s);
-        x.countries.JPN.aiCountermeasure = counter;
+        x.countries.JPN.aiDefenseTechnology = counter;
         x = applyAction(x, { type: 'allocate', kind: 'infiltration', target: 'JPN', capacity });
         return ticks(x, 50).countries.JPN.aiInfiltration;
     };
@@ -317,10 +318,10 @@ test('インフラ低下と施設隔離は演算供給を減らす', () => {
     const base = facilityCapacity(s, 'f11');
     s.countries.JPN.infrastructure = 20;
     assert.ok(facilityCapacity(s, 'f11') < base);
-    const total = computeState(s).totalCapacity;
+    const total = computeMetrics(s).totalCapacity;
     s.facilities.f11.status = 'isolated';
     assert.equal(facilityCapacity(s, 'f11'), 0);
-    assert.ok(computeState(s).totalCapacity < total);
+    assert.ok(computeMetrics(s).totalCapacity < total);
 });
 test('利用モードは容量と警戒リスクに影響する', () => {
     const s = initial();
@@ -348,11 +349,11 @@ test('ハッキングは時間と容量で進行、完了後に施設操作を�
 test('研究は容量を占有し、完了後に効果を適用して解放する', () => {
     let s = initial();
     s = applyAction(s, { type: 'allocate', kind: 'research', target: 'compression', capacity: 4 });
-    const supply = computeState(s).totalCapacity;
-    assert.equal(computeState(s).allocatedCapacity, 4);
+    const supply = computeMetrics(s).totalCapacity;
+    assert.equal(computeMetrics(s).allocatedCapacity, 4);
     s = ticks(s, 70);
     assert.ok(s.researched.includes('compression'));
-    assert.ok(computeState(s).totalCapacity > supply);
+    assert.ok(computeMetrics(s).totalCapacity > supply);
     assert.equal(s.operations.length, 0);
 });
 test('研究中断で進捗を保持し、再開時に引き継ぐ', () => {
@@ -417,7 +418,7 @@ test('支配には浸透・意思決定・対抗能力の3条件が必要', () =
     const s = initial();
     s.countries.JPN.aiInfiltration = 90;
     s.countries.JPN.aiDecisionControl = 90;
-    s.countries.JPN.aiCountermeasure = 20;
+    s.countries.JPN.aiDefenseTechnology = 20;
     const next = simulateTick(s);
     assert.equal(next.countries.JPN.controlStatus, 'controlled');
     assert.ok(Math.abs(worldMetrics(next).control - 7) < 1e-8);
@@ -450,7 +451,7 @@ test('勝利には90%の支配を10日維持する必要がある', () => {
         Object.assign(c, {
             aiInfiltration: 95,
             aiDecisionControl: 95,
-            aiCountermeasure: 0,
+            aiDefenseTechnology: 0,
             controlStatus: 'controlled',
         });
     assert.equal(ticks(s, 9).outcome, 'playing');
@@ -461,7 +462,7 @@ test('警戒100だけで即死せず、最終停止作戦の完了で敗北す�
     for (const c of Object.values(s.countries)) c.awareness = 100;
     assert.equal(simulateTick(s).outcome, 'playing');
     s.shutdown = s.config.shutdownDays;
-    assert.equal(evaluateOutcome(s, computeState(s).totalCapacity).outcome, 'defeat');
+    assert.equal(evaluateOutcome(s, computeMetrics(s).totalCapacity).outcome, 'defeat');
     assert.equal(s.outcome, 'playing');
 });
 test('生存拠点喪失を継続すると敗北する', () => {
@@ -482,13 +483,13 @@ test('人類は観測していない施設を隔離できない', () => {
         assert.ok(!Object.values(simulateTick(s).facilities).some((f) => f.status === 'isolated'));
     }
 });
-test('人類は露見した施設を隔離し、防衛投入で隔離を回避できる', () => {
+test('人類は介入が察知された施設を隔離し、防衛投入で隔離を回避できる', () => {
     const run = (defend: boolean) => {
         let s = strong();
         s.researched = [];
         for (const c of Object.values(s.countries)) {
             c.awareness = 65;
-            c.aiCountermeasure = 45;
+            c.aiDefenseTechnology = 45;
         }
         s.facilities.f11.exposure = 60;
         if (defend)
@@ -511,7 +512,7 @@ test('最終停止作戦は潜伏と防衛で後退させられる', () => {
     s.shutdown = 50;
     for (const c of Object.values(s.countries)) {
         c.awareness = 90;
-        c.aiCountermeasure = 40;
+        c.aiDefenseTechnology = 40;
     }
     s.facilities.f11.exposure = 60;
     s = applyAction(s, { type: 'allocate', kind: 'defense', target: 'JPN', capacity: 40 });
@@ -525,10 +526,10 @@ test('自律成長に放置勝利はなく、状態は範囲内に収まる', ()
         for (const key of [
             'infrastructure',
             'economy',
-            'politicalControl',
+            'governmentCapacity',
             'aiInfiltration',
             'aiDecisionControl',
-            'aiCountermeasure',
+            'aiDefenseTechnology',
             'aiAcceptance',
             'awareness',
         ] as const)

@@ -9,6 +9,6 @@
 | `map/` | 海面描画の設定と生成された交通経路 |
 | `ui/` | 国旗・施設写真・通知の設定 |
 
-国家指標の毎日の増減と条件は `../rules/country.ts`、施設の容量・露見・支援効果は `../rules/facility.ts`、会話・SNSなどの効果変換は `../rules/content.ts`、人類の対応判断は `../rules/human.ts` を編集する。これらの関数は必要な入力だけを受け取り、`Effect` または数値・判定結果を返す。`GameState` は受け取らない。
+国家の状態の毎日の増減と条件は `../rules/country.ts`、施設の容量・察知度・支援効果は `../rules/facility.ts`、会話・SNSなどの効果変換は `../rules/content.ts`、人類の対応判断は `../rules/human.ts` を編集する。これらの関数は必要な入力だけを受け取り、`Effect` または数値・判定結果を返す。`GameState` は受け取らない。
 
 ニュースの候補選択は `../society.ts`、勝敗計算は `../outcome.ts`。状態の更新、効果の適用、ログ・通知の記録は `../engine.ts` のみで行う。型と用語は `../types.ts`、作業手順は [開発ガイド](../../../docs/開発ガイド.md)を参照。

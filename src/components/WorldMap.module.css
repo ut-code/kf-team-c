@@ -148,3 +148,21 @@
     stroke: var(--color-border);
     stroke-width: 1;
 }
+
+/* 国別データの表示中は白地図を使い、値の濃淡と国境を読みやすくする。 */
+.dataMap {
+    background: #9cbac9;
+}
+.dataMap .countries path {
+    stroke: #283f49;
+    stroke-opacity: 0.55;
+}
+.dataMap .countries path:hover,
+.dataMap .countries path:focus-visible {
+    stroke: #101f32;
+    stroke-width: 1.5px;
+}
+.dataMap .selectedOutline {
+    stroke: #101f32;
+    stroke-width: 2px;
+}

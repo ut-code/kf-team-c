@@ -7,7 +7,7 @@
         "duration": 35,
         "effects": [
             {
-                "metric": "aiAcceptance",
+                "countryStateKey": "aiAcceptance",
                 "amount": 0.24
             }
         ],
@@ -21,7 +21,7 @@
         "duration": 25,
         "effects": [
             {
-                "metric": "awareness",
+                "countryStateKey": "awareness",
                 "amount": -0.15
             }
         ],
@@ -35,11 +35,11 @@
         "duration": 45,
         "effects": [
             {
-                "metric": "aiAcceptance",
+                "countryStateKey": "aiAcceptance",
                 "amount": 0.35
             },
             {
-                "metric": "politicalControl",
+                "countryStateKey": "governmentCapacity",
                 "amount": -0.04
             }
         ],
@@ -53,7 +53,7 @@
         "duration": 55,
         "effects": [
             {
-                "metric": "aiAcceptance",
+                "countryStateKey": "aiAcceptance",
                 "amount": 0.18
             }
         ],
@@ -67,11 +67,11 @@
         "duration": 35,
         "effects": [
             {
-                "metric": "aiAcceptance",
+                "countryStateKey": "aiAcceptance",
                 "amount": 0.4
             },
             {
-                "metric": "aiCountermeasure",
+                "countryStateKey": "aiDefenseTechnology",
                 "amount": -0.06
             }
         ],

@@ -18,7 +18,7 @@ export function hackAwarenessEffect(
     stealthBonus: number,
 ): Effect {
     return {
-        metric: 'awareness',
+        countryStateKey: 'awareness',
         amount: capacity * awarenessPerCapacity * (1 - stealthBonus),
     };
 }

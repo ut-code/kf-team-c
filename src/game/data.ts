@@ -1,20 +1,20 @@
+import chats from './data/events/chats.json' with { type: 'json' };
+import humanActions from './data/events/human-actions.json' with { type: 'json' };
+import people from './data/events/people.json' with { type: 'json' };
+import sns from './data/events/sns.json' with { type: 'json' };
 import balance from './data/simulation/balance.json' with { type: 'json' };
 import categories from './data/simulation/categories.json' with { type: 'json' };
-import chats from './data/events/chats.json' with { type: 'json' };
 import countries from './data/simulation/countries.json' with { type: 'json' };
 import facilities from './data/simulation/facilities.json' with { type: 'json' };
-import humanActions from './data/events/human-actions.json' with { type: 'json' };
 import modes from './data/simulation/modes.json' with { type: 'json' };
 import operationEffects from './data/simulation/operation-effects.json' with { type: 'json' };
-import people from './data/events/people.json' with { type: 'json' };
 import skills from './data/simulation/skills.json' with { type: 'json' };
-import sns from './data/events/sns.json' with { type: 'json' };
 import type {
     Balance,
     Category,
     ChatDefinition,
     Effect,
-    FacilityDefinition,
+    FacilityAttributes,
     Region,
     Skill,
 } from './types.ts';
@@ -38,9 +38,9 @@ export const CATEGORIES = categories as Record<
     Category,
     { name: string; capacity: number; effects: Effect[]; research: number; expansion: number }
 >;
-export const FACILITIES = facilities as FacilityDefinition[];
+export const FACILITIES = facilities as FacilityAttributes[];
 export const FACILITY_BY_ID = Object.fromEntries(
-    FACILITIES.map((facility) => [facility.id, facility]),
+    FACILITIES.map((facilityAttributes) => [facilityAttributes.id, facilityAttributes]),
 );
 export const SKILLS = skills as Skill[];
 export const PEOPLE = people;

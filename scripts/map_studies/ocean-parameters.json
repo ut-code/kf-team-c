@@ -1,21 +1,21 @@
 {
   "deep": [
-    16,
-    31,
-    43
+    24,
+    48,
+    65
   ],
   "quiet_shallow": [
-    18,
-    34,
-    46
+    28,
+    56,
+    72
   ],
   "shelf": [
-    27,
-    49,
-    61
+    37,
+    72,
+    85
   ],
-  "shelf_strength": 0.85,
-  "shelf_transition_degrees": 0.08,
+  "shelf_strength": 0.45,
+  "shelf_transition_degrees": 0.3,
   "shelf_contour_tolerance_degrees": 0.16,
   "shelf_minimum_area_deg2": 0.08,
   "ridge_tint": [

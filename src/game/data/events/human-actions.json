@@ -6,7 +6,7 @@
         "weight": 4,
         "effects": [
             {
-                "metric": "aiCountermeasure",
+                "countryStateKey": "aiDefenseTechnology",
                 "amount": 3
             }
         ]
@@ -18,7 +18,7 @@
         "weight": 3,
         "effects": [
             {
-                "metric": "aiCountermeasure",
+                "countryStateKey": "aiDefenseTechnology",
                 "amount": 5
             }
         ]
@@ -30,7 +30,7 @@
         "weight": 2,
         "effects": [
             {
-                "metric": "aiCountermeasure",
+                "countryStateKey": "aiDefenseTechnology",
                 "amount": 2,
                 "scope": "region"
             }

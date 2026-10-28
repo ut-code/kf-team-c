@@ -14,8 +14,8 @@
         "stealthExposureReduction": 0.035
     },
     "disrupt": [
-        { "metric": "infrastructure", "amount": -0.22, "label": "施設からの供給妨害" },
-        { "metric": "politicalControl", "amount": -0.12, "label": "供給妨害による混乱" },
-        { "metric": "awareness", "amount": 0.16, "label": "破壊活動の発見" }
+        { "countryStateKey": "infrastructure", "amount": -0.22, "label": "施設からの供給妨害" },
+        { "countryStateKey": "governmentCapacity", "amount": -0.12, "label": "供給妨害による混乱" },
+        { "countryStateKey": "awareness", "amount": 0.16, "label": "破壊活動の発見" }
     ]
 }

@@ -25,6 +25,6 @@ export function snsEffects(
             ...effect,
             amount: effect.amount * languageFactor,
         })),
-        risk: { metric: 'awareness', amount: action.risk },
+        risk: { countryStateKey: 'awareness', amount: action.risk },
     };
 }

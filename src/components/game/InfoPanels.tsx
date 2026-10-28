@@ -1,46 +1,57 @@
 import { CATEGORIES, FACILITY_BY_ID, MODES } from '../../game/data.ts';
 import { availableFacility, facilityCapacity, hackDifficulty } from '../../game/engine.ts';
-import type { CountryState, GameState, Metric } from '../../game/types.ts';
+import { countryMetrics } from '../../game/metrics.ts';
+import type { CountryState, CountryStateKey, GameState } from '../../game/types.ts';
 import { useGameStore } from '../../state/gameStore';
 import styles from '../GameApp.module.css';
 import { Button, Select } from '../ui/Controls';
 import {
     Allocation,
+    COUNTRY_STATE_LABELS,
     CountryFlag,
-    METRIC_LABELS,
     number,
     STATUS_LABELS,
     ValueRow,
 } from './controls';
 import { FacilityPhoto } from './FacilityPhoto';
 
-export function CountryInfo({ game, country }: { game: GameState; country: CountryState }) {
-    const definition = game.definitions.find((item) => item.id === country.id)!;
+export function CountryInfo({
+    game: gameState,
+    country: countryState,
+}: {
+    game: GameState;
+    country: CountryState;
+}) {
+    const countryAttributes = gameState.definitions.find((item) => item.id === countryState.id)!;
     return (
         <>
             <div className={styles.countryHeading}>
-                <CountryFlag id={country.id} name={definition.name} />
+                <CountryFlag id={countryState.id} name={countryAttributes.name} />
                 <div>
-                    <h2>{definition.name}</h2>
-                    <small>{STATUS_LABELS[country.controlStatus]}</small>
+                    <h2>{countryAttributes.name}</h2>
+                    <small>{STATUS_LABELS[countryState.controlStatus]}</small>
                 </div>
             </div>
             <div className={styles.stats}>
-                {(Object.keys(METRIC_LABELS) as Metric[]).map((metric) => (
+                {(Object.keys(COUNTRY_STATE_LABELS) as CountryStateKey[]).map((countryStateKey) => (
                     <ValueRow
-                        key={metric}
-                        label={METRIC_LABELS[metric]}
-                        value={`${number(country[metric])}${metric === 'aiAdoption' || metric === 'aiDependency' ? '%' : ''}`}
+                        key={countryStateKey}
+                        label={COUNTRY_STATE_LABELS[countryStateKey]}
+                        value={`${number(countryState[countryStateKey])}${countryStateKey === 'aiAdoption' || countryStateKey === 'aiDependency' ? '%' : ''}`}
                     />
                 ))}
             </div>
+            <ValueRow
+                label="対AI防御の実効性"
+                value={number(countryMetrics(countryState).aiDefenseEffectiveness)}
+            />
             <h3>公共サービス</h3>
-            {country.id === 'JPN' || game.researched.includes('languages') ? (
+            {countryState.id === 'JPN' || gameState.researched.includes('languages') ? (
                 <Allocation
-                    key={`${country.id}-service`}
-                    game={game}
+                    key={`${countryState.id}-service`}
+                    game={gameState}
                     kind="service"
-                    target={country.id}
+                    target={countryState.id}
                 />
             ) : (
                 <small>必要研究：多言語展開</small>
@@ -53,75 +64,86 @@ export function CountryInfo({ game, country }: { game: GameState; country: Count
             </details>
             <h3>浸透工作</h3>
             <Allocation
-                key={`${country.id}-infiltration`}
-                game={game}
+                key={`${countryState.id}-infiltration`}
+                game={gameState}
                 kind="infiltration"
-                target={country.id}
+                target={countryState.id}
             />
             <h3>監視・防衛</h3>
             <Allocation
-                key={`${country.id}-defense`}
-                game={game}
+                key={`${countryState.id}-defense`}
+                game={gameState}
                 kind="defense"
-                target={country.id}
+                target={countryState.id}
             />
         </>
     );
 }
 
-export function FacilityInfo({ game, id }: { game: GameState; id: string }) {
-    const definition = FACILITY_BY_ID[id],
-        facility = game.facilities[id];
-    const country = game.definitions.find((item) => item.id === definition.country)!;
+export function FacilityInfo({ game: gameState, id }: { game: GameState; id: string }) {
+    const facilityAttributes = FACILITY_BY_ID[id],
+        facilityState = gameState.facilities[id];
+    const countryAttributes = gameState.definitions.find(
+        (item) => item.id === facilityAttributes.country,
+    )!;
     const dispatch = useGameStore((state) => state.dispatch);
-    const operation = game.operations.find((item) => item.kind === 'hack' && item.target === id);
-    const acquired = facility.status === 'controlled' || facility.status === 'compromised';
+    const operation = gameState.operations.find(
+        (item) => item.kind === 'hack' && item.target === id,
+    );
+    const acquired =
+        facilityState.status === 'controlled' || facilityState.status === 'compromised';
     return (
         <div data-facility={id}>
             <div className={styles.countryHeading}>
-                <CountryFlag id={country.id} name={country.name} />
+                <CountryFlag id={countryAttributes.id} name={countryAttributes.name} />
                 <div>
                     <small>
-                        {country.name}・{definition.location}
+                        {countryAttributes.name}・{facilityAttributes.location}
                     </small>
-                    <h2>{definition.name}</h2>
+                    <h2>{facilityAttributes.name}</h2>
                 </div>
             </div>
             <div className={styles.facilityType}>
-                {CATEGORIES[definition.category].name}
-                <span>{STATUS_LABELS[facility.status]}</span>
+                {CATEGORIES[facilityAttributes.category].name}
+                <span>{STATUS_LABELS[facilityState.status]}</span>
             </div>
             <FacilityPhoto id={id} />
             <div className={styles.stats}>
-                <ValueRow label="計算資源" value={number(facilityCapacity(game, id))} />
-                <ValueRow label="露見度" value={number(facility.exposure)} />
-                <ValueRow label="設備段階" value={`${facility.level} / 3`} />
+                <ValueRow label="計算資源" value={number(facilityCapacity(gameState, id))} />
+                <ValueRow label="察知度" value={number(facilityState.exposure)} />
+                <ValueRow label="設備段階" value={`${facilityState.level} / 3`} />
             </div>
             {operation && (
                 <ValueRow
                     label="侵入進捗"
-                    value={`${number((operation.progress / game.config.hackWork) * 100)}%`}
+                    value={`${number((operation.progress / gameState.config.hackWork) * 100)}%`}
                 />
             )}
             {!acquired &&
-                facility.status !== 'isolated' &&
-                (availableFacility(game, id) ? (
+                facilityState.status !== 'isolated' &&
+                (availableFacility(gameState, id) ? (
                     <>
-                        <ValueRow label="侵入難易度" value={number(hackDifficulty(game, id))} />
-                        <Allocation game={game} kind="hack" target={id} />
+                        <ValueRow
+                            label="侵入難易度"
+                            value={number(hackDifficulty(gameState, id))}
+                        />
+                        <Allocation game={gameState} kind="hack" target={id} />
                     </>
                 ) : (
                     <div className={styles.requirement}>
-                        必要研究：{definition.tier === 3 ? '深層制御' : '侵入経路解析'}
+                        必要研究：{facilityAttributes.tier === 3 ? '深層制御' : '侵入経路解析'}
                     </div>
                 ))}
             {acquired && (
                 <>
-                    {facility.status === 'compromised' && (
+                    {facilityState.status === 'compromised' && (
                         <Button
                             type="button"
                             className={styles.primaryAction}
-                            disabled={definition.tier > 1 && !game.researched.includes('root')}
+                            disabled={
+                                facilityAttributes.tier > 1 &&
+                                !gameState.researched.includes('root')
+                            }
                             onClick={() => dispatch({ type: 'secure', target: id })}
                         >
                             制御権を確立
@@ -133,7 +155,7 @@ export function FacilityInfo({ game, id }: { game: GameState; id: string }) {
                             <Button
                                 type="button"
                                 key={mode}
-                                aria-pressed={facility.mode === mode}
+                                aria-pressed={facilityState.mode === mode}
                                 onClick={() => dispatch({ type: 'mode', target: id, mode })}
                             >
                                 {MODES[mode].name}
@@ -144,7 +166,7 @@ export function FacilityInfo({ game, id }: { game: GameState; id: string }) {
                     <Select
                         className={styles.wideField}
                         aria-label="施設の運用方針"
-                        value={facility.order}
+                        value={facilityState.order}
                         onChange={(event) =>
                             dispatch({
                                 type: 'order',
@@ -158,27 +180,27 @@ export function FacilityInfo({ game, id }: { game: GameState; id: string }) {
                         <option value="disrupt">供給妨害</option>
                     </Select>
                     <div className={styles.effectList}>
-                        {CATEGORIES[definition.category].effects.map((effect) => (
+                        {CATEGORIES[facilityAttributes.category].effects.map((effect) => (
                             <ValueRow
-                                key={effect.metric}
-                                label={METRIC_LABELS[effect.metric]}
+                                key={effect.countryStateKey}
+                                label={COUNTRY_STATE_LABELS[effect.countryStateKey]}
                                 value={`${effect.amount > 0 ? '+' : ''}${effect.amount} / 日`}
                             />
                         ))}
                     </div>
-                    {game.researched.includes('distributed') && facility.level < 3 && (
+                    {gameState.researched.includes('distributed') && facilityState.level < 3 && (
                         <>
                             <h3>設備増強</h3>
-                            <Allocation game={game} kind="upgrade" target={id} />
+                            <Allocation game={gameState} kind="upgrade" target={id} />
                         </>
                     )}
                 </>
             )}
-            {facility.status === 'isolated' && (
+            {facilityState.status === 'isolated' && (
                 <>
-                    <ValueRow label="隔離の残り日数" value={`${facility.isolation}日`} />
-                    {game.researched.includes('distributed') && (
-                        <Allocation game={game} kind="restore" target={id} />
+                    <ValueRow label="隔離の残り日数" value={`${facilityState.isolation}日`} />
+                    {gameState.researched.includes('distributed') && (
+                        <Allocation game={gameState} kind="restore" target={id} />
                     )}
                 </>
             )}

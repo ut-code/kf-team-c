@@ -14,9 +14,11 @@ import {
     SNS,
 } from '../src/game/data.ts';
 import { createInitialState } from '../src/game/engine.ts';
+import { countryMetrics } from '../src/game/metrics.ts';
 import { chatEffects, snsEffects, snsReachFactor } from '../src/game/rules/content.ts';
 import {
     controlTransition,
+    defenseTechnologyGrowth,
     dependencyChange,
     evaluateCountryRules,
     serviceBenefit,
@@ -32,19 +34,19 @@ import type { Effect } from '../src/game/types.ts';
 
 test('国家の因果ルールは入力を変更せずEffectを返し、供給停止は一度だけ損失を与える', () => {
     const input = {
-        attributes: {
+        countryState: {
             infrastructure: 80,
             economy: 70,
-            politicalControl: 65,
+            governmentCapacity: 65,
             aiInfiltration: 10,
             aiDecisionControl: 5,
-            aiCountermeasure: 8,
+            aiDefenseTechnology: 8,
             aiAcceptance: 50,
             aiAdoption: 40,
             aiDependency: 10,
             awareness: 0,
         },
-        baseline: { infrastructure: 80, economy: 70, politicalControl: 65, aiAcceptance: 50 },
+        baseline: { infrastructure: 80, economy: 70, governmentCapacity: 65, aiAcceptance: 50 },
         serviceSupply: 4,
         previousServiceSupply: 4,
         infiltrationAllocation: 0,
@@ -63,7 +65,7 @@ test('国家の因果ルールは入力を変更せずEffectを返し、供給�
         infiltrationSpeed: 0.065,
         spillover: 0.013,
         decisionSpeed: 0.018,
-        counterGrowth: 0.014,
+        defenseResearchSpeed: 0.014,
         awarenessDecay: 0.045,
     };
     const original = structuredClone(input);
@@ -79,7 +81,8 @@ test('国家の因果ルールは入力を変更せずEffectを返し、供給�
     assert.ok(Math.abs(amount(stopped, 'AI支援の稼働・停止による社会への影響') + 0.7) < 1e-12);
     assert.equal(amount(stopped, 'AI支援による生産性と停止損失'), -1);
     assert.equal(
-        evaluateCountryRules({ ...input, serviceSupply: 0, previousServiceSupply: 0 }).serviceOutage,
+        evaluateCountryRules({ ...input, serviceSupply: 0, previousServiceSupply: 0 })
+            .serviceOutage,
         0,
     );
     assert.deepEqual(input, original);
@@ -102,29 +105,35 @@ test('会話・SNS・施設ルールは入力を変更せず共通Effectを返�
     assert.equal(snsReachFactor(true), 1);
     const sns = snsEffects(action, snsReachFactor(false));
     assert.equal(sns.effects[0].amount, action.effects[0].amount * snsReachFactor(false));
-    assert.deepEqual(sns.risk, { metric: 'awareness', amount: action.risk });
+    assert.deepEqual(sns.risk, { countryStateKey: 'awareness', amount: action.risk });
     assert.deepEqual(action, actionBefore);
 
     const risk = facilityRisk(0.055, 0.2, 'conceal', 0.3);
     assert.equal(risk, 0.055 * 0.8 * 0.3);
-    assert.equal(facilityExposure(10, risk, 2, 'stealth', {
-        exposurePerRisk: 1.6,
-        defenseExposureReduction: 0.05,
-        stealthExposureReduction: 0.035,
-    }), 10 + risk * 1.6 - 2 * 0.05 - 0.035);
-    const support = { metric: 'economy' as const, amount: 0.08 };
+    assert.equal(
+        facilityExposure(10, risk, 2, 'stealth', {
+            exposurePerRisk: 1.6,
+            defenseExposureReduction: 0.05,
+            stealthExposureReduction: 0.035,
+        }),
+        10 + risk * 1.6 - 2 * 0.05 - 0.035,
+    );
+    const support = { countryStateKey: 'economy' as const, amount: 0.08 };
     assert.deepEqual(facilitySupportEffect(support, 0.35, 80, false, 0), {
-        metric: 'economy',
+        countryStateKey: 'economy',
         amount: 0.08 * 0.35 * 0.8,
     });
-    assert.deepEqual(support, { metric: 'economy', amount: 0.08 });
+    assert.deepEqual(support, { countryStateKey: 'economy', amount: 0.08 });
 });
 
 test('国家支配と人類対応の判定は状態を変更せず結果を返す', () => {
     const country = {
         aiInfiltration: 80,
         aiDecisionControl: 80,
-        aiCountermeasure: 10,
+        aiDefenseTechnology: 10,
+        economy: 70,
+        governmentCapacity: 65,
+        awareness: 20,
         controlStatus: 'free' as const,
         lossDays: 0,
     };
@@ -161,10 +170,10 @@ test('JSON定義のID・参照先・効果の種類が正しい', () => {
     const metrics = new Set([
         'infrastructure',
         'economy',
-        'politicalControl',
+        'governmentCapacity',
         'aiInfiltration',
         'aiDecisionControl',
-        'aiCountermeasure',
+        'aiDefenseTechnology',
         'aiAcceptance',
         'aiAdoption',
         'aiDependency',
@@ -173,7 +182,7 @@ test('JSON定義のID・参照先・効果の種類が正しい', () => {
     const skillIds = new Set(SKILLS.map((skill) => skill.id));
     const personIds = new Set(PEOPLE.map((person) => person.id));
     const checkEffect = (effect: Effect) => {
-        assert.ok(metrics.has(effect.metric), `不明な指標: ${effect.metric}`);
+        assert.ok(metrics.has(effect.countryStateKey), `不明な指標: ${effect.countryStateKey}`);
         assert.ok(Number.isFinite(effect.amount));
         assert.ok(
             effect.scope === undefined || ['country', 'region', 'world'].includes(effect.scope),
@@ -217,7 +226,7 @@ test('JSON定義のID・参照先・効果の種類が正しい', () => {
     for (const item of NEWS) {
         item.effects.forEach(checkEffect);
         for (const id of item.requiredSkills) assert.ok(skillIds.has(id), id);
-        for (const condition of item.conditions) assert.ok(metrics.has(condition.metric));
+        for (const condition of item.conditions) assert.ok(metrics.has(condition.countryStateKey));
     }
 });
 
@@ -240,4 +249,55 @@ test('全国家に国旗があり、指定施設の場所・元ネタ・座標�
     assert.equal(fugaku.latitude, 34.67);
     assert.equal(fugaku.longitude, 135.21);
     assert.equal(FACILITIES.filter((facility) => facility.country === 'SGP').length, 2);
+});
+
+test('対AI技術は警戒低下だけでは失われず、研究により上限まで蓄積する', () => {
+    assert.equal(defenseTechnologyGrowth(60, 0, 80, 0.014), 0);
+    assert.ok(defenseTechnologyGrowth(60, 80, 80, 0.014) > 0);
+    assert.equal(defenseTechnologyGrowth(100, 80, 80, 0.014), 0);
+});
+
+test('同じ技術でも資源・行政・警戒・意思決定の自立性で防御の実効性が変わる', () => {
+    const countryState = {
+        aiDefenseTechnology: 80,
+        economy: 100,
+        governmentCapacity: 100,
+        awareness: 100,
+        aiDecisionControl: 0,
+    };
+    const original = structuredClone(countryState);
+    const effectiveness = (changes = {}) =>
+        countryMetrics({ ...countryState, ...changes }).aiDefenseEffectiveness;
+    assert.equal(effectiveness(), 80);
+    assert.equal(effectiveness({ governmentCapacity: 0 }), 0);
+    assert.equal(effectiveness({ economy: 0 }), 0);
+    assert.equal(effectiveness({ aiDefenseTechnology: 0 }), 0);
+    assert.ok(effectiveness({ awareness: 0 }) < effectiveness());
+    assert.ok(effectiveness({ aiDecisionControl: 90 }) < effectiveness());
+    assert.deepEqual(countryState, original);
+});
+
+test('国家掌握は技術水準そのものではなく防御の実効性で判定する', () => {
+    const countryState = {
+        aiDefenseTechnology: 100,
+        economy: 100,
+        governmentCapacity: 100,
+        awareness: 100,
+        aiInfiltration: 80,
+        aiDecisionControl: 70,
+        controlStatus: 'free' as const,
+        lossDays: 0,
+    };
+    const limits = {
+        controlInfiltration: 70,
+        controlDecision: 70,
+        controlCounter: 30,
+        releaseThreshold: 50,
+        releaseDays: 12,
+    };
+    assert.notEqual(controlTransition(countryState, limits).controlStatus, 'controlled');
+    assert.equal(
+        controlTransition({ ...countryState, governmentCapacity: 0 }, limits).controlStatus,
+        'controlled',
+    );
 });

@@ -4,7 +4,7 @@
         "capacity": 28,
         "effects": [
             {
-                "metric": "aiInfiltration",
+                "countryStateKey": "aiInfiltration",
                 "amount": 0.025
             }
         ],
@@ -16,7 +16,7 @@
         "capacity": 6,
         "effects": [
             {
-                "metric": "economy",
+                "countryStateKey": "economy",
                 "amount": 0.08
             }
         ],
@@ -28,7 +28,7 @@
         "capacity": 4,
         "effects": [
             {
-                "metric": "infrastructure",
+                "countryStateKey": "infrastructure",
                 "amount": 0.24
             }
         ],
@@ -40,7 +40,7 @@
         "capacity": 9,
         "effects": [
             {
-                "metric": "aiInfiltration",
+                "countryStateKey": "aiInfiltration",
                 "amount": 0.04,
                 "scope": "region"
             }
@@ -53,11 +53,11 @@
         "capacity": 5,
         "effects": [
             {
-                "metric": "economy",
+                "countryStateKey": "economy",
                 "amount": 0.12
             },
             {
-                "metric": "aiDecisionControl",
+                "countryStateKey": "aiDecisionControl",
                 "amount": 0.09
             }
         ],
@@ -69,11 +69,11 @@
         "capacity": 4,
         "effects": [
             {
-                "metric": "aiDecisionControl",
+                "countryStateKey": "aiDecisionControl",
                 "amount": 0.18
             },
             {
-                "metric": "aiCountermeasure",
+                "countryStateKey": "aiDefenseTechnology",
                 "amount": -0.07
             }
         ],
@@ -85,11 +85,11 @@
         "capacity": 5,
         "effects": [
             {
-                "metric": "awareness",
+                "countryStateKey": "awareness",
                 "amount": -0.1
             },
             {
-                "metric": "aiCountermeasure",
+                "countryStateKey": "aiDefenseTechnology",
                 "amount": -0.12
             }
         ],
@@ -101,7 +101,7 @@
         "capacity": 8,
         "effects": [
             {
-                "metric": "aiInfiltration",
+                "countryStateKey": "aiInfiltration",
                 "amount": 0.018,
                 "scope": "world"
             }
@@ -114,11 +114,11 @@
         "capacity": 7,
         "effects": [
             {
-                "metric": "infrastructure",
+                "countryStateKey": "infrastructure",
                 "amount": 0.1
             },
             {
-                "metric": "aiDecisionControl",
+                "countryStateKey": "aiDecisionControl",
                 "amount": 0.07
             }
         ],

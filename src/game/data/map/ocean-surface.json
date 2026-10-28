@@ -1,6 +1,6 @@
 {
-    "strength": 0.045,
-    "tintStrength": 0.18,
+    "strength": 0.025,
+    "tintStrength": 0,
     "timeScale": 0.8,
     "maximumPixelRatio": 1.5,
     "maximumPixels": 1036800,
