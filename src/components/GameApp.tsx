@@ -8,8 +8,8 @@ import {
     PEOPLE,
     SKILLS,
 } from '../game/data.ts';
+import { canChooseChat } from '../game/engine.ts';
 import { worldMetrics } from '../game/outcome.ts';
-import { choiceAvailable } from '../game/society.ts';
 import type { Country, MapMarker } from '../map/types';
 import { useGameStore } from '../state/gameStore';
 import { useMapStore } from '../state/mapStore';
@@ -202,7 +202,7 @@ export function GameApp({
                     )}
                     {panel === 'research' && <ResearchPanel game={game} />}
                     {panel === 'compute' && <ComputePanel game={game} />}
-                    {panel === 'sns' && <SnsPanel game={game} country={selected} />}
+                    {panel === 'sns' && <SnsPanel game={game} />}
                     {panel === 'settings' && (
                         <DebugPanel
                             game={game}
@@ -233,14 +233,14 @@ export function GameApp({
                                     <Button
                                         type="button"
                                         key={choice.label}
-                                        disabled={!choiceAvailable(game, choice)}
+                                        disabled={!canChooseChat(game, choice)}
                                         onClick={() => {
                                             dispatch({ type: 'reply', choice: index });
                                             setPanel(null);
                                         }}
                                     >
                                         {choice.label}
-                                        {!choiceAvailable(game, choice) && (
+                                        {!canChooseChat(game, choice) && (
                                             <small>
                                                 必要研究：
                                                 {choice

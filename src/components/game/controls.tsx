@@ -48,20 +48,15 @@ export function Allocation({
     game,
     kind,
     target,
-    country,
     minimum = 1,
 }: {
     game: GameState;
     kind: Operation['kind'];
     target: string;
-    country?: string;
     minimum?: number;
 }) {
     const fieldId = useId();
-    const operation = game.operations.find(
-        (op) =>
-            op.kind === kind && op.target === target && (kind !== 'sns' || op.country === country),
-    );
+    const operation = game.operations.find((op) => op.kind === kind && op.target === target);
     const [capacity, setCapacity] = useState(operation?.capacity ?? Math.max(4, minimum));
     const [priority, setPriority] = useState(operation?.priority ?? 50);
     const dispatch = useGameStore((state) => state.dispatch);
@@ -95,7 +90,7 @@ export function Allocation({
             <Button
                 type="button"
                 onClick={() =>
-                    dispatch({ type: 'allocate', kind, target, country, capacity, priority })
+                    dispatch({ type: 'allocate', kind, target, capacity, priority })
                 }
             >
                 {operation ? '変更' : '実行'}

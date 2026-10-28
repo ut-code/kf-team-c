@@ -1,5 +1,5 @@
 import type { KeyboardEvent, PointerEvent } from 'react';
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { CountryState, FacilityState } from '../game/types';
 import type { Size } from '../map/geometry';
 import {
@@ -57,6 +57,10 @@ export function WorldMap({
     const viewport = useRef<HTMLDivElement>(null);
     const sizeRef = useRef<Size>({ width: 0, height: 0 });
     const gesture = useRef<Gesture | null>(null);
+    const background = useRef<HTMLDivElement>(null);
+    const mapSurface = useRef<HTMLDivElement>(null);
+    const worldTiles = useRef<(SVGGElement | null)[]>([]);
+    const dragFrame = useRef(0);
     const [size, setSize] = useState<Size>(sizeRef.current);
     const [zoom, setZoom] = useState(1);
     const zoomRef = useRef(1);
@@ -71,8 +75,39 @@ export function WorldMap({
     const [dragging, setDragging] = useState(false);
     const [imageError, setImageError] = useState(false);
     const camera = useMapStore((state) => state.camera);
+    const cameraXRef = useRef(camera.x);
     const selected = useMapStore((state) => state.selectedCountryId);
     const markers = useMapStore((state) => state.markers);
+
+    function paintCamera() {
+        const currentSize = sizeRef.current;
+        const scale = fitScale(currentSize);
+        const left = (currentSize.width - visibleWidth(currentSize)) / 2;
+        const period = WORLD_WIDTH * scale;
+        if (mapSurface.current) mapSurface.current.style.top = `${cameraYRef.current}px`;
+        if (background.current)
+            background.current.style.backgroundPosition = `${cameraXRef.current}px 0`;
+        worldTiles.current.forEach((tile, index) => {
+            if (tile) {
+                tile.style.display =
+                    index === 1 && cameraXRef.current + period >= visibleWidth(currentSize)
+                        ? 'none'
+                        : '';
+                tile.setAttribute(
+                    'transform',
+                    `translate(${left + cameraXRef.current + index * period} 0) scale(${scale})`,
+                );
+            }
+        });
+    }
+
+    useLayoutEffect(() => {
+        if (gesture.current) return;
+        cameraXRef.current = camera.x;
+        paintCamera();
+    }, [camera.x, cameraY, renderSize]);
+
+    useEffect(() => () => cancelAnimationFrame(dragFrame.current), []);
 
     useEffect(() => {
         const image = new Image();
@@ -166,8 +201,8 @@ export function WorldMap({
             pointerId: event.pointerId,
             startX: event.clientX,
             startY: event.clientY,
-            cameraX: camera.x,
-            cameraY,
+            cameraX: cameraXRef.current,
+            cameraY: cameraYRef.current,
             moved: false,
             countryId: countryAt(event.target),
         };
@@ -178,16 +213,22 @@ export function WorldMap({
         if (!current || current.pointerId !== event.pointerId) return;
         const dx = event.clientX - current.startX;
         const dy = event.clientY - current.startY;
-        if (Math.hypot(dx, dy) > 5) current.moved = true;
-        if (!current.moved) return;
-        setDragging(true);
-        useMapStore.getState().setCamera(constrainCamera({ x: current.cameraX + dx }, sizeRef.current));
+        if (!current.moved) {
+            if (Math.hypot(dx, dy) <= 5) return;
+            current.moved = true;
+            setDragging(true);
+        }
+        cameraXRef.current = constrainCamera({ x: current.cameraX + dx }, sizeRef.current).x;
         const nextY = limitY(current.cameraY + dy);
         cameraYRef.current = nextY;
-        setCameraY(nextY);
+        if (!dragFrame.current)
+            dragFrame.current = requestAnimationFrame(() => {
+                dragFrame.current = 0;
+                paintCamera();
+            });
         current.startX = event.clientX;
         current.startY = event.clientY;
-        current.cameraX = useMapStore.getState().camera.x;
+        current.cameraX = cameraXRef.current;
         current.cameraY = nextY;
     }
 
@@ -208,6 +249,15 @@ export function WorldMap({
     }
 
     function endGesture() {
+        if (dragFrame.current) {
+            cancelAnimationFrame(dragFrame.current);
+            dragFrame.current = 0;
+            paintCamera();
+        }
+        if (gesture.current?.moved) {
+            useMapStore.getState().setCamera({ x: cameraXRef.current });
+            setCameraY(cameraYRef.current);
+        }
         gesture.current = null;
         setDragging(false);
     }
@@ -241,7 +291,7 @@ export function WorldMap({
     const period = WORLD_WIDTH * scale;
     const displayWidth = visibleWidth(renderSize);
     const left = (size.width - displayWidth) / 2;
-    const tiles = scale > 0 ? (camera.x + period < displayWidth ? [0, 1] : [0]) : [];
+    const tiles = scale > 0 ? [0, 1] : [];
     const countryLayer = useMemo(
         () => (
             <g className={styles.countries}>
@@ -297,6 +347,7 @@ export function WorldMap({
             onContextMenu={(event) => event.preventDefault()}
         >
             <div
+                ref={mapSurface}
                 style={{
                     position: 'absolute',
                     top: cameraY,
@@ -305,6 +356,7 @@ export function WorldMap({
                 }}
             >
                 <div
+                    ref={background}
                     className={styles.background}
                     data-map-background={backgroundUrl}
                     aria-hidden="true"
@@ -320,12 +372,14 @@ export function WorldMap({
                 <OceanSurface
                     size={renderSize}
                     cameraX={camera.x}
+                    cameraXRef={cameraXRef}
                     speed={trafficSpeed}
                     tick={trafficTick}
                 />
                 <TrafficLayer
                     size={renderSize}
                     cameraX={camera.x}
+                    cameraXRef={cameraXRef}
                     speed={trafficSpeed}
                     tick={trafficTick}
                     countries={countryStates}
@@ -340,6 +394,9 @@ export function WorldMap({
                         {tiles.map((tile) => (
                             <g
                                 key={tile}
+                                ref={(element) => {
+                                    worldTiles.current[tile] = element;
+                                }}
                                 transform={`translate(${left + camera.x + tile * period} 0) scale(${scale})`}
                                 data-map-layer="world"
                                 data-world-tile={tile}

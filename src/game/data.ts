@@ -53,7 +53,6 @@ export const SNS = sns as {
     duration: number;
     effects: Effect[];
     risk: number;
-    global?: boolean;
 }[];
 export const HUMAN_ACTIONS = humanActions as {
     id: string;

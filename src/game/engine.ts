@@ -19,23 +19,55 @@ import {
     SKILLS,
     SNS,
 } from './data.ts';
-import { evaluateCausalRules } from './causality.ts';
-import { publishEvent } from './events.ts';
 import { evaluateOutcome, worldMetrics } from './outcome.ts';
-import { choiceAvailable, SOCIETY, updateNews } from './society.ts';
+import {
+    chatEffects,
+    humanActionEffects,
+    newsEffects,
+    snsEffects,
+    snsReachFactor,
+} from './rules/content.ts';
+import { controlTransition, evaluateCountryRules } from './rules/country.ts';
+import {
+    facilityCapacityValue,
+    facilityDisruptEffects,
+    facilityExposure,
+    facilityRisk,
+    facilitySupportEffect,
+    hackDifficultyValue,
+} from './rules/facility.ts';
+import {
+    eligibleHumanActions,
+    humanStage as calculateHumanStage,
+    isolationResponse,
+    shutdownChange,
+} from './rules/human.ts';
+import { modifiersForSkills } from './rules/modifier.ts';
+import {
+    hackAwarenessEffect,
+    hackExposureChange,
+    hackProgress,
+    researchFacilityBoost,
+    researchProgress,
+    upgradeProgress,
+} from './rules/operations.ts';
+import { choiceAvailable, selectChat, selectNews, SOCIETY } from './society.ts';
 import { METRICS } from './types.ts';
 import type {
-    Action,
-    Bonuses,
     Change,
+    Command,
     CountryDefinition,
     Effect,
+    Event,
     GameState,
     Metric,
+    Modifier,
     Region,
+    State,
 } from './types.ts';
 
 export const clamp = (n: number, min = 0, max = 100) => Math.min(max, Math.max(min, n));
+
 const owns = (s: GameState, skill: string) => s.researched.includes(skill);
 export const hasUnlock = (s: GameState, ability: string) =>
     SKILLS.some((k) => owns(s, k.id) && k.unlock === ability);
@@ -49,6 +81,23 @@ function log(
     delta = 0,
 ) {
     s.logs.push({ tick: s.tick, source, message, country, metric, delta });
+}
+function publishEvent(
+    state: GameState,
+    kind: Event['kind'],
+    title: string,
+    message: string,
+    country?: string,
+) {
+    state.events.push({
+        id: state.nextEvent++,
+        tick: state.tick,
+        kind,
+        title,
+        message,
+        country,
+    });
+    state.events = state.events.slice(-200);
 }
 function random(s: GameState) {
     let x = s.rng | 0;
@@ -185,23 +234,8 @@ export function createInitialState(
     };
 }
 
-export function bonuses(s: GameState): Bonuses {
-    const b: Bonuses = {
-        hack: 1,
-        compute: 1,
-        research: 1,
-        spread: 1,
-        decision: 1,
-        stealth: 0,
-        defense: 1,
-        parallel: 1,
-    };
-    SKILLS.filter((k) => owns(s, k.id)).forEach((k) => {
-        Object.entries(k.bonuses).forEach(([key, v]) => {
-            b[key as keyof Bonuses] += v;
-        });
-    });
-    return b;
+export function bonuses(s: State): Modifier {
+    return modifiersForSkills(s.researched, SKILLS);
 }
 export function facilityCapacity(s: GameState, id: string): number {
     const f = s.facilities[id],
@@ -211,18 +245,18 @@ export function facilityCapacity(s: GameState, id: string): number {
     const expansion = FACILITIES.filter(
         (n) => s.facilities[n.id] && live(s.facilities[n.id].status) && n.country === d.country,
     ).reduce((n, f) => n + CATEGORIES[f.category].expansion, 0);
-    return (
-        CATEGORIES[d.category].capacity *
-        f.level *
-        (0.3 + (0.7 * c.economy) / 100) *
-        (c.infrastructure / 100) *
-        MODES[f.mode].capacity *
-        OPERATION_EFFECTS.accessMultipliers[
+    return facilityCapacityValue({
+        capacity: CATEGORIES[d.category].capacity,
+        level: f.level,
+        economy: c.economy,
+        infrastructure: c.infrastructure,
+        modeMultiplier: MODES[f.mode].capacity,
+        accessMultiplier: OPERATION_EFFECTS.accessMultipliers[
             f.status === 'compromised' ? 'compromised' : 'controlled'
-        ] *
-        (1 + expansion) *
-        bonuses(s).compute
-    );
+        ],
+        expansion,
+        computeBonus: bonuses(s).compute,
+    });
 }
 export function computeState(s: GameState) {
     const totalCapacity =
@@ -240,7 +274,7 @@ export function computeState(s: GameState) {
 export function hackDifficulty(s: GameState, id: string) {
     const f = FACILITY_BY_ID[id],
         c = s.countries[f.country];
-    return (f.tier * (1 + c.aiCountermeasure / 65 + c.awareness / 200)) / bonuses(s).hack;
+    return hackDifficultyValue(f.tier, c.aiCountermeasure, c.awareness, bonuses(s).hack);
 }
 export function availableFacility(s: GameState, id: string) {
     const f = FACILITY_BY_ID[id];
@@ -254,6 +288,12 @@ export function availableFacility(s: GameState, id: string) {
 export function researchAllowed(s: GameState, id: string) {
     const k = SKILLS.find((k) => k.id === id);
     return Boolean(k && !owns(s, id) && k.prerequisites.every((p) => owns(s, p)));
+}
+export function canChooseChat(
+    state: Pick<State, 'researched'>,
+    choice: { requiredSkills?: string[] },
+): boolean {
+    return choiceAvailable(state.researched, choice);
 }
 
 /** 供給不足では優先度の高い作戦を先に稼働。進捗は保持し、供給回復時に再開する。 */
@@ -271,7 +311,7 @@ function reconcile(s: GameState) {
 function reject(s: GameState, message: string) {
     log(s, '命令拒否', message);
 }
-function apply(s: GameState, a: Action) {
+function apply(s: State, a: Command) {
     if (s.outcome !== 'playing') return;
     if (a.type === 'config') {
         if (Number.isFinite(a.value) && a.value > 0 && a.value <= 10000) s.config[a.key] = a.value;
@@ -310,11 +350,12 @@ function apply(s: GameState, a: Action) {
         const chat = CHATS.find((c) => c.id === s.pendingChat);
         const choice = chat?.choices[a.choice];
         if (!chat || !choice) return;
-        if (!choiceAvailable(s, choice)) {
+        if (!canChooseChat(s, choice)) {
             reject(s, 'この選択肢には追加研究が必要です。');
             return;
         }
-        for (const e of choice.effects) applyEffect(s, e, chat.country, chat.title);
+        for (const effect of chatEffects(choice))
+            applyEffect(s, effect, chat.country, chat.title);
         s.personTrust[chat.person] = clamp(s.personTrust[chat.person] + (a.choice === 0 ? 5 : 2));
         log(s, chat.title, `返信: ${choice.label}`, chat.country);
         s.pendingChat = null;
@@ -365,12 +406,7 @@ function apply(s: GameState, a: Action) {
     }
     if (a.type !== 'allocate') return;
     if (!Number.isFinite(a.capacity) || a.capacity < 1 || a.capacity > 10000) return;
-    const existing = s.operations.find(
-        (o) =>
-            o.kind === a.kind &&
-            o.target === a.target &&
-            (a.kind !== 'sns' || o.country === a.country),
-    );
+    const existing = s.operations.find((o) => o.kind === a.kind && o.target === a.target);
     const available =
         computeState(s).availableCapacity + (existing?.active ? existing.capacity : 0);
     if (a.capacity > available + 1e-8) {
@@ -420,13 +456,9 @@ function apply(s: GameState, a: Action) {
     const sns = SNS.find((n) => n.id === a.target);
     if (
         a.kind === 'sns' &&
-        (!sns ||
-            !owns(s, sns.skill) ||
-            !a.country ||
-            !s.countries[a.country] ||
-            a.capacity < sns.capacity)
+        (!sns || !owns(s, sns.skill) || a.capacity < sns.capacity)
     ) {
-        reject(s, 'SNSの必要スキル・対象国家・必要容量を確認してください。');
+        reject(s, 'SNSの必要スキル・必要容量を確認してください。');
         return;
     }
     if (existing) {
@@ -443,12 +475,11 @@ function apply(s: GameState, a: Action) {
         priority: a.priority ?? 50,
         progress: a.kind === 'research' ? (s.researchProgress[a.target] ?? 0) : 0,
         active: true,
-        country: a.country,
         remaining: a.kind === 'sns' ? sns!.duration : undefined,
     });
     log(s, '計算資源配分', `${a.kind}: ${a.target} / ${a.capacity}`);
 }
-export function applyAction(state: GameState, action: Action): GameState {
+export function applyAction(state: State, action: Command): State {
     const s = structuredClone(state);
     apply(s, action);
     reconcile(s);
@@ -464,30 +495,59 @@ function targets(s: GameState, country: string, scope: Effect['scope']) {
           ? s.definitions.filter((d) => d.region === region).map((d) => d.id)
           : [country];
 }
-function applyEffect(s: GameState, e: Effect, country: string, source: string) {
+function applyEffect(
+    s: GameState,
+    e: Effect,
+    country: string,
+    source: string,
+    record = true,
+) {
     for (const id of targets(s, country, e.scope)) {
         const c = s.countries[id];
         const before = c[e.metric];
         c[e.metric] = clamp(before + e.amount);
-        log(
-            s,
-            source,
-            `${e.metric} ${e.amount > 0 ? '+' : ''}${e.amount.toFixed(2)}`,
-            id,
-            e.metric,
-            c[e.metric] - before,
-        );
+        if (record)
+            log(
+                s,
+                source,
+                `${e.metric} ${e.amount > 0 ? '+' : ''}${e.amount.toFixed(2)}`,
+                id,
+                e.metric,
+                c[e.metric] - before,
+            );
     }
 }
+function advanceNews(s: GameState) {
+    s.newsCooldown = Math.max(0, s.newsCooldown - 1);
+    if (s.newsCooldown > 0) return;
+    const selected = selectNews({
+        definitions: s.definitions,
+        countries: s.countries,
+        researched: s.researched,
+        seenNews: s.seenNews,
+    });
+    if (!selected) return;
+    const { item, country } = selected;
+    for (const effect of newsEffects(item))
+        applyEffect(s, effect, country.id, item.title, false);
+    s.seenNews.push(`${item.id}:${country.id}`);
+    s.newsCooldown = SOCIETY.newsInterval;
+    s.logs.push({
+        tick: s.tick,
+        source: item.title,
+        country: country.id,
+        metric: 'news',
+        delta: 0,
+        message: item.message,
+    });
+    publishEvent(s, 'news', `${country.name}：${item.title}`, item.message, country.id);
+}
 export function humanStage(awareness: number) {
-    return SOCIETY.humanStageThresholds.reduce(
-        (stage, threshold) => stage + Number(awareness >= threshold),
-        0,
-    );
+    return calculateHumanStage(awareness, SOCIETY.humanStageThresholds);
 }
 
 /** 命令→供給→作戦→施設→研究→同期国家更新→人類→イベント→支配→勝敗。乱数状態も保存する純粋関数。 */
-export function simulateTick(state: GameState, actions: Action[] = []): GameState {
+export function simulateTick(state: State, actions: Command[] = []): State {
     if (state.outcome !== 'playing') return state;
     const s = structuredClone(state);
     for (const a of actions) apply(s, a);
@@ -521,16 +581,21 @@ export function simulateTick(state: GameState, actions: Action[] = []): GameStat
         if (o.kind === 'hack') {
             const d = FACILITY_BY_ID[o.target],
                 f = s.facilities[o.target];
-            o.progress += o.capacity / hackDifficulty(s, o.target);
+            o.progress += hackProgress(o.capacity, hackDifficulty(s, o.target));
             f.exposure = clamp(
-                f.exposure + o.capacity * OPERATION_EFFECTS.hack.exposurePerCapacity * (1 - b.stealth),
+                f.exposure +
+                    hackExposureChange(
+                        o.capacity,
+                        OPERATION_EFFECTS.hack.exposurePerCapacity,
+                        b.stealth,
+                    ),
             );
-            add(
-                d.country,
-                'awareness',
-                o.capacity * OPERATION_EFFECTS.hack.awarenessPerCapacity * (1 - b.stealth),
-                '侵入活動',
+            const awareness = hackAwarenessEffect(
+                o.capacity,
+                OPERATION_EFFECTS.hack.awarenessPerCapacity,
+                b.stealth,
             );
+            add(d.country, awareness.metric, awareness.amount, '侵入活動');
             if (o.progress >= s.config.hackWork) {
                 f.status = 'compromised';
                 completed.add(o.id);
@@ -545,16 +610,15 @@ export function simulateTick(state: GameState, actions: Action[] = []): GameStat
             }
         }
         if (o.kind === 'upgrade' || o.kind === 'restore') {
-            o.progress +=
-                o.capacity *
-                (1 +
-                    FACILITIES.filter(
-                        (f) =>
-                            f.category === 'semiconductor' &&
-                            s.facilities[f.id] &&
-                            live(s.facilities[f.id].status),
-                    ).length *
-                        0.15);
+            o.progress += upgradeProgress(
+                o.capacity,
+                FACILITIES.filter(
+                    (facility) =>
+                        facility.category === 'semiconductor' &&
+                        s.facilities[facility.id] &&
+                        live(s.facilities[facility.id].status),
+                ).length,
+            );
             if (o.progress >= 150) {
                 const f = s.facilities[o.target];
                 if (o.kind === 'upgrade') f.level++;
@@ -583,7 +647,11 @@ export function simulateTick(state: GameState, actions: Action[] = []): GameStat
         (f) => s.facilities[f.id] && live(s.facilities[f.id].status),
     ).reduce(
         (n, f) =>
-            n + (CATEGORIES[f.category].research * s.countries[f.country].infrastructure) / 100,
+            n +
+            researchFacilityBoost(
+                CATEGORIES[f.category].research,
+                s.countries[f.country].infrastructure,
+            ),
         0,
     );
     for (const f of Object.values(s.facilities)) {
@@ -610,45 +678,43 @@ export function simulateTick(state: GameState, actions: Action[] = []): GameStat
             s.operations
                 .filter((o) => o.active && o.kind === 'defense' && o.target === d.country)
                 .reduce((n, o) => n + o.capacity, 0) * b.defense;
-        const risk =
-            MODES[f.mode].risk *
-            (1 - b.stealth) *
-            (f.order === 'conceal' ? OPERATION_EFFECTS.facility.concealRiskMultiplier : 1);
+        const risk = facilityRisk(
+            MODES[f.mode].risk,
+            b.stealth,
+            f.order,
+            OPERATION_EFFECTS.facility.concealRiskMultiplier,
+        );
         add(d.country, 'awareness', risk, '施設の稼働痕跡');
         f.exposure = clamp(
-            f.exposure +
-                risk * OPERATION_EFFECTS.facility.exposurePerRisk -
-                defense * OPERATION_EFFECTS.facility.defenseExposureReduction -
-                (f.mode === 'stealth' ? OPERATION_EFFECTS.facility.stealthExposureReduction : 0),
+            facilityExposure(f.exposure, risk, defense, f.mode, OPERATION_EFFECTS.facility),
         );
         if (f.order === 'disrupt')
-            for (const effect of OPERATION_EFFECTS.disrupt)
-                add(d.country, effect.metric, effect.amount, effect.label);
+            for (const effect of facilityDisruptEffects(OPERATION_EFFECTS.disrupt))
+                add(d.country, effect.metric, effect.amount, effect.source);
         if (f.order === 'support')
             for (const e of CATEGORIES[d.category].effects)
                 for (const id of targets(s, d.country, e.scope)) {
-                    // 施設の受容や接続だけでは意思決定支配は成立しない。
-                    if (
-                        e.metric === 'aiDecisionControl' &&
-                        (!hasUnlock(s, 'decision') || before[id].aiInfiltration < 25)
-                    )
-                        continue;
-                    add(
-                        id,
-                        e.metric,
-                        e.amount *
-                            OPERATION_EFFECTS.accessMultipliers[
-                                f.status === 'controlled' ? 'controlled' : 'compromised'
-                            ] *
-                            (c.infrastructure / 100),
-                        d.name,
+                    const effect = facilitySupportEffect(
+                        e,
+                        OPERATION_EFFECTS.accessMultipliers[
+                            f.status === 'controlled' ? 'controlled' : 'compromised'
+                        ],
+                        c.infrastructure,
+                        hasUnlock(s, 'decision'),
+                        before[id].aiInfiltration,
                     );
+                    if (effect) add(id, effect.metric, effect.amount, d.name);
                 }
     }
     for (const o of s.operations.filter((o) => o.active)) {
         if (o.kind === 'research') {
             const k = SKILLS.find((k) => k.id === o.target)!;
-            o.progress += o.capacity * s.config.researchSpeed * (b.research + researchBoost);
+            o.progress += researchProgress(
+                o.capacity,
+                s.config.researchSpeed,
+                b.research,
+                researchBoost,
+            );
             s.researchProgress[k.id] = o.progress;
             if (o.progress >= k.work) {
                 s.researched.push(k.id);
@@ -659,24 +725,17 @@ export function simulateTick(state: GameState, actions: Action[] = []): GameStat
         }
         if (o.kind === 'sns') {
             const action = SNS.find((n) => n.id === o.target)!;
-            const country = o.country!;
-            const definition = s.definitions.find((d) => d.id === country)!;
-            const ids = action.global ? Object.keys(s.countries) : targets(s, country, 'region');
-            for (const id of ids) {
-                const language =
-                    s.definitions.find((d) => d.id === id)!.region === definition.region ||
-                    hasUnlock(s, 'globalSNS')
-                        ? 1
-                        : 0.45;
-                for (const e of action.effects)
-                    add(id, e.metric, e.amount * language, `SNS: ${action.name}`);
-                add(id, 'awareness', action.risk, 'SNSの露見');
+            const { effects, risk } = snsEffects(action, snsReachFactor(hasUnlock(s, 'globalSNS')));
+            for (const id of Object.keys(s.countries)) {
+                for (const effect of effects)
+                    add(id, effect.metric, effect.amount, `SNS: ${action.name}`);
+                add(id, risk.metric, risk.amount, 'SNSの露見');
             }
             o.remaining!--;
             if (o.remaining! <= 0) {
                 completed.add(o.id);
                 log(s, action.name, 'SNS作戦が終了し、容量を返却しました。');
-                publishEvent(s, 'completion', action.name, 'SNS作戦が完了しました。', country);
+                publishEvent(s, 'completion', action.name, 'SNS作戦が完了しました。');
             }
         }
     }
@@ -706,44 +765,33 @@ export function simulateTick(state: GameState, actions: Action[] = []): GameStat
         const foothold = Object.values(s.facilities).some(
             (facility) => live(facility.status) && FACILITY_BY_ID[facility.id].country === d.id,
         );
-        const signals = evaluateCausalRules({
-            infrastructure: c.infrastructure,
-            economy: c.economy,
-            politicalControl: c.politicalControl,
-            aiInfiltration: c.aiInfiltration,
-            aiDecisionControl: c.aiDecisionControl,
-            aiCountermeasure: c.aiCountermeasure,
-            aiAcceptance: c.aiAcceptance,
-            aiAdoption: c.aiAdoption,
-            aiDependency: c.aiDependency,
-            awareness: c.awareness,
-            'baseline.infrastructure': d.baseline.infrastructure,
-            'baseline.economy': d.baseline.economy,
-            'baseline.politicalControl': d.baseline.politicalControl,
-            'baseline.aiAcceptance': d.baseline.aiAcceptance,
+        const result = evaluateCountryRules({
+            attributes: c,
+            baseline: d.baseline,
             serviceSupply: supply,
             previousServiceSupply: c.serviceSupply,
             infiltrationAllocation: allocation,
             defenseAllocation: defense,
             networkIncoming: incoming,
-            foothold: Number(foothold),
-            anyInfiltrationFunded: Number(funded),
-            'research.science': Number(owns(s, 'science')),
-            'research.languages': Number(owns(s, 'languages')),
-            'research.institutions': Number(owns(s, 'institutions')),
-            'unlock.decision': Number(influenceAccess),
-            'unlock.networkControl': Number(networkAccess),
-            'bonus.spread': b.spread,
-            'bonus.decision': b.decision,
-            'bonus.stealth': b.stealth,
-            'config.infiltrationSpeed': s.config.infiltrationSpeed,
-            'config.spillover': s.config.spillover,
-            'config.decisionSpeed': s.config.decisionSpeed,
-            'config.counterGrowth': s.config.counterGrowth,
-            'config.awarenessDecay': s.config.awarenessDecay,
-        }, (metric, delta, source) => add(d.id, metric, delta, source));
+            foothold,
+            anyInfiltrationFunded: funded,
+            science: owns(s, 'science'),
+            languages: owns(s, 'languages'),
+            institutions: owns(s, 'institutions'),
+            decisionUnlocked: influenceAccess,
+            networkControlUnlocked: networkAccess,
+            spreadBonus: b.spread,
+            decisionBonus: b.decision,
+            stealthBonus: b.stealth,
+            infiltrationSpeed: s.config.infiltrationSpeed,
+            spillover: s.config.spillover,
+            decisionSpeed: s.config.decisionSpeed,
+            counterGrowth: s.config.counterGrowth,
+            awarenessDecay: s.config.awarenessDecay,
+        });
+        for (const effect of result.effects) add(d.id, effect.metric, effect.amount, effect.source);
         s.countries[d.id].serviceSupply = supply;
-        if (signals.serviceOutage > 0) {
+        if (result.serviceOutage > 0) {
             publishEvent(
                 s,
                 'warning',
@@ -761,7 +809,7 @@ export function simulateTick(state: GameState, actions: Action[] = []): GameStat
         }
     }
     s.operations = s.operations.filter((o) => !completed.has(o.id));
-    updateNews(s);
+    advanceNews(s);
     // 原因明細は各国の最新tickを保持。重要イベント履歴とは分ける。
     s.causes = changes;
     const world = worldMetrics(s);
@@ -775,19 +823,19 @@ export function simulateTick(state: GameState, actions: Action[] = []): GameStat
             .sort((a, b) => a.id.localeCompare(b.id));
         if (observedCountries.length) {
             const d = observedCountries[Math.floor(random(s) * observedCountries.length)];
-            const candidates = HUMAN_ACTIONS.filter(
-                (a) =>
-                    a.stage <= s.humanStage &&
-                    (a.id !== 'isolate' || observed.length > 0) &&
-                    (a.id !== 'reclaim' ||
-                        Object.values(s.facilities).some((f) => f.status === 'isolated')),
+            const candidates = eligibleHumanActions(
+                HUMAN_ACTIONS,
+                s.humanStage,
+                observed.length,
+                Object.values(s.facilities).some((facility) => facility.status === 'isolated'),
             );
             let roll = random(s) * candidates.reduce((n, a) => n + a.weight, 0);
             const action = candidates.find((a) => {
                 roll -= a.weight;
                 return roll < 0;
             })!;
-            for (const e of action.effects) applyEffect(s, e, d.id, action.name);
+            for (const effect of humanActionEffects(action))
+                applyEffect(s, effect, d.id, action.name);
             if (action.id === 'isolate') {
                 const target = observed[Math.floor(random(s) * observed.length)];
                 const country = FACILITY_BY_ID[target.id].country;
@@ -796,10 +844,14 @@ export function simulateTick(state: GameState, actions: Action[] = []): GameStat
                         .filter((o) => o.active && o.kind === 'defense' && o.target === country)
                         .reduce((n, o) => n + o.capacity, 0) * b.defense;
                 const dependent = s.countries[country];
-                if (
-                    dependent.aiDependency >= SOCIETY.shutdownHesitation &&
-                    dependent.awareness < SOCIETY.emergencyAwareness
-                ) {
+                const response = isolationResponse(
+                    dependent.aiDependency,
+                    dependent.awareness,
+                    protection,
+                    SOCIETY.shutdownHesitation,
+                    SOCIETY.emergencyAwareness,
+                );
+                if (response === 'defer') {
                     dependent.aiCountermeasure = clamp(dependent.aiCountermeasure + 2);
                     publishEvent(
                         s,
@@ -809,7 +861,7 @@ export function simulateTick(state: GameState, actions: Action[] = []): GameStat
                         country,
                     );
                     log(s, action.name, 'AI依存に伴う停止損失を懸念し、隔離を延期。', country);
-                } else if (protection >= 5) {
+                } else if (response === 'avoid') {
                     target.exposure = clamp(target.exposure - 15);
                     log(s, action.name, '監視・分散防衛により隔離を回避。', country);
                 } else {
@@ -854,12 +906,14 @@ export function simulateTick(state: GameState, actions: Action[] = []): GameStat
         s.operations
             .filter((o) => o.active && o.kind === 'defense')
             .reduce((n, o) => n + o.capacity, 0) * b.defense;
-    const shutdownDelta =
-        s.humanStage === SOCIETY.humanStageThresholds.length &&
-        counter > SOCIETY.shutdownCounterThreshold &&
-        observed.length > 0
-            ? Math.max(-2, 1 - defenseTotal / 16)
-            : -(1 + defenseTotal / 20);
+    const shutdownDelta = shutdownChange(
+        s.humanStage,
+        SOCIETY.humanStageThresholds.length,
+        counter,
+        SOCIETY.shutdownCounterThreshold,
+        observed.length,
+        defenseTotal,
+    );
     const oldShutdown = s.shutdown;
     s.shutdown = Math.max(0, s.shutdown + shutdownDelta);
     if (oldShutdown === 0 && s.shutdown > 0)
@@ -876,14 +930,12 @@ export function simulateTick(state: GameState, actions: Action[] = []): GameStat
         }
     }
     if (!s.pendingChat && s.chatCooldown === 0) {
-        const chat = CHATS.find(
-            (e) =>
-                !s.seenChats.includes(e.id) &&
-                s.countries[e.country] &&
-                s.countries[e.country].aiInfiltration >= e.minInfiltration &&
-                s.countries[e.country].awareness >= e.minAwareness &&
-                (!e.skill || owns(s, e.skill)),
-        );
+        const chat = selectChat({
+            chats: CHATS,
+            countries: s.countries,
+            researched: s.researched,
+            seenChats: s.seenChats,
+        });
         if (chat) {
             s.pendingChat = chat.id;
             s.chatArrivedAt = s.tick;
@@ -898,23 +950,9 @@ export function simulateTick(state: GameState, actions: Action[] = []): GameStat
     }
     for (const c of Object.values(s.countries)) {
         const prev = c.controlStatus;
-        if (
-            c.aiInfiltration >= s.config.controlInfiltration &&
-            c.aiDecisionControl >= s.config.controlDecision &&
-            c.aiCountermeasure <= s.config.controlCounter
-        ) {
-            c.controlStatus = 'controlled';
-            c.lossDays = 0;
-        } else if (prev === 'controlled') {
-            c.lossDays =
-                c.aiInfiltration < s.config.releaseThreshold ||
-                c.aiDecisionControl < s.config.releaseThreshold ||
-                c.aiCountermeasure > s.config.controlCounter + 20
-                    ? c.lossDays + 1
-                    : 0;
-            if (c.lossDays >= s.config.releaseDays)
-                c.controlStatus = c.aiInfiltration >= 5 ? 'infiltrated' : 'free';
-        } else c.controlStatus = c.aiInfiltration >= 5 ? 'infiltrated' : 'free';
+        const transition = controlTransition(c, s.config);
+        c.controlStatus = transition.controlStatus;
+        c.lossDays = transition.lossDays;
         if (prev !== c.controlStatus) {
             log(s, '国家支配判定', `${prev} → ${c.controlStatus}`, c.id);
             if (c.controlStatus === 'controlled')
@@ -928,7 +966,11 @@ export function simulateTick(state: GameState, actions: Action[] = []): GameStat
         }
     }
     reconcile(s);
-    evaluateOutcome(s, computeState(s).totalCapacity);
+    const outcome = evaluateOutcome(s, computeState(s).totalCapacity);
+    s.victoryDays = outcome.victoryDays;
+    s.extinctionDays = outcome.extinctionDays;
+    s.outcome = outcome.outcome;
+    s.outcomeReason = outcome.outcomeReason;
     s.logs = s.logs.slice(-500);
     return s;
 }

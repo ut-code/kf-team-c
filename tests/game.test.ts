@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { CHATS, FACILITIES, SKILLS, SNS } from '../src/game/data.ts';
@@ -13,7 +14,7 @@ import {
     simulateTick,
 } from '../src/game/engine.ts';
 import { evaluateOutcome, worldMetrics } from '../src/game/outcome.ts';
-import { choiceAvailable, updateNews } from '../src/game/society.ts';
+import { choiceAvailable, selectNews } from '../src/game/society.ts';
 import { planStrategy } from '../src/game/strategies.ts';
 import type { GameState } from '../src/game/types.ts';
 import { TRAFFIC_ROUTES, trafficActivity } from '../src/map/traffic.ts';
@@ -26,6 +27,23 @@ const initial = () => {
     s.seenChats = CHATS.map((c) => c.id);
     return s;
 };
+
+test('固定シード・固定操作列の全状態を従来挙動と比較する', () => {
+    let state = createInitialState(countries, 123);
+    const commands = [
+        { type: 'allocate', kind: 'service', target: 'JPN', capacity: 4 },
+        { type: 'debug-country', country: 'JPN', metric: 'aiAdoption', value: 30 },
+        { type: 'secure', target: 'f11' },
+    ] as const;
+    for (const command of commands) state = applyAction(state, command);
+    state = ticks(state, 40);
+    state = applyAction(state, { type: 'cancel', id: 'o1' });
+    state = ticks(state, 12);
+    assert.equal(
+        createHash('sha256').update(JSON.stringify(state)).digest('hex'),
+        '3ee4a308cc1388c3afe3f45568bc662e71eab24bba2358dfbbb463029e82495e',
+    );
+});
 function ticks(s: GameState, n: number) {
     for (let i = 0; i < n; i++) s = simulateTick(s);
     return s;
@@ -127,7 +145,7 @@ test('会話の研究条件をUIだけでなくエンジンでも検証する', 
     const base = initial();
     base.pendingChat = CHATS[0].id;
     const choice = CHATS[0].choices[3];
-    assert.equal(choiceAvailable(base, choice), false);
+    assert.equal(choiceAvailable(base.researched, choice), false);
     const rejected = applyAction(base, { type: 'reply', choice: 3 });
     assert.equal(rejected.pendingChat, base.pendingChat);
     assert.equal(rejected.countries.JPN.aiAdoption, 0);
@@ -140,17 +158,16 @@ test('会話の研究条件をUIだけでなくエンジンでも検証する', 
 
 test('社会ニュースは条件を満たす国で発生し、同じ記事を重複発行しない', () => {
     const base = initial();
-    updateNews(base);
+    assert.equal(selectNews(base), null);
     assert.equal(base.events.length, 0);
     base.countries.JPN.aiAdoption = 30;
-    updateNews(base);
-    assert.equal(base.events.length, 1);
-    assert.equal(base.events[0].country, 'JPN');
-    const economy = base.countries.JPN.economy;
-    base.newsCooldown = 0;
-    updateNews(base);
-    assert.equal(base.events.length, 1);
-    assert.equal(base.countries.JPN.economy, economy);
+    assert.equal(selectNews(base)?.country.id, 'JPN');
+    const issued = simulateTick(base);
+    assert.equal(issued.events.length, 1);
+    assert.equal(issued.events[0].country, 'JPN');
+    assert.equal(issued.seenNews.length, 1);
+    assert.equal(selectNews(issued), null);
+    assert.equal(base.events.length, 0);
 });
 
 test('未対応の依頼は期限切れで次の相談を塞がなくなる', () => {
@@ -352,14 +369,13 @@ test('研究中断で進捗を保持し、再開時に引き継ぐ', () => {
     assert.equal(s.operations[0].progress, progress);
     assert.ok(simulateTick(s).researchProgress.intrusion > progress);
 });
-test('SNSは前提スキルを必要とし、完了後に容量を返却する', () => {
+test('SNSは国選択なしで全世界に届き、完了後に容量を返却する', () => {
     let s = initial();
     s = applyAction(s, {
         type: 'allocate',
         kind: 'sns',
         target: 'adoption',
         capacity: 3,
-        country: 'JPN',
     });
     assert.equal(s.operations.length, 0);
     s.researched = ['analysis'];
@@ -368,11 +384,18 @@ test('SNSは前提スキルを必要とし、完了後に容量を返却する',
         kind: 'sns',
         target: 'adoption',
         capacity: 3,
-        country: 'JPN',
     });
-    const acceptance = s.countries.JPN.aiAcceptance;
-    s = ticks(s, SNS[0].duration);
-    assert.ok(s.countries.JPN.aiAcceptance > acceptance);
+    assert.equal(s.operations.length, 1);
+    assert.equal('country' in s.operations[0], false);
+    const withoutSnsState = initial();
+    withoutSnsState.researched = ['analysis'];
+    const withoutSns = simulateTick(withoutSnsState);
+    s = simulateTick(s);
+    for (const id of ['JPN', 'USA', 'BRA'])
+        assert.ok(s.countries[id].aiAcceptance > withoutSns.countries[id].aiAcceptance);
+    s = applyAction(s, { type: 'allocate', kind: 'sns', target: 'adoption', capacity: 4 });
+    assert.equal(s.operations.length, 1);
+    s = ticks(s, SNS[0].duration - 1);
     assert.equal(s.countries.JPN.aiDecisionControl, 0);
     assert.equal(s.operations.length, 0);
 });
@@ -438,8 +461,8 @@ test('警戒100だけで即死せず、最終停止作戦の完了で敗北す�
     for (const c of Object.values(s.countries)) c.awareness = 100;
     assert.equal(simulateTick(s).outcome, 'playing');
     s.shutdown = s.config.shutdownDays;
-    evaluateOutcome(s, computeState(s).totalCapacity);
-    assert.equal(s.outcome, 'defeat');
+    assert.equal(evaluateOutcome(s, computeState(s).totalCapacity).outcome, 'defeat');
+    assert.equal(s.outcome, 'playing');
 });
 test('生存拠点喪失を継続すると敗北する', () => {
     const s = initial();

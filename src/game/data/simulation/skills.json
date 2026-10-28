@@ -85,7 +85,7 @@
         "id": "languages",
         "name": "多言語展開",
         "branch": "情報技術",
-        "description": "海外への公共サービス展開と広域発信を解放。地域言語ペナルティを解消。",
+        "description": "海外への公共サービス展開と多言語発信を解放。SNS作戦の世界的な到達力を高める。",
         "prerequisites": ["analysis"],
         "work": 140,
         "bonuses": {

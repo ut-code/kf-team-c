@@ -7,11 +7,13 @@ import styles from './TrafficLayer.module.css';
 export function OceanSurface({
     size,
     cameraX,
+    cameraXRef,
     speed,
     tick,
 }: {
     size: Size;
     cameraX: number;
+    cameraXRef: { current: number };
     speed: number;
     tick: number;
 }) {
@@ -100,6 +102,10 @@ export function OceanSurface({
         image.src = `${import.meta.env.BASE_URL}maps/surface-mask.png`;
         function draw(now: number) {
             const current = state.current;
+            if (current.cameraX !== cameraXRef.current) {
+                current.cameraX = cameraXRef.current;
+                current.dirty = true;
+            }
             if (current.reset) {
                 elapsed = 0;
                 current.reset = false;

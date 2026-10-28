@@ -3,7 +3,6 @@ import { existsSync, readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import photos from '../src/game/data/ui/facility-photos.json' with { type: 'json' };
 import flags from '../src/game/data/ui/flags.json' with { type: 'json' };
-import { CAUSAL_MODEL, compileCausalModel, evaluateCausalRules } from '../src/game/causality.ts';
 import {
     CATEGORIES,
     CHATS,
@@ -15,77 +14,135 @@ import {
     SNS,
 } from '../src/game/data.ts';
 import { createInitialState } from '../src/game/engine.ts';
+import { chatEffects, snsEffects, snsReachFactor } from '../src/game/rules/content.ts';
+import {
+    controlTransition,
+    dependencyChange,
+    evaluateCountryRules,
+    serviceBenefit,
+} from '../src/game/rules/country.ts';
+import {
+    facilityExposure,
+    facilityRisk,
+    facilitySupportEffect,
+} from '../src/game/rules/facility.ts';
+import { isolationResponse, shutdownChange } from '../src/game/rules/human.ts';
 import { NEWS } from '../src/game/society.ts';
 import type { Effect } from '../src/game/types.ts';
 
-test('日次の因果関係はJSON定義から評価され、供給停止は一度だけ損失を与える', () => {
-    assert.ok(CAUSAL_MODEL.rules.length >= 18);
-    const context = {
-        infrastructure: 80,
-        economy: 70,
-        politicalControl: 65,
-        aiInfiltration: 10,
-        aiDecisionControl: 5,
-        aiCountermeasure: 8,
-        aiAcceptance: 50,
-        aiAdoption: 40,
-        aiDependency: 10,
-        awareness: 0,
-        'baseline.infrastructure': 80,
-        'baseline.economy': 70,
-        'baseline.politicalControl': 65,
-        'baseline.aiAcceptance': 50,
+test('国家の因果ルールは入力を変更せずEffectを返し、供給停止は一度だけ損失を与える', () => {
+    const input = {
+        attributes: {
+            infrastructure: 80,
+            economy: 70,
+            politicalControl: 65,
+            aiInfiltration: 10,
+            aiDecisionControl: 5,
+            aiCountermeasure: 8,
+            aiAcceptance: 50,
+            aiAdoption: 40,
+            aiDependency: 10,
+            awareness: 0,
+        },
+        baseline: { infrastructure: 80, economy: 70, politicalControl: 65, aiAcceptance: 50 },
         serviceSupply: 4,
         previousServiceSupply: 4,
         infiltrationAllocation: 0,
         defenseAllocation: 0,
         networkIncoming: 0,
-        foothold: 0,
-        anyInfiltrationFunded: 0,
-        'research.science': 0,
-        'research.languages': 0,
-        'research.institutions': 1,
-        'unlock.decision': 0,
-        'unlock.networkControl': 0,
-        'bonus.spread': 1,
-        'bonus.decision': 1,
-        'bonus.stealth': 0,
-        'config.infiltrationSpeed': 0.065,
-        'config.spillover': 0.013,
-        'config.decisionSpeed': 0.018,
-        'config.counterGrowth': 0.014,
-        'config.awarenessDecay': 0.045,
+        foothold: false,
+        anyInfiltrationFunded: false,
+        science: false,
+        languages: false,
+        institutions: true,
+        decisionUnlocked: false,
+        networkControlUnlocked: false,
+        spreadBonus: 1,
+        decisionBonus: 1,
+        stealthBonus: 0,
+        infiltrationSpeed: 0.065,
+        spillover: 0.013,
+        decisionSpeed: 0.018,
+        counterGrowth: 0.014,
+        awarenessDecay: 0.045,
     };
-    const changes = new Map<string, number>();
-    const record = (_metric: string, delta: number, label: string) => changes.set(label, delta);
-    const active = evaluateCausalRules({ ...context }, record);
-    assert.equal(active.serviceBenefit, 1.6);
+    const original = structuredClone(input);
+    const amount = (result: ReturnType<typeof evaluateCountryRules>, source: string) =>
+        result.effects.find((effect) => effect.source === source)!.amount;
+    const active = evaluateCountryRules(input);
+    assert.equal(serviceBenefit(4, 80, false, false), 1.6);
     assert.equal(active.serviceOutage, 0);
-    assert.ok(Math.abs(changes.get('業務統合と代替手段の縮小')! - 0.18) < 1e-12);
-    assert.ok(Math.abs(changes.get('公共サービスの実績と導入継続')! - 0.07568) < 1e-12);
-    const stopped = evaluateCausalRules({ ...context, serviceSupply: 0 }, record);
+    assert.ok(Math.abs(amount(active, '業務統合と代替手段の縮小') - 0.18) < 1e-12);
+    assert.ok(Math.abs(amount(active, '公共サービスの実績と導入継続') - 0.07568) < 1e-12);
+    const stopped = evaluateCountryRules({ ...input, serviceSupply: 0 });
     assert.equal(stopped.serviceOutage, 10);
-    assert.ok(Math.abs(changes.get('AI支援の稼働・停止による社会への影響')! + 0.7) < 1e-12);
-    assert.equal(changes.get('AI支援による生産性と停止損失'), -1);
-    const later = evaluateCausalRules({ ...context, serviceSupply: 0, previousServiceSupply: 0 }, record);
-    assert.equal(later.serviceOutage, 0);
+    assert.ok(Math.abs(amount(stopped, 'AI支援の稼働・停止による社会への影響') + 0.7) < 1e-12);
+    assert.equal(amount(stopped, 'AI支援による生産性と停止損失'), -1);
+    assert.equal(
+        evaluateCountryRules({ ...input, serviceSupply: 0, previousServiceSupply: 0 }).serviceOutage,
+        0,
+    );
+    assert.deepEqual(input, original);
 });
 
-test('因果JSONの不明な変数・演算子・対象指標を起動時に拒否する', () => {
-    const rule = {
-        id: 'example',
-        sources: ['aiAdoption'],
-        target: 'economy' as const,
-        label: '検証用',
-        expression: ['*', 'aiAdoption', 0.1] as const,
+test('依存の成長と減衰は条件により排他的', () => {
+    assert.equal(dependencyChange(40, 10, 4, true), 0.18);
+    assert.equal(dependencyChange(40, 10, 4, false), -0.005);
+});
+
+test('会話・SNS・施設ルールは入力を変更せず共通Effectを返す', () => {
+    const choice = CHATS[0].choices[0];
+    const choiceBefore = structuredClone(choice);
+    assert.deepEqual(chatEffects(choice), choice.effects);
+    assert.deepEqual(choice, choiceBefore);
+
+    const action = SNS[0];
+    const actionBefore = structuredClone(action);
+    assert.equal(snsReachFactor(false), 0.45);
+    assert.equal(snsReachFactor(true), 1);
+    const sns = snsEffects(action, snsReachFactor(false));
+    assert.equal(sns.effects[0].amount, action.effects[0].amount * snsReachFactor(false));
+    assert.deepEqual(sns.risk, { metric: 'awareness', amount: action.risk });
+    assert.deepEqual(action, actionBefore);
+
+    const risk = facilityRisk(0.055, 0.2, 'conceal', 0.3);
+    assert.equal(risk, 0.055 * 0.8 * 0.3);
+    assert.equal(facilityExposure(10, risk, 2, 'stealth', {
+        exposurePerRisk: 1.6,
+        defenseExposureReduction: 0.05,
+        stealthExposureReduction: 0.035,
+    }), 10 + risk * 1.6 - 2 * 0.05 - 0.035);
+    const support = { metric: 'economy' as const, amount: 0.08 };
+    assert.deepEqual(facilitySupportEffect(support, 0.35, 80, false, 0), {
+        metric: 'economy',
+        amount: 0.08 * 0.35 * 0.8,
+    });
+    assert.deepEqual(support, { metric: 'economy', amount: 0.08 });
+});
+
+test('国家支配と人類対応の判定は状態を変更せず結果を返す', () => {
+    const country = {
+        aiInfiltration: 80,
+        aiDecisionControl: 80,
+        aiCountermeasure: 10,
+        controlStatus: 'free' as const,
+        lossDays: 0,
     };
-    const evaluate = compileCausalModel({ signals: [], rules: [rule] });
-    let result = 0;
-    evaluate({ aiAdoption: 40 }, (_metric, delta) => { result = delta; });
-    assert.equal(result, 4);
-    assert.throws(() => compileCausalModel({ signals: [], rules: [{ ...rule, expression: 'unknown' }] }));
-    assert.throws(() => compileCausalModel({ signals: [], rules: [{ ...rule, expression: ['unknown-op', 1, 2] }] }));
-    assert.throws(() => compileCausalModel({ signals: [], rules: [{ ...rule, target: 'unknown' as 'economy' }] }));
+    const limits = {
+        controlInfiltration: 70,
+        controlDecision: 70,
+        controlCounter: 55,
+        releaseThreshold: 50,
+        releaseDays: 12,
+    };
+    assert.deepEqual(controlTransition(country, limits), {
+        controlStatus: 'controlled',
+        lossDays: 0,
+    });
+    assert.equal(country.controlStatus, 'free');
+    assert.equal(isolationResponse(80, 70, 0, 60, 85), 'defer');
+    assert.equal(isolationResponse(80, 95, 0, 60, 85), 'isolate');
+    assert.equal(shutdownChange(4, 4, 30, 20, 1, 0), 1);
 });
 
 test('施設写真の参照先と作者・利用条件を保持する', () => {

@@ -79,7 +79,6 @@ export function ComputePanel({ game }: { game: GameState }) {
                         game={game}
                         kind={operation.kind}
                         target={operation.target}
-                        country={operation.country}
                         minimum={
                             operation.kind === 'sns'
                                 ? SNS.find((item) => item.id === operation.target)!.capacity
@@ -99,15 +98,11 @@ export function ComputePanel({ game }: { game: GameState }) {
         </>
     );
 }
-export function SnsPanel({ game, country }: { game: GameState; country: string | null }) {
+export function SnsPanel({ game }: { game: GameState }) {
     return (
         <>
             <h2>SNS</h2>
-            <div className={styles.targetName}>
-                {country
-                    ? game.definitions.find((item) => item.id === country)!.name
-                    : '対象国未選択'}
-            </div>
+            <div className={styles.targetName}>対象：世界全体</div>
             {SNS.map((action) => (
                 <section className={styles.operation} key={action.id}>
                     <h3>{action.name}</h3>
@@ -121,13 +116,11 @@ export function SnsPanel({ game, country }: { game: GameState; country: string |
                             )
                             .join('　')}
                     </small>
-                    {game.researched.includes(action.skill) && country ? (
+                    {game.researched.includes(action.skill) ? (
                         <Allocation
-                            key={`${action.id}-${country}`}
                             game={game}
                             kind="sns"
                             target={action.id}
-                            country={country}
                             minimum={action.capacity}
                         />
                     ) : (

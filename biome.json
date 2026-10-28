@@ -10,10 +10,11 @@
             "src/**",
             "tests/**",
             "scripts/*.ts",
+            "scripts/*.mjs",
             "*.ts",
             "*.json",
             "!package-lock.json",
-            "!src/game/data/transport-routes.json"
+            "!src/game/data/map/transport-routes.json"
         ]
     },
     "formatter": {

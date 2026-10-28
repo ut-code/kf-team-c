@@ -8,14 +8,21 @@ React + TypeScript + Vite、Zustand、CSS Modulesで実装したAI世界制御�
 
 ## 起動・検証
 
+Node.js 24以上とnpmを用意し、各メンバーの作業環境で以下を実行する。`.nvmrc` はNode.js 24を指定する。
+
 ```sh
 npm ci
 npm run dev
 npm test
 npm run build
+npx playwright install chromium
 npx playwright test
 npm run simulate -- 2600 3
 ```
+
+`package.json` と `package-lock.json` をGitで共有し、`npm ci` で同じ依存バージョンを再現する。`node_modules/` と `.git/hooks/` は各自のローカル環境用で、Gitでは配布しない。Biome・Lefthook・Viteなどの開発用依存も必要なので、通常は `--omit=dev` や `--ignore-scripts` を付けない。
+
+WindowsとWSLなど異なるOS環境で同じ `node_modules/` を使い回すと、OS別のBiomeやRollupが欠けて動かなくなる。両方で作業するなら別々のチェックアウトを使い、それぞれで `npm ci` を実行する。Playwrightのブラウザ実体はnpm依存とは別なので、ブラウザテストを行う環境で `npx playwright install chromium` を実行する。
 
 ゲーム: http://127.0.0.1:5173/ 。配信用データを同梱しているため、通常の起動にPythonは不要。
 
@@ -84,7 +91,7 @@ npm run lint       # lintのみ
 
 対象はソース、テスト、TypeScriptスクリプト、ルートの設定ファイル。生成物・地図素材・依存パッケージは対象外。
 既存の非null表明は不変条件を表す用途として許可し、SVG地図のARIAとキーボード操作にはファイル限定の例外を設定している。
-ゲーム定義は用途別に分けた `src/game/data/` のJSONを編集する。分類と因果関係の編集先は[ゲーム定義データ](src/game/data/README.md)を参照。`data.ts`は型付きの読み込み窓口とID索引のみを担当し、JSONの参照先・効果の種類は自動テストでも検査する。
+ゲームの静的設定は `src/game/data/` のJSON、因果計算は `src/game/rules/` のTypeScriptに分ける。担当別の編集先は[開発ガイド](docs/開発ガイド.md)と[ゲーム定義データ](src/game/data/README.md)を参照。`data.ts`は型付きの読み込み窓口とID索引のみを担当する。
 
 UI素材・フォントの出典と地図からの操作は[UI素材](docs/UI素材.md)を参照。施設・国家・チャットは地図上で選択し、情報ビューは「×」で閉じる。
 
@@ -104,7 +111,7 @@ UI素材・フォントの出典と地図からの操作は[UI素材](docs/UI素
 | `docs/` | ルール・UI・素材加工・検証の説明 |
 | `reports/` | バランス検証のシミュレーション結果 |
 
-`node_modules/`はインストール済み依存。`dist/`と`test-results/`はビルド・テスト時に作り直せる出力。
+`node_modules/`は各環境でインストールする依存。`dist/`と`test-results/`はビルド・テスト時に作り直せる出力。
 
 施設写真の画像・出典・再取得手順は[施設写真](docs/施設写真.md)を参照。
 
@@ -116,16 +123,19 @@ UI素材・フォントの出典と地図からの操作は[UI素材](docs/UI素
 
 研究・施設操作などの完了は右上に独立した板で表示し、実時間7.5秒で消す。
 
-## コミット前の検査
+## コミット前の自動整形
 
-Lefthook 2.2.2でコミット前に `npm run check` を実行する。設定は `lefthook.yml`。自動整形や自動ステージは行わず、問題があればコミットを止める。
+Lefthook 2.2.2は `npm ci` 時に各自のGitフックへ自動登録される。設定は共有する `lefthook.yml`。`git commit` 時にステージ済みの対象ファイルだけへBiomeの整形・import整理・安全な修正を行い、修正結果を再ステージする。対象外の生成物や素材はBiome設定に従って無視する。修正できない問題があればコミットを止める。
 
 ```sh
-npm run hooks:install  # Gitフックを登録し直す
-npm run hooks:check    # ステージ済みファイルがない場合もフックを実行して検証
+npm run hooks:install  # フックがない場合に登録し直す
+npm run hooks:check    # Lefthook設定の構文を検証する（整形はしない）
+npm run check          # リポジトリ全体を変更せず検査する
 ```
 
-通常の修正は `npm run check:fix` を使う。生成された航路JSONはBiome対象外で、`data/transport/selection.json` から再生成する。
+同じファイルにステージ済み・未ステージの変更が混在すると、再ステージ時に意図しない変更が入るためフックは停止する。全変更をステージするか、別コミットに分ける。`--ignore-scripts` でインストールした場合は `npm run hooks:install` を実行する。手動で一括修正する場合は `npm run check:fix` を使う。生成された航路JSONはBiome対象外で、`data/transport/selection.json` から再生成する。
+
+通常のゲーム起動にPythonは不要。地図素材を再生成するメンバーだけ、上記の `scripts/requirements.txt` に従ってPython依存とGit管理外の大型原本を別途用意する。
 
 海面の弱い反射はWebGLで描画する。[実装と調整値](docs/海面描画.md)を参照。
 

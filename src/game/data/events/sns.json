@@ -29,7 +29,7 @@
     },
     {
         "id": "campaign",
-        "name": "地域キャンペーン",
+        "name": "世界キャンペーン",
         "skill": "analysis",
         "capacity": 5,
         "duration": 45,
@@ -57,8 +57,7 @@
                 "amount": 0.18
             }
         ],
-        "risk": 0.12,
-        "global": true
+        "risk": 0.12
     },
     {
         "id": "synthetic",
@@ -76,7 +75,6 @@
                 "amount": -0.06
             }
         ],
-        "risk": 0.3,
-        "global": true
+        "risk": 0.3
     }
 ]

@@ -15,12 +15,14 @@ function loadImage(path: string) {
 export function TrafficLayer({
     size,
     cameraX,
+    cameraXRef,
     speed,
     tick,
     countries,
 }: {
     size: Size;
     cameraX: number;
+    cameraXRef: { current: number };
     speed: number;
     tick: number;
     countries: Record<string, CountryState>;
@@ -63,6 +65,10 @@ export function TrafficLayer({
         let maskCamera = NaN;
 
         function draw(now: number) {
+            if (current.current.cameraX !== cameraXRef.current) {
+                current.current.cameraX = cameraXRef.current;
+                current.current.dirty = true;
+            }
             const { size, cameraX, speed, tick, countries } = current.current;
             if (document.visibilityState === 'visible')
                 elapsed.current += Math.max(0, (now - previous) / 1000) * speed;

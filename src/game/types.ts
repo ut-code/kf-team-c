@@ -10,7 +10,9 @@ export const METRICS = [
     'aiDependency',
     'awareness',
 ] as const;
-export type Metric = (typeof METRICS)[number];
+export const ATTRIBUTES = METRICS;
+export type Attribute = (typeof ATTRIBUTES)[number];
+export type Metric = Attribute;
 export type Region = '英語圏' | '東アジア' | '欧州' | 'その他';
 export type Category =
     | 'compute'
@@ -29,7 +31,7 @@ export type FacilityStatus =
     | 'compromised'
     | 'controlled'
     | 'isolated';
-export type Bonuses = {
+export type Modifier = {
     hack: number;
     compute: number;
     research: number;
@@ -39,7 +41,9 @@ export type Bonuses = {
     defense: number;
     parallel: number;
 };
+export type Bonuses = Modifier;
 export type Effect = { metric: Metric; amount: number; scope?: 'country' | 'region' | 'world' };
+export type Condition = { metric: Attribute; min: number };
 export interface CountryDefinition {
     id: string;
     name: string;
@@ -106,7 +110,6 @@ export interface Operation {
     progress: number;
     active: boolean;
     remaining?: number;
-    country?: string;
 }
 export interface ChatDefinition {
     id: string;
@@ -120,7 +123,7 @@ export interface ChatDefinition {
     expiresAfter: number;
     choices: { label: string; effects: Effect[]; requiredSkills?: string[] }[];
 }
-export interface GameEvent {
+export interface Event {
     id: number;
     tick: number;
     kind: 'completion' | 'news' | 'warning';
@@ -128,6 +131,7 @@ export interface GameEvent {
     message: string;
     country?: string;
 }
+export type GameEvent = Event;
 export interface Change {
     tick: number;
     country?: string;
@@ -136,7 +140,7 @@ export interface Change {
     delta: number;
     message: string;
 }
-export interface GameState {
+export interface State {
     tick: number;
     seed: number;
     rng: number;
@@ -169,6 +173,7 @@ export interface GameState {
     shortage: boolean;
     config: Balance;
 }
+export type GameState = State;
 export interface Balance {
     secondsPerTick: number;
     initialCapacity: number;
@@ -191,14 +196,13 @@ export interface Balance {
     extinctionDays: number;
     humanInterval: number;
 }
-export type Action =
+export type Command =
     | {
           type: 'allocate';
           kind: Operation['kind'];
           target: string;
           capacity: number;
           priority?: number;
-          country?: string;
       }
     | { type: 'cancel'; id: string }
     | { type: 'mode'; target: string; mode: Mode }
@@ -209,3 +213,4 @@ export type Action =
     | { type: 'chat-close' }
     | { type: 'debug-country'; country: string; metric: Metric; value: number }
     | { type: 'config'; key: keyof Balance; value: number };
+export type Action = Command;

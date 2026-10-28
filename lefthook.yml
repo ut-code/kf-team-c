@@ -1,5 +1,6 @@
-# コミット前に検査する。自動整形や自動ステージは行わない。
 pre-commit:
   commands:
     biome:
-      run: npm run check
+      glob: "*.{js,jsx,ts,tsx,json,jsonc,css}"
+      run: node scripts/check-partial-staging.mjs {staged_files} && npm run check:staged -- {staged_files}
+      stage_fixed: true

@@ -21,6 +21,9 @@ test('日本を中央へ移動でき、日付変更線を越えても地点は�
     const delta = before.x + japan.x * before.scale - 720;
     await page.mouse.down();
     await page.mouse.move(720 - delta, 450);
+    await expect
+        .poll(async () => (await matrix(page)).x + japan.x * before.scale)
+        .toBeCloseTo(720, 3);
     await page.mouse.up();
     await expect
         .poll(async () => (await matrix(page)).x + japan.x * before.scale)
