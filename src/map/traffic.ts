@@ -1,4 +1,4 @@
-import definitions from '../game/data/transport-routes.json' with { type: 'json' };
+import definitions from '../game/data/map/transport-routes.json' with { type: 'json' };
 import type { CountryState } from '../game/types.ts';
 import { project, WORLD_WIDTH } from './geometry.ts';
 

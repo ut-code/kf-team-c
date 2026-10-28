@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { CountryState } from '../game/types';
 import { fitScale, type Size, visibleWidth, WORLD_WIDTH } from '../map/geometry';
 import { TRAFFIC_ROUTES, trafficActivity, trafficPosition } from '../map/traffic';
@@ -28,6 +28,7 @@ export function TrafficLayer({
     const canvas = useRef<HTMLCanvasElement>(null);
     const elapsed = useRef(0);
     const previousTick = useRef(tick);
+    const current = useRef({ size, cameraX, speed, tick, countries, dirty: true });
     const [images, setImages] = useState<HTMLImageElement[] | null>(null);
     useEffect(() => {
         let active = true;
@@ -42,41 +43,58 @@ export function TrafficLayer({
             active = false;
         };
     }, []);
-    useEffect(() => {
+    useLayoutEffect(() => {
         if (tick < previousTick.current) elapsed.current = 0;
         else if (speed === 0) elapsed.current += tick - previousTick.current;
         previousTick.current = tick;
-    }, [tick, speed]);
+        current.current = { size, cameraX, speed, tick, countries, dirty: true };
+    }, [size, cameraX, speed, tick, countries]);
     useEffect(() => {
-        if (!images || size.width === 0 || size.height === 0) return;
+        if (!images) return;
         const target = canvas.current!;
-        target.dataset.trafficTick = String(tick);
-        const ratio = window.devicePixelRatio;
-        target.width = Math.round(size.width * ratio);
-        target.height = Math.round(size.height * ratio);
         const context = target.getContext('2d')!;
         const ships = document.createElement('canvas');
-        ships.width = target.width;
-        ships.height = target.height;
         const shipContext = ships.getContext('2d')!;
         const sea = document.createElement('canvas');
-        sea.width = target.width;
-        sea.height = target.height;
         const seaContext = sea.getContext('2d')!;
-        const scale = fitScale(size);
-        const period = WORLD_WIDTH * scale;
-        const width = visibleWidth(size);
-        const left = (size.width - width) / 2;
-        seaContext.scale(ratio, ratio);
-        for (const tile of [0, 1])
-            seaContext.drawImage(images[2], left + cameraX + tile * period, 0, period, size.height);
         let previous = performance.now();
         let frame = 0;
+        let rendered = 0;
+        let maskCamera = NaN;
 
         function draw(now: number) {
+            const { size, cameraX, speed, tick, countries } = current.current;
             if (document.visibilityState === 'visible')
-                elapsed.current += ((now - previous) / 1000) * speed;
+                elapsed.current += Math.max(0, (now - previous) / 1000) * speed;
             previous = now;
+            if (size.width === 0 || size.height === 0 || (!current.current.dirty && speed === 0))
+                return;
+            if (!current.current.dirty && now - rendered < 1000 / 30) return;
+            const ratio = Math.min(window.devicePixelRatio, 1.5);
+            const pixelWidth = Math.round(size.width * ratio);
+            const pixelHeight = Math.round(size.height * ratio);
+            if (target.width !== pixelWidth || target.height !== pixelHeight) {
+                target.width = ships.width = sea.width = pixelWidth;
+                target.height = ships.height = sea.height = pixelHeight;
+                maskCamera = NaN;
+            }
+            const scale = fitScale(size);
+            const period = WORLD_WIDTH * scale;
+            const width = visibleWidth(size);
+            const left = (size.width - width) / 2;
+            if (maskCamera !== cameraX) {
+                seaContext.setTransform(ratio, 0, 0, ratio, 0, 0);
+                seaContext.clearRect(0, 0, size.width, size.height);
+                for (const tile of [0, 1])
+                    seaContext.drawImage(
+                        images![2],
+                        left + cameraX + tile * period,
+                        0,
+                        period,
+                        size.height,
+                    );
+                maskCamera = cameraX;
+            }
             context.setTransform(ratio, 0, 0, ratio, 0, 0);
             shipContext.setTransform(ratio, 0, 0, ratio, 0, 0);
             context.clearRect(0, 0, size.width, size.height);
@@ -127,12 +145,20 @@ export function TrafficLayer({
             shipContext.globalCompositeOperation = 'source-over';
             context.drawImage(ships, 0, 0, size.width, size.height);
             context.restore();
+            target.dataset.trafficTick = String(tick);
             target.dataset.trafficTime = elapsed.current.toFixed(4);
-            if (speed > 0) frame = requestAnimationFrame(draw);
+            current.current.dirty = false;
+            rendered = now;
         }
-        frame = requestAnimationFrame(draw);
-        return () => cancelAnimationFrame(frame);
-    }, [images, size, cameraX, speed, tick, countries]);
+        function loop(now: number) {
+            draw(now);
+            frame = requestAnimationFrame(loop);
+        }
+        frame = requestAnimationFrame(loop);
+        return () => {
+            cancelAnimationFrame(frame);
+        };
+    }, [images]);
     return (
         <div className={styles.layer} aria-hidden="true">
             <canvas ref={canvas} tabIndex={-1} data-traffic-layer />

@@ -1,0 +1,10 @@
+{
+    "humanStageThresholds": [9, 25, 48, 75],
+    "observedCountryAwareness": 9,
+    "observedFacilityExposure": 12,
+    "shutdownCounterThreshold": 20,
+    "shutdownHesitation": 60,
+    "emergencyAwareness": 85,
+    "newsInterval": 120,
+    "chatInterval": 90
+}

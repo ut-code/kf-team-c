@@ -1,6 +1,6 @@
 import { CircleCheck, Newspaper, TriangleAlert } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import presentation from '../../game/data/presentation.json';
+import presentation from '../../game/data/ui/presentation.json';
 import type { GameEvent } from '../../game/types.ts';
 import { Panel } from '../ui/Panel';
 import styles from './Notifications.module.css';

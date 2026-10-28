@@ -18,6 +18,7 @@ uniform float leftEdge;
 uniform float displayWidth;
 uniform float time;
 uniform float strength;
+uniform float tintStrength;
 uniform float detail;
 float hash(vec2 p) {
     return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
@@ -60,6 +61,10 @@ void main() {
     float glints = ripple(p*.5+vec2(-time*.09, time*.07), 32.).x;
     float light = clamp((reflection-flatReflection)*1.8, -.35, 1.);
     // ノイズは反射の強弱にだけ使い、雲状の白黒模様を直接表示しない。
-    gl_FragColor = vec4(mix(vec3(.015,.045,.065), vec3(.72,.88,1.), step(0.,light)),
-        abs(light)*strength*mask*mix(.3, 1., glints));
+    vec3 color = mix(vec3(.015,.045,.065), vec3(.72,.88,1.), step(0.,light));
+    float reflectionAlpha = abs(light)*strength*mask*mix(.3, 1., glints);
+    float tintAlpha = tintStrength*mask;
+    float alpha = reflectionAlpha+tintAlpha*(1.-reflectionAlpha);
+    gl_FragColor = vec4(
+        color*reflectionAlpha+vec3(.25,.45,.56)*tintAlpha*(1.-reflectionAlpha), alpha);
 }`;

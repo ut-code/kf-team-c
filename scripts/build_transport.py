@@ -95,7 +95,7 @@ def main():
     for i, route in enumerate(routes):
         # 出発時刻をずらし、初期画面でも世界各地に往来が見えるようにする。
         route['phase'] = round(((i*.61803398875) % 1)*.8+.1, 5)
-    output = ROOT / 'src/game/data/transport-routes.json'
+    output = ROOT / 'src/game/data/map/transport-routes.json'
     output.write_text(json.dumps(routes, ensure_ascii=False, separators=(',', ':'))+'\n', encoding='utf-8')
     sources = [DATA/'selection.json', *sorted((DATA/'raw').glob('*'))]
     report = {'air': len(selection['flights']), 'sea': len(selection['shipping']), 'inputs': [{'file': p.relative_to(ROOT).as_posix(), 'sha256': hashlib.sha256(p.read_bytes()).hexdigest()} for p in sources], 'outputSha256': hashlib.sha256(output.read_bytes()).hexdigest()}

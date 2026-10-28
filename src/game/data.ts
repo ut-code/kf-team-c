@@ -1,13 +1,14 @@
-import balance from './data/balance.json' with { type: 'json' };
-import categories from './data/categories.json' with { type: 'json' };
-import chats from './data/chats.json' with { type: 'json' };
-import countries from './data/countries.json' with { type: 'json' };
-import facilities from './data/facilities.json' with { type: 'json' };
-import humanActions from './data/human-actions.json' with { type: 'json' };
-import modes from './data/modes.json' with { type: 'json' };
-import people from './data/people.json' with { type: 'json' };
-import skills from './data/skills.json' with { type: 'json' };
-import sns from './data/sns.json' with { type: 'json' };
+import balance from './data/simulation/balance.json' with { type: 'json' };
+import categories from './data/simulation/categories.json' with { type: 'json' };
+import chats from './data/events/chats.json' with { type: 'json' };
+import countries from './data/simulation/countries.json' with { type: 'json' };
+import facilities from './data/simulation/facilities.json' with { type: 'json' };
+import humanActions from './data/events/human-actions.json' with { type: 'json' };
+import modes from './data/simulation/modes.json' with { type: 'json' };
+import operationEffects from './data/simulation/operation-effects.json' with { type: 'json' };
+import people from './data/events/people.json' with { type: 'json' };
+import skills from './data/simulation/skills.json' with { type: 'json' };
+import sns from './data/events/sns.json' with { type: 'json' };
 import type {
     Balance,
     Category,
@@ -21,6 +22,9 @@ import type {
 /** JSONの型境界。ゲーム定義の追加・調整はdata/内で行う。 */
 export const BALANCE: Balance = balance;
 export const MODES = modes;
+export const OPERATION_EFFECTS = operationEffects as Omit<typeof operationEffects, 'disrupt'> & {
+    disrupt: (Effect & { label: string })[];
+};
 export const COUNTRY_PROFILES = countries.profiles;
 export const COUNTRY_OVERRIDES: Record<
     string,

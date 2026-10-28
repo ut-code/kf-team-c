@@ -1,4 +1,4 @@
-import photos from '../../game/data/facility-photos.json';
+import photos from '../../game/data/ui/facility-photos.json';
 import styles from './FacilityPhoto.module.css';
 
 type Photo = {

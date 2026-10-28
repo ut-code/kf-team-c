@@ -19,7 +19,7 @@
     /* 面の透明度・かすれ・地図の明るさ。1が地図の元の明るさ。 */
     --surface-opacity: 0.84;
     --surface-grain-opacity: 0.065;
-    --map-brightness: 1.08;
+    --map-brightness: 1.3;
     --panel-radius: 3px;
     --control-radius: 3px;
 

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import settings from '../game/data/ocean-surface.json';
+import settings from '../game/data/map/ocean-surface.json';
 import { fitScale, type Size, visibleWidth, WORLD_WIDTH } from '../map/geometry';
 import { fragmentShader, vertexShader } from '../map/oceanShader';
 import styles from './TrafficLayer.module.css';
@@ -31,7 +31,7 @@ export function OceanSurface({
         const target = canvas.current!;
         const gl = target.getContext('webgl', {
             alpha: true,
-            premultipliedAlpha: false,
+            premultipliedAlpha: true,
             antialias: false,
             preserveDrawingBuffer: true,
         });
@@ -73,6 +73,7 @@ export function OceanSurface({
                 'displayWidth',
                 'time',
                 'strength',
+                'tintStrength',
                 'detail',
             ].map((name) => [name, gl.getUniformLocation(program, name)]),
         );
@@ -139,6 +140,7 @@ export function OceanSurface({
                 gl!.uniform1f(uniforms.displayWidth, visibleWidth(current.size));
                 gl!.uniform1f(uniforms.time, elapsed);
                 gl!.uniform1f(uniforms.strength, settings.strength);
+                gl!.uniform1f(uniforms.tintStrength, settings.tintStrength);
                 gl!.uniform1f(
                     uniforms.detail,
                     Math.min(1, (WORLD_WIDTH * fitScale(current.size) * scale) / 1024),

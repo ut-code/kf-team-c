@@ -12,15 +12,18 @@ import {
     INTERNATIONAL_LINKS,
     MAJOR_WEIGHTS,
     MODES,
+    OPERATION_EFFECTS,
     PEOPLE,
     REGION_HUBS,
     REGIONS,
     SKILLS,
     SNS,
 } from './data.ts';
+import { evaluateCausalRules } from './causality.ts';
 import { publishEvent } from './events.ts';
 import { evaluateOutcome, worldMetrics } from './outcome.ts';
-import { choiceAvailable, SOCIETY, societyChanges, updateNews } from './society.ts';
+import { choiceAvailable, SOCIETY, updateNews } from './society.ts';
+import { METRICS } from './types.ts';
 import type {
     Action,
     Bonuses,
@@ -214,7 +217,9 @@ export function facilityCapacity(s: GameState, id: string): number {
         (0.3 + (0.7 * c.economy) / 100) *
         (c.infrastructure / 100) *
         MODES[f.mode].capacity *
-        (f.status === 'compromised' ? 0.35 : 1) *
+        OPERATION_EFFECTS.accessMultipliers[
+            f.status === 'compromised' ? 'compromised' : 'controlled'
+        ] *
         (1 + expansion) *
         bonuses(s).compute
     );
@@ -475,7 +480,10 @@ function applyEffect(s: GameState, e: Effect, country: string, source: string) {
     }
 }
 export function humanStage(awareness: number) {
-    return awareness >= 75 ? 4 : awareness >= 48 ? 3 : awareness >= 25 ? 2 : awareness >= 9 ? 1 : 0;
+    return SOCIETY.humanStageThresholds.reduce(
+        (stage, threshold) => stage + Number(awareness >= threshold),
+        0,
+    );
 }
 
 /** 命令→供給→作戦→施設→研究→同期国家更新→人類→イベント→支配→勝敗。乱数状態も保存する純粋関数。 */
@@ -514,8 +522,15 @@ export function simulateTick(state: GameState, actions: Action[] = []): GameStat
             const d = FACILITY_BY_ID[o.target],
                 f = s.facilities[o.target];
             o.progress += o.capacity / hackDifficulty(s, o.target);
-            f.exposure = clamp(f.exposure + o.capacity * 0.022 * (1 - b.stealth));
-            add(d.country, 'awareness', o.capacity * 0.014 * (1 - b.stealth), '侵入活動');
+            f.exposure = clamp(
+                f.exposure + o.capacity * OPERATION_EFFECTS.hack.exposurePerCapacity * (1 - b.stealth),
+            );
+            add(
+                d.country,
+                'awareness',
+                o.capacity * OPERATION_EFFECTS.hack.awarenessPerCapacity * (1 - b.stealth),
+                '侵入活動',
+            );
             if (o.progress >= s.config.hackWork) {
                 f.status = 'compromised';
                 completed.add(o.id);
@@ -595,16 +610,20 @@ export function simulateTick(state: GameState, actions: Action[] = []): GameStat
             s.operations
                 .filter((o) => o.active && o.kind === 'defense' && o.target === d.country)
                 .reduce((n, o) => n + o.capacity, 0) * b.defense;
-        const risk = MODES[f.mode].risk * (1 - b.stealth) * (f.order === 'conceal' ? 0.3 : 1);
+        const risk =
+            MODES[f.mode].risk *
+            (1 - b.stealth) *
+            (f.order === 'conceal' ? OPERATION_EFFECTS.facility.concealRiskMultiplier : 1);
         add(d.country, 'awareness', risk, '施設の稼働痕跡');
         f.exposure = clamp(
-            f.exposure + risk * 1.6 - defense * 0.05 - (f.mode === 'stealth' ? 0.035 : 0),
+            f.exposure +
+                risk * OPERATION_EFFECTS.facility.exposurePerRisk -
+                defense * OPERATION_EFFECTS.facility.defenseExposureReduction -
+                (f.mode === 'stealth' ? OPERATION_EFFECTS.facility.stealthExposureReduction : 0),
         );
-        if (f.order === 'disrupt') {
-            add(d.country, 'infrastructure', -0.22, '施設からの供給妨害');
-            add(d.country, 'politicalControl', -0.12, '供給妨害による混乱');
-            add(d.country, 'awareness', 0.16, '破壊活動の発見');
-        }
+        if (f.order === 'disrupt')
+            for (const effect of OPERATION_EFFECTS.disrupt)
+                add(d.country, effect.metric, effect.amount, effect.label);
         if (f.order === 'support')
             for (const e of CATEGORIES[d.category].effects)
                 for (const id of targets(s, d.country, e.scope)) {
@@ -618,7 +637,9 @@ export function simulateTick(state: GameState, actions: Action[] = []): GameStat
                         id,
                         e.metric,
                         e.amount *
-                            (f.status === 'controlled' ? 1 : 0.35) *
+                            OPERATION_EFFECTS.accessMultipliers[
+                                f.status === 'controlled' ? 'controlled' : 'compromised'
+                            ] *
                             (c.infrastructure / 100),
                         d.name,
                     );
@@ -662,6 +683,9 @@ export function simulateTick(state: GameState, actions: Action[] = []): GameStat
     // すべて前tickの値から計算する。施設効果や隣国の配列順に依存しない。
     const influenceAccess = hasUnlock(s, 'decision');
     const networkAccess = hasUnlock(s, 'networkControl');
+    const funded = s.operations.some(
+        (operation) => operation.active && operation.kind === 'infiltration',
+    );
     for (const d of s.definitions) {
         const c = before[d.id];
         const allocation = s.operations
@@ -674,31 +698,52 @@ export function simulateTick(state: GameState, actions: Action[] = []): GameStat
         const supply = s.operations
             .filter((o) => o.active && o.kind === 'service' && o.target === d.id)
             .reduce((n, o) => n + o.capacity, 0);
-        const society = societyChanges(s, c, supply);
+        const neighbors = d.links.map((id) => before[id]);
+        const incoming = neighbors.length
+            ? neighbors.reduce((total, neighbor) => total + neighbor.aiInfiltration, 0) /
+              neighbors.length
+            : 0;
+        const foothold = Object.values(s.facilities).some(
+            (facility) => live(facility.status) && FACILITY_BY_ID[facility.id].country === d.id,
+        );
+        const signals = evaluateCausalRules({
+            infrastructure: c.infrastructure,
+            economy: c.economy,
+            politicalControl: c.politicalControl,
+            aiInfiltration: c.aiInfiltration,
+            aiDecisionControl: c.aiDecisionControl,
+            aiCountermeasure: c.aiCountermeasure,
+            aiAcceptance: c.aiAcceptance,
+            aiAdoption: c.aiAdoption,
+            aiDependency: c.aiDependency,
+            awareness: c.awareness,
+            'baseline.infrastructure': d.baseline.infrastructure,
+            'baseline.economy': d.baseline.economy,
+            'baseline.politicalControl': d.baseline.politicalControl,
+            'baseline.aiAcceptance': d.baseline.aiAcceptance,
+            serviceSupply: supply,
+            previousServiceSupply: c.serviceSupply,
+            infiltrationAllocation: allocation,
+            defenseAllocation: defense,
+            networkIncoming: incoming,
+            foothold: Number(foothold),
+            anyInfiltrationFunded: Number(funded),
+            'research.science': Number(owns(s, 'science')),
+            'research.languages': Number(owns(s, 'languages')),
+            'research.institutions': Number(owns(s, 'institutions')),
+            'unlock.decision': Number(influenceAccess),
+            'unlock.networkControl': Number(networkAccess),
+            'bonus.spread': b.spread,
+            'bonus.decision': b.decision,
+            'bonus.stealth': b.stealth,
+            'config.infiltrationSpeed': s.config.infiltrationSpeed,
+            'config.spillover': s.config.spillover,
+            'config.decisionSpeed': s.config.decisionSpeed,
+            'config.counterGrowth': s.config.counterGrowth,
+            'config.awarenessDecay': s.config.awarenessDecay,
+        }, (metric, delta, source) => add(d.id, metric, delta, source));
         s.countries[d.id].serviceSupply = supply;
-        add(d.id, 'aiAdoption', society.adoption, '公共サービスの実績と導入継続');
-        add(d.id, 'aiDependency', society.dependency, '業務統合と代替手段の縮小');
-        add(
-            d.id,
-            'infrastructure',
-            society.benefit * SOCIETY.serviceInfrastructure -
-                society.outage * SOCIETY.outageInfrastructure,
-            'AI支援の稼働・停止による社会への影響',
-        );
-        add(
-            d.id,
-            'economy',
-            society.benefit * SOCIETY.serviceEconomy - society.outage * SOCIETY.outageEconomy,
-            'AI支援による生産性と停止損失',
-        );
-        add(d.id, 'aiAcceptance', society.benefit * SOCIETY.serviceAcceptance, 'サービスへの評価');
-        add(
-            d.id,
-            'aiCountermeasure',
-            society.benefit * SOCIETY.safetyResearch,
-            '公開された能力に対する安全性研究',
-        );
-        if (society.outage > 0) {
+        if (signals.serviceOutage > 0) {
             publishEvent(
                 s,
                 'warning',
@@ -708,120 +753,7 @@ export function simulateTick(state: GameState, actions: Action[] = []): GameStat
             );
             log(s, 'サービス停止', 'AI依存に伴う停止損失が発生しました。', d.id);
         }
-        const neighbors = d.links.map((id) => before[id]);
-        const incoming = neighbors.length
-            ? neighbors.reduce((n, c) => n + c.aiInfiltration, 0) / neighbors.length
-            : 0;
-        const foothold = Object.values(s.facilities).some(
-            (f) => live(f.status) && FACILITY_BY_ID[f.id].country === d.id,
-        );
-        const funded = s.operations.some((o) => o.active && o.kind === 'infiltration');
-        const resistance =
-            (0.3 + c.aiAcceptance / 100 + c.aiAdoption / 300) /
-            (1 + c.aiCountermeasure / 40 + c.awareness / 140);
-        add(
-            d.id,
-            'aiInfiltration',
-            allocation *
-                s.config.infiltrationSpeed *
-                b.spread *
-                resistance *
-                (1 - c.aiInfiltration / 105),
-            '計算資源による浸透',
-        );
-        add(
-            d.id,
-            'aiInfiltration',
-            funded
-                ? Math.max(0, incoming - c.aiInfiltration * 0.8) *
-                      s.config.spillover *
-                      b.spread *
-                      resistance
-                : 0,
-            '接続国家からの波及',
-        );
-        add(
-            d.id,
-            'aiInfiltration',
-            -c.aiInfiltration * (0.0002 + c.aiCountermeasure * 0.000009),
-            '接続の自然減衰・対AI検疫',
-        );
-        const decisionEffort =
-            (allocation > 0 ? Math.sqrt(allocation) : 0) +
-            (networkAccess && funded ? incoming / 25 : 0);
-        add(
-            d.id,
-            'aiDecisionControl',
-            influenceAccess && c.aiInfiltration >= 25
-                ? s.config.decisionSpeed *
-                      b.decision *
-                      decisionEffort *
-                      (c.aiInfiltration / 100) *
-                      (1 + c.aiDependency / 100) *
-                      (1 - c.aiDecisionControl / 103)
-                : 0,
-            '意思決定モデルによる介入',
-        );
-        add(d.id, 'aiDecisionControl', -c.aiDecisionControl * 0.0008, '人間による権限の再確認');
-        add(
-            d.id,
-            'infrastructure',
-            (d.baseline.infrastructure - c.infrastructure) * 0.012,
-            'インフラの復旧と基準回帰',
-        );
-        add(
-            d.id,
-            'economy',
-            (d.baseline.economy * (0.4 + (0.6 * c.infrastructure) / 100) - c.economy) * 0.012,
-            'インフラによる経済稼働',
-        );
-        add(
-            d.id,
-            'politicalControl',
-            (d.baseline.politicalControl - c.politicalControl) * 0.008,
-            '行政組織の復旧',
-        );
-        add(
-            d.id,
-            'aiAcceptance',
-            (d.baseline.aiAcceptance - c.aiAcceptance) * 0.003,
-            '社会受容の基準回帰',
-        );
-        const targetCounter =
-            8 +
-            c.awareness *
-                0.95 *
-                (c.economy / 100) *
-                (c.politicalControl / 100) *
-                (1 - c.aiDecisionControl / 110);
-        add(
-            d.id,
-            'aiCountermeasure',
-            (targetCounter - c.aiCountermeasure) * s.config.counterGrowth,
-            '警戒・経済・統制に応じた対策投資',
-        );
-        const activity =
-            allocation * 0.006 * (1 - b.stealth) +
-            (c.aiDecisionControl > 30 ? (c.aiDecisionControl - 30) * 0.001 : 0);
-        add(d.id, 'awareness', activity, '国家での介入活動の観測');
-        add(
-            d.id,
-            'awareness',
-            -s.config.awarenessDecay - defense * 0.02 - (foothold ? 0 : 0.01),
-            '潜伏・監視・報告の風化',
-        );
-        for (const key of [
-            'infrastructure',
-            'economy',
-            'politicalControl',
-            'aiInfiltration',
-            'aiDecisionControl',
-            'aiCountermeasure',
-            'aiAcceptance',
-            'aiAdoption',
-            'aiDependency',
-            'awareness',
-        ] as Metric[]) {
+        for (const key of METRICS) {
             const raw = s.countries[d.id][key];
             const limited = clamp(raw);
             if (raw !== limited) add(d.id, key, limited - raw, '上下限への丸め');
@@ -835,11 +767,11 @@ export function simulateTick(state: GameState, actions: Action[] = []): GameStat
     const world = worldMetrics(s);
     s.humanStage = humanStage(world.awareness);
     const observed = Object.values(s.facilities)
-        .filter((f) => live(f.status) && f.exposure >= 12)
+        .filter((f) => live(f.status) && f.exposure >= SOCIETY.observedFacilityExposure)
         .sort((a, b) => a.id.localeCompare(b.id));
     if (s.humanStage > 0 && s.humanCooldown === 0) {
         const observedCountries = s.definitions
-            .filter((d) => s.countries[d.id].awareness >= 9)
+            .filter((d) => s.countries[d.id].awareness >= SOCIETY.observedCountryAwareness)
             .sort((a, b) => a.id.localeCompare(b.id));
         if (observedCountries.length) {
             const d = observedCountries[Math.floor(random(s) * observedCountries.length)];
@@ -923,7 +855,9 @@ export function simulateTick(state: GameState, actions: Action[] = []): GameStat
             .filter((o) => o.active && o.kind === 'defense')
             .reduce((n, o) => n + o.capacity, 0) * b.defense;
     const shutdownDelta =
-        s.humanStage === 4 && counter > 20 && observed.length > 0
+        s.humanStage === SOCIETY.humanStageThresholds.length &&
+        counter > SOCIETY.shutdownCounterThreshold &&
+        observed.length > 0
             ? Math.max(-2, 1 - defenseTotal / 16)
             : -(1 + defenseTotal / 20);
     const oldShutdown = s.shutdown;

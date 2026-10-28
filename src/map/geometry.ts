@@ -26,7 +26,7 @@ export function project(longitude: number, latitude: number): Point {
     };
 }
 
-/** 縦全体を常に表示し、高さに合わせる。ユーザー操作による拡大はしない。 */
+/** 表示する地図の高さに合わせて縮尺を決める。 */
 export function fitScale(size: Size): number {
     return size.height / WORLD_HEIGHT;
 }
@@ -47,7 +47,7 @@ export function centerCamera(size: Size): Camera {
     return constrainCamera({ x: (visibleWidth(size) - WORLD_WIDTH * fitScale(size)) / 2 }, size);
 }
 
-/** リサイズ時は表示中心の経度を維持する。縦位置は常に固定。 */
+/** リサイズ時は表示中心の経度を維持する。 */
 export function resizeCamera(camera: Camera, previous: Size, next: Size): Camera {
     if (previous.height === 0) return centerCamera(next);
     const ratio = fitScale(next) / fitScale(previous);

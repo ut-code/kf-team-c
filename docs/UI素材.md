@@ -11,12 +11,12 @@ Softline UI Kitは廃止し、汎用UI部品を自作する。色と質感、画
 | 情報ビュー共通の半透明背景 | `src/components/ui/Panel.tsx`、`Primitives.module.css` |
 | 上部統計・左下の日付と速度 | `src/components/game/GameHud.tsx`、`GameHud.module.css` |
 | 下部中央メニュー・各ビューの配置 | `src/components/GameApp.tsx`、`GameApp.module.css` |
-| 開始日 | `src/game/data/calendar.json` |
+| 開始日 | `src/game/data/simulation/calendar.json` |
 | 暦日の計算 | `src/game/calendar.ts` |
 
 `theme.css`の基本色は、黒寄りの面、通常文字、補助文字、明るい文字、オレンジ、控えめな強調色、危険色、境界線、支配領域に役割を分ける。各画面で別々の色を増やさず、これらを参照する。
 
-- `--map-brightness: 1.08`：元の地図を8%明るく表示。地形画像そのものは変更しない。
+- `--map-brightness: 1.3`：元の地図を30%明るく表示。地形画像そのものは変更しない。
 - `--surface-opacity: 0.84`：情報ビューの黒い面の不透明度。
 - `--surface-grain-opacity: 0.065`：薄い粒状のかすれ。`public/ui/surfaces/grain.svg`を共用する。
 - 閉じるアイコンは`--color-accent`のオレンジ。
@@ -46,6 +46,6 @@ Softline UI Kitは廃止し、汎用UI部品を自作する。色と質感、画
 - 「浸透進捗」は各国の浸透度の影響力加重平均であり、支配済みの割合ではないためHUDから削除。「支配率」は支配が成立した国の影響力ウェイトの割合を表示する。
 - CUは仮の容量単位であり実在の性能単位ではないため表示から削除。「計算資源」は利用可能量と総量を表示する。
 
-施設は指定一覧の44件へ更新。初期アクセス先は神戸の富岳（`f11`）。定義は`src/game/data/facilities.json`にあり、場所・元ネタ・緯度・経度も収録。
+施設は指定一覧の44件へ更新。初期アクセス先は神戸の富岳（`f11`）。定義は`src/game/data/simulation/facilities.json`にあり、場所・元ネタ・緯度・経度も収録。
 
 基本統計は日本語の指標名と数値を上下に配置。停止時の `Paused` は統計面から離した独立表示で、赤枠を薄く付ける。下部メニューは各ボタンに境界を設け、PC・390px幅の双方で画面内へ収める。

@@ -1,5 +1,19 @@
 # 現在使用する地図素材
 
+## フォルダー案内
+
+| 場所 | 内容 |
+| --- | --- |
+| `map-studies/raw/` | 地図生成の元データ |
+| `map-studies/generalized-sources.json` | 地図素材の取得元 |
+| `map-studies/manifest.json` | 地図生成時の入力・出力の記録 |
+| `materials/ambientcg/` | 地表テクスチャの原本 |
+| `transport/raw/`・`transport/watercraft/` | 交通経路・船舶素材の原本 |
+| `transport/selection.json`・`transport/manifest.json` | 交通経路の選択と生成記録 |
+| `facility-photos/selections.json` | 施設写真の選択元 |
+
+ゲーム中に読み込む定義JSONはこのフォルダーではなく、`src/game/data/` にある。構成と因果関係の編集先は `src/game/data/README.md` を参照。
+
 - 環境色: Natural Earth HYP_50M_SR。海岸・湖・国境: Natural Earth 110m。パブリックドメイン。Made with Natural Earth。
   https://www.naturalearthdata.com/about/terms-of-use/
 - 標高・水深: GMT Earth Relief 06m（SRTM15+ v2.7由来）。Tozer, Sandwellほか。GMT配布時に31.5km幅で事前平滑化された派生データ。

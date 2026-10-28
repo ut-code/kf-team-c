@@ -31,8 +31,8 @@ export function layoutMarkers(markers: MapMarker[], scale: number): PositionedMa
                 const other = positions[candidate];
                 if (
                     other.marker.kind === 'facility' &&
-                    Math.abs(wrap(current.x - other.x) * scale) < 34 &&
-                    Math.abs((current.y - other.y) * scale) < 34
+                    Math.abs(wrap(current.x - other.x) * scale) < 24 &&
+                    Math.abs((current.y - other.y) * scale) < 24
                 ) {
                     group.push(candidate);
                     visited.add(candidate);

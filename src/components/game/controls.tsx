@@ -1,6 +1,6 @@
 import { X } from 'lucide-react';
 import { useId, useState } from 'react';
-import flags from '../../game/data/flags.json';
+import flags from '../../game/data/ui/flags.json';
 import type { GameState, Metric, Operation } from '../../game/types.ts';
 import { useGameStore } from '../../state/gameStore';
 import styles from '../GameApp.module.css';

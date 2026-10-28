@@ -86,7 +86,7 @@ def main():
     (OUT / 'countries.json').write_text(json.dumps(countries, ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
     files = [SOURCE, COUNTRIES]
     manifest = {'projection': 'EPSG:3857', 'extent': [-180, SOUTH_LATITUDE, 180, NORTH_LATITUDE], 'width': WIDTH, 'height': HEIGHT, 'background': '地形整理・110m海岸・海底の低周波化・ambientCG地表質感・海岸の立体感', 'sources': [{'file': p.relative_to(ROOT).as_posix(), 'sha256': hashlib.sha256(p.read_bytes()).hexdigest()} for p in files], 'output_sha256': hashlib.sha256((OUT / 'world-map.webp').read_bytes()).hexdigest()}
-    (ROOT / 'data/manifest.json').write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding='utf-8')
+    (ROOT / 'data/map-studies/manifest.json').write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding='utf-8')
     print(f'本採用版: {WIDTH}×{HEIGHT} / メルカトル / 北緯{NORTH_LATITUDE}度〜南緯{-SOUTH_LATITUDE}度 / 国境{len(countries)}地域')
 
 

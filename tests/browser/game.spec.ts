@@ -2,10 +2,8 @@ import { expect, test } from '@playwright/test';
 
 const marker = (page: import('@playwright/test').Page, id: string) => ({
     async click() {
-        const icon = page.locator(`[data-world-tile="0"] [data-cluster-members~="${id}"]`);
-        const cluster = (await icon.getAttribute('data-kind')) === 'cluster';
+        const icon = page.locator(`[data-world-tile="0"] [data-marker="${id}"]`);
         await icon.click();
-        if (cluster) await page.locator(`[data-facility-choice="${id}"]`).click();
     },
 });
 
@@ -124,16 +122,8 @@ test('施設は地図から選び、選択した1施設だけを表示する', a
     page.on('pageerror', (error) => errors.push(error.message));
     await page.goto('/');
     const count = await page
-        .locator('[data-world-tile="0"] [data-cluster-members]')
-        .evaluateAll((icons) =>
-            icons
-                .filter((icon) => ['facility', 'cluster'].includes(icon.getAttribute('data-kind')!))
-                .reduce(
-                    (sum, icon) =>
-                        sum + icon.getAttribute('data-cluster-members')!.split(' ').length,
-                    0,
-                ),
-        );
+        .locator('[data-world-tile="0"] [data-kind="facility"]')
+        .count();
     expect(count).toBe(44);
     await expect(page.getByTestId('game-date')).toHaveText('2022.11.30');
     for (const text of [
@@ -221,7 +211,7 @@ test('国情報は地図選択で開き、国旗を表示し、対象国家と�
 test('北京の施設は別々に選択でき、シンガポールにも国家・施設がある', async ({ page }) => {
     await page.goto('/');
     const ids = ['f15', 'f16', 'f18'];
-    const group = page.locator('[data-world-tile="0"] [data-cluster-members~="f15"]');
+    const group = page.locator('[data-world-tile="0"] [data-marker-group="f15"]');
     await expect(group).toHaveAttribute('data-kind', 'cluster');
     await expect(group).toHaveAttribute('data-cluster-members', /f16/);
     for (const id of ids) {

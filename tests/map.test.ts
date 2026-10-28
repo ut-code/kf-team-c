@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
-import transport from '../src/game/data/transport-routes.json' with { type: 'json' };
+import transport from '../src/game/data/map/transport-routes.json' with { type: 'json' };
 import {
     centerCamera,
     constrainCamera,
@@ -50,7 +50,7 @@ test('非対称のメルカトル範囲と背景寸法が一致する', () => {
     assert.deepEqual(project(-180, 75), { x: 0, y: 0 });
     assert.ok(Math.abs(project(180, -60).y - WORLD_HEIGHT) < 1e-9);
     const manifest = JSON.parse(
-        readFileSync(new URL('../data/manifest.json', import.meta.url), 'utf8'),
+        readFileSync(new URL('../data/map-studies/manifest.json', import.meta.url), 'utf8'),
     );
     assert.equal(manifest.width, WORLD_WIDTH);
     assert.equal(manifest.height, WORLD_HEIGHT);

@@ -1,5 +1,5 @@
 import type { KeyboardEvent, PointerEvent } from 'react';
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { CountryState, FacilityState } from '../game/types';
 import type { Size } from '../map/geometry';
 import {
@@ -11,7 +11,7 @@ import {
     visibleWidth,
     WORLD_WIDTH,
 } from '../map/geometry';
-import type { Country, MapMarker } from '../map/types';
+import type { Country } from '../map/types';
 import { useMapStore } from '../state/mapStore';
 import { MarkerLayer } from './MarkerLayer';
 import { OceanSurface } from './OceanSurface';
@@ -61,9 +61,13 @@ export function WorldMap({
     const [zoom, setZoom] = useState(1);
     const zoomRef = useRef(1);
     const [cameraY, setCameraY] = useState(0);
-    const [cluster, setCluster] = useState<MapMarker[] | null>(null);
-    const renderSize = { width: size.width, height: size.height * zoom };
-    const limitY = (y: number) => Math.max(size.height - renderSize.height, Math.min(0, y));
+    const cameraYRef = useRef(0);
+    const renderSize = useMemo(
+        () => ({ width: size.width, height: size.height * zoom }),
+        [size.width, size.height, zoom],
+    );
+    const limitY = (y: number) =>
+        Math.max(sizeRef.current.height / zoomRef.current - sizeRef.current.height, Math.min(0, y));
     const [dragging, setDragging] = useState(false);
     const [imageError, setImageError] = useState(false);
     const camera = useMapStore((state) => state.camera);
@@ -98,24 +102,48 @@ export function WorldMap({
             );
             sizeRef.current = next;
             setSize({ width: next.width, height: next.height / zoomRef.current });
-            setCameraY((y) =>
-                Math.max(next.height / zoomRef.current - next.height, Math.min(0, y)),
+            cameraYRef.current = Math.max(
+                next.height / zoomRef.current - next.height,
+                Math.min(0, cameraYRef.current),
             );
+            setCameraY(cameraYRef.current);
             gesture.current = null;
             setDragging(false);
         });
         observer.observe(element);
         const onWheel = (event: WheelEvent) => {
             event.preventDefault();
-            if (gesture.current || event.ctrlKey) return;
-            const delta =
-                Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
+            if (gesture.current) return;
             const factor =
-                event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? sizeRef.current.width : 1;
-            const state = useMapStore.getState();
-            state.setCamera(
-                constrainCamera({ x: state.camera.x - delta * factor }, sizeRef.current),
+                event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? element.clientHeight : 1;
+            const nextZoom = Math.max(
+                1,
+                Math.min(3, zoomRef.current * Math.exp(-event.deltaY * factor * 0.001)),
             );
+            if (nextZoom === zoomRef.current) return;
+            const bounds = element.getBoundingClientRect();
+            const anchorX = event.clientX - bounds.left;
+            const anchorY = event.clientY - bounds.top;
+            const previous = sizeRef.current;
+            const next = { width: previous.width, height: element.clientHeight * nextZoom };
+            const previousLeft = (previous.width - visibleWidth(previous)) / 2;
+            const nextLeft = (next.width - visibleWidth(next)) / 2;
+            const ratio = nextZoom / zoomRef.current;
+            const camera = useMapStore.getState().camera;
+            useMapStore.getState().setCamera(
+                constrainCamera(
+                    { x: anchorX - nextLeft - (anchorX - previousLeft - camera.x) * ratio },
+                    next,
+                ),
+            );
+            cameraYRef.current = Math.max(
+                element.clientHeight - next.height,
+                Math.min(0, anchorY - (anchorY - cameraYRef.current) * ratio),
+            );
+            setCameraY(cameraYRef.current);
+            zoomRef.current = nextZoom;
+            sizeRef.current = next;
+            setZoom(nextZoom);
         };
         element.addEventListener('wheel', onWheel, { passive: false });
         return () => {
@@ -153,8 +181,14 @@ export function WorldMap({
         if (Math.hypot(dx, dy) > 5) current.moved = true;
         if (!current.moved) return;
         setDragging(true);
-        useMapStore.getState().setCamera(constrainCamera({ x: current.cameraX + dx }, renderSize));
-        setCameraY(limitY(current.cameraY + dy));
+        useMapStore.getState().setCamera(constrainCamera({ x: current.cameraX + dx }, sizeRef.current));
+        const nextY = limitY(current.cameraY + dy);
+        cameraYRef.current = nextY;
+        setCameraY(nextY);
+        current.startX = event.clientX;
+        current.startY = event.clientY;
+        current.cameraX = useMapStore.getState().camera.x;
+        current.cameraY = nextY;
     }
 
     function pointerUp(event: PointerEvent<HTMLDivElement>) {
@@ -184,7 +218,8 @@ export function WorldMap({
         const state = useMapStore.getState();
         if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
             event.preventDefault();
-            setCameraY(limitY(cameraY + (event.key === 'ArrowUp' ? 80 : -80)));
+            cameraYRef.current = limitY(cameraYRef.current + (event.key === 'ArrowUp' ? 80 : -80));
+            setCameraY(cameraYRef.current);
             return;
         }
         const offset = { ArrowLeft: 80, ArrowRight: -80 }[event.key];
@@ -194,38 +229,11 @@ export function WorldMap({
         } else if (event.key === 'Home') {
             event.preventDefault();
             state.setCamera(centerCamera(renderSize));
-            setCameraY((size.height - renderSize.height) / 2);
+            cameraYRef.current = (size.height - renderSize.height) / 2;
+            setCameraY(cameraYRef.current);
         } else if (event.key === 'Escape') {
-            setCluster(null);
             state.selectCountry(null);
         }
-    }
-
-    function toggleZoom() {
-        const nextZoom = zoom === 1 ? 2 : 1;
-        const next = { width: size.width, height: size.height * nextZoom };
-        const oldLeft = (size.width - visibleWidth(renderSize)) / 2;
-        const newLeft = (size.width - visibleWidth(next)) / 2;
-        const ratio = nextZoom / zoom;
-        useMapStore.getState().setCamera(
-            constrainCamera(
-                {
-                    x: size.width / 2 - newLeft - (size.width / 2 - oldLeft - camera.x) * ratio,
-                },
-                next,
-            ),
-        );
-        setCameraY(
-            Math.max(
-                size.height - next.height,
-                Math.min(0, size.height / 2 - (size.height / 2 - cameraY) * ratio),
-            ),
-        );
-        zoomRef.current = nextZoom;
-        sizeRef.current = next;
-        setZoom(nextZoom);
-        setCluster(null);
-        endGesture();
     }
 
     const scale = fitScale(renderSize);
@@ -234,6 +242,45 @@ export function WorldMap({
     const displayWidth = visibleWidth(renderSize);
     const left = (size.width - displayWidth) / 2;
     const tiles = scale > 0 ? (camera.x + period < displayWidth ? [0, 1] : [0]) : [];
+    const countryLayer = useMemo(
+        () => (
+            <g className={styles.countries}>
+                {countries.map((country) => (
+                    <path
+                        key={country.id}
+                        d={country.path}
+                        data-country={country.id}
+                        data-control-status={countryStates?.[country.id]?.controlStatus}
+                        style={
+                            countryStates?.[country.id]
+                                ? {
+                                      fill: `rgb(var(--color-territory-rgb) / ${countryStates[country.id].controlStatus === 'controlled' ? 0.52 : (countryStates[country.id].aiInfiltration / 100) * 0.25})`,
+                                  }
+                                : undefined
+                        }
+                        className={country.id === selected ? styles.selected : undefined}
+                        fillRule="evenodd"
+                        vectorEffect="non-scaling-stroke"
+                        tabIndex={0}
+                        role="button"
+                        aria-label={country.name}
+                        aria-pressed={country.id === selected}
+                        onKeyDown={(event) => {
+                            if (event.key === 'Enter' || event.key === ' ') {
+                                event.preventDefault();
+                                event.stopPropagation();
+                                useMapStore.getState().selectCountry(country.id);
+                                onCountrySelect?.(country.id);
+                            }
+                        }}
+                    >
+                        <title>{country.name}</title>
+                    </path>
+                ))}
+            </g>
+        ),
+        [countries, countryStates, selected, onCountrySelect],
+    );
     return (
         <div
             ref={viewport}
@@ -297,48 +344,7 @@ export function WorldMap({
                                 data-map-layer="world"
                                 data-world-tile={tile}
                             >
-                                <g className={styles.countries}>
-                                    {countries.map((country) => (
-                                        <path
-                                            key={country.id}
-                                            d={country.path}
-                                            data-country={country.id}
-                                            data-control-status={
-                                                countryStates?.[country.id]?.controlStatus
-                                            }
-                                            style={
-                                                countryStates?.[country.id]
-                                                    ? {
-                                                          fill: `rgb(var(--color-territory-rgb) / ${countryStates[country.id].controlStatus === 'controlled' ? 0.52 : (countryStates[country.id].aiInfiltration / 100) * 0.25})`,
-                                                      }
-                                                    : undefined
-                                            }
-                                            className={
-                                                country.id === selected
-                                                    ? styles.selected
-                                                    : undefined
-                                            }
-                                            fillRule="evenodd"
-                                            vectorEffect="non-scaling-stroke"
-                                            tabIndex={0}
-                                            role="button"
-                                            aria-label={country.name}
-                                            aria-pressed={country.id === selected}
-                                            onKeyDown={(event) => {
-                                                if (event.key === 'Enter' || event.key === ' ') {
-                                                    event.preventDefault();
-                                                    event.stopPropagation();
-                                                    useMapStore
-                                                        .getState()
-                                                        .selectCountry(country.id);
-                                                    onCountrySelect?.(country.id);
-                                                }
-                                            }}
-                                        >
-                                            <title>{country.name}</title>
-                                        </path>
-                                    ))}
-                                </g>
+                                {countryLayer}
                                 {selectedCountry && (
                                     <path
                                         d={selectedCountry.path}
@@ -349,58 +355,13 @@ export function WorldMap({
                                     />
                                 )}
                                 {scale > 0 && (
-                                    <MarkerLayer
-                                        markers={markers}
-                                        onClusterSelect={setCluster}
-                                        scale={scale}
-                                        facilityStates={facilityStates}
-                                    />
+                                    <MarkerLayer markers={markers} scale={scale} facilityStates={facilityStates} />
                                 )}
                             </g>
                         ))}
                     </g>
                 </svg>
             </div>
-            <div className={styles.mapControls} data-map-controls>
-                <button
-                    type="button"
-                    onClick={toggleZoom}
-                    aria-label={zoom === 1 ? '地図を拡大' : '地図を縮小'}
-                >
-                    {zoom === 1 ? '＋ 拡大' : '− 縮小'}
-                </button>
-            </div>
-            {cluster && (
-                <section
-                    className={styles.clusterPanel}
-                    data-map-controls
-                    aria-label="まとまった施設"
-                >
-                    <div>
-                        施設 {cluster.length}件{' '}
-                        <button
-                            type="button"
-                            onClick={() => setCluster(null)}
-                            aria-label="施設一覧を閉じる"
-                        >
-                            閉じる
-                        </button>
-                    </div>
-                    {cluster.map((marker) => (
-                        <button
-                            type="button"
-                            key={marker.id}
-                            data-facility-choice={marker.id}
-                            onClick={() => {
-                                useMapStore.getState().selectMarker(marker.id);
-                                setCluster(null);
-                            }}
-                        >
-                            {marker.label}
-                        </button>
-                    ))}
-                </section>
-            )}
             <span className={styles.screenReaderOnly} aria-live="polite">
                 {selected
                     ? `${countries.find((country) => country.id === selected)?.name}を選択中`

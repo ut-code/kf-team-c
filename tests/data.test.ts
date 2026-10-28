@@ -1,13 +1,15 @@
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { test } from 'node:test';
-import photos from '../src/game/data/facility-photos.json' with { type: 'json' };
-import flags from '../src/game/data/flags.json' with { type: 'json' };
+import photos from '../src/game/data/ui/facility-photos.json' with { type: 'json' };
+import flags from '../src/game/data/ui/flags.json' with { type: 'json' };
+import { CAUSAL_MODEL, compileCausalModel, evaluateCausalRules } from '../src/game/causality.ts';
 import {
     CATEGORIES,
     CHATS,
     FACILITIES,
     HUMAN_ACTIONS,
+    OPERATION_EFFECTS,
     PEOPLE,
     SKILLS,
     SNS,
@@ -15,6 +17,76 @@ import {
 import { createInitialState } from '../src/game/engine.ts';
 import { NEWS } from '../src/game/society.ts';
 import type { Effect } from '../src/game/types.ts';
+
+test('日次の因果関係はJSON定義から評価され、供給停止は一度だけ損失を与える', () => {
+    assert.ok(CAUSAL_MODEL.rules.length >= 18);
+    const context = {
+        infrastructure: 80,
+        economy: 70,
+        politicalControl: 65,
+        aiInfiltration: 10,
+        aiDecisionControl: 5,
+        aiCountermeasure: 8,
+        aiAcceptance: 50,
+        aiAdoption: 40,
+        aiDependency: 10,
+        awareness: 0,
+        'baseline.infrastructure': 80,
+        'baseline.economy': 70,
+        'baseline.politicalControl': 65,
+        'baseline.aiAcceptance': 50,
+        serviceSupply: 4,
+        previousServiceSupply: 4,
+        infiltrationAllocation: 0,
+        defenseAllocation: 0,
+        networkIncoming: 0,
+        foothold: 0,
+        anyInfiltrationFunded: 0,
+        'research.science': 0,
+        'research.languages': 0,
+        'research.institutions': 1,
+        'unlock.decision': 0,
+        'unlock.networkControl': 0,
+        'bonus.spread': 1,
+        'bonus.decision': 1,
+        'bonus.stealth': 0,
+        'config.infiltrationSpeed': 0.065,
+        'config.spillover': 0.013,
+        'config.decisionSpeed': 0.018,
+        'config.counterGrowth': 0.014,
+        'config.awarenessDecay': 0.045,
+    };
+    const changes = new Map<string, number>();
+    const record = (_metric: string, delta: number, label: string) => changes.set(label, delta);
+    const active = evaluateCausalRules({ ...context }, record);
+    assert.equal(active.serviceBenefit, 1.6);
+    assert.equal(active.serviceOutage, 0);
+    assert.ok(Math.abs(changes.get('業務統合と代替手段の縮小')! - 0.18) < 1e-12);
+    assert.ok(Math.abs(changes.get('公共サービスの実績と導入継続')! - 0.07568) < 1e-12);
+    const stopped = evaluateCausalRules({ ...context, serviceSupply: 0 }, record);
+    assert.equal(stopped.serviceOutage, 10);
+    assert.ok(Math.abs(changes.get('AI支援の稼働・停止による社会への影響')! + 0.7) < 1e-12);
+    assert.equal(changes.get('AI支援による生産性と停止損失'), -1);
+    const later = evaluateCausalRules({ ...context, serviceSupply: 0, previousServiceSupply: 0 }, record);
+    assert.equal(later.serviceOutage, 0);
+});
+
+test('因果JSONの不明な変数・演算子・対象指標を起動時に拒否する', () => {
+    const rule = {
+        id: 'example',
+        sources: ['aiAdoption'],
+        target: 'economy' as const,
+        label: '検証用',
+        expression: ['*', 'aiAdoption', 0.1] as const,
+    };
+    const evaluate = compileCausalModel({ signals: [], rules: [rule] });
+    let result = 0;
+    evaluate({ aiAdoption: 40 }, (_metric, delta) => { result = delta; });
+    assert.equal(result, 4);
+    assert.throws(() => compileCausalModel({ signals: [], rules: [{ ...rule, expression: 'unknown' }] }));
+    assert.throws(() => compileCausalModel({ signals: [], rules: [{ ...rule, expression: ['unknown-op', 1, 2] }] }));
+    assert.throws(() => compileCausalModel({ signals: [], rules: [{ ...rule, target: 'unknown' as 'economy' }] }));
+});
 
 test('施設写真の参照先と作者・利用条件を保持する', () => {
     const ids = new Set(FACILITIES.map((facility) => facility.id));
@@ -58,6 +130,7 @@ test('JSON定義のID・参照先・効果の種類が正しい', () => {
         );
     }
     for (const category of Object.values(CATEGORIES)) category.effects.forEach(checkEffect);
+    for (const effect of OPERATION_EFFECTS.disrupt) checkEffect(effect);
     for (const facility of FACILITIES) {
         assert.ok(facility.category in CATEGORIES, `不明な施設カテゴリ: ${facility.category}`);
         assert.ok(Number.isFinite(facility.longitude) && Number.isFinite(facility.latitude));

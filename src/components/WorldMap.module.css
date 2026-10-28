@@ -81,13 +81,6 @@
     cursor: pointer;
     outline: none;
 }
-.markerLeader {
-    fill: none;
-    stroke: var(--color-text-muted);
-    stroke-width: 0.7;
-    opacity: 0.7;
-    pointer-events: none;
-}
 .markerGlyph {
     fill: none;
     stroke: var(--color-text);
@@ -154,49 +147,4 @@
     fill: rgb(var(--color-surface-rgb) / 84%);
     stroke: var(--color-border);
     stroke-width: 1;
-}
-
-.mapControls {
-    position: absolute;
-    right: 12px;
-    top: 82px;
-    z-index: 2;
-}
-.mapControls button,
-.clusterPanel button {
-    color: var(--color-text);
-    background: rgb(var(--color-surface-rgb));
-    border: 1px solid var(--color-border);
-    border-radius: 4px;
-    padding: 10px 14px;
-    cursor: pointer;
-    font: inherit;
-}
-.clusterPanel {
-    position: absolute;
-    right: 12px;
-    top: 132px;
-    width: min(320px, calc(100% - 24px));
-    max-height: 55%;
-    overflow: auto;
-    padding: 10px;
-    background: rgb(var(--color-surface-rgb));
-    border: 1px solid var(--color-border);
-    border-radius: 4px;
-    color: var(--color-text);
-    z-index: 3;
-    cursor: auto;
-    display: grid;
-    gap: 6px;
-}
-.clusterPanel > div {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-}
-.clusterCount {
-    fill: var(--color-text);
-    font-size: 13px;
-    font-weight: bold;
-    pointer-events: none;
 }

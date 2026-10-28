@@ -1,5 +1,5 @@
 import { expect, type Page, test } from '@playwright/test';
-import { project, WORLD_HEIGHT, WORLD_WIDTH } from '../../src/map/geometry';
+import { project, WORLD_HEIGHT } from '../../src/map/geometry';
 
 const tile = (page: Page) => page.locator('[data-world-tile="0"]');
 const matrix = (page: Page) =>
@@ -19,7 +19,9 @@ test('日本を中央へ移動でき、日付変更線を越えても地点は�
     await page.mouse.move(720, 450);
     const japan = project(139.7, 35.7);
     const delta = before.x + japan.x * before.scale - 720;
-    await page.mouse.wheel(0, delta);
+    await page.mouse.down();
+    await page.mouse.move(720 - delta, 450);
+    await page.mouse.up();
     await expect
         .poll(async () => (await matrix(page)).x + japan.x * before.scale)
         .toBeCloseTo(720, 3);
@@ -35,9 +37,14 @@ test('日本を中央へ移動でき、日付変更線を越えても地点は�
     await viewport.press('ArrowDown');
     expect((await matrix(page)).scale).toBe(before.scale);
     expect((await matrix(page)).y).toBe(0);
-    await page.mouse.wheel((WORLD_WIDTH * before.scale) / 4, 0);
+    await page.mouse.move(720, 450);
+    await page.mouse.down();
+    await page.mouse.move(840, 450);
+    await page.mouse.up();
     await expect.poll(async () => (await matrix(page)).x).not.toBe(centered.x);
-    await page.mouse.wheel((WORLD_WIDTH * before.scale * 3) / 4, 0);
+    await page.mouse.down();
+    await page.mouse.move(720, 450);
+    await page.mouse.up();
     await expect.poll(async () => (await matrix(page)).x).toBeCloseTo(centered.x, 3);
     await page.screenshot({ path: 'test-results/map-japan-centered.png' });
     for (const dimensions of [

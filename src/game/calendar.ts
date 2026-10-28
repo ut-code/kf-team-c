@@ -1,4 +1,4 @@
-import calendar from './data/calendar.json' with { type: 'json' };
+import calendar from './data/simulation/calendar.json' with { type: 'json' };
 
 /** tickは開始日からの経過日数。UTCで計算し、端末の時差や夏時間の影響を受けない。 */
 export function gameDate(tick: number) {

@@ -71,5 +71,5 @@ if __name__ == '__main__':
         key, photo = download(item)
         photos[key] = photo
         print(key, photo['subject'], flush=True)
-        (ROOT / 'src/game/data/facility-photos.json').write_text(json.dumps(photos, ensure_ascii=False, indent=4)+'\n', encoding='utf-8')
+        (ROOT / 'src/game/data/ui/facility-photos.json').write_text(json.dumps(photos, ensure_ascii=False, indent=4)+'\n', encoding='utf-8')
 

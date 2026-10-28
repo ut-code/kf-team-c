@@ -1,14 +1,16 @@
-export type Metric =
-    | 'infrastructure'
-    | 'economy'
-    | 'politicalControl'
-    | 'aiInfiltration'
-    | 'aiDecisionControl'
-    | 'aiCountermeasure'
-    | 'aiAcceptance'
-    | 'aiAdoption'
-    | 'aiDependency'
-    | 'awareness';
+export const METRICS = [
+    'infrastructure',
+    'economy',
+    'politicalControl',
+    'aiInfiltration',
+    'aiDecisionControl',
+    'aiCountermeasure',
+    'aiAcceptance',
+    'aiAdoption',
+    'aiDependency',
+    'awareness',
+] as const;
+export type Metric = (typeof METRICS)[number];
 export type Region = '英語圏' | '東アジア' | '欧州' | 'その他';
 export type Category =
     | 'compute'
