@@ -1,0 +1,11 @@
+地図比較に使用した素材
+
+Natural Earth II NE2_50M_SR、Natural Earth 50mの陸・国境
+Made with Natural Earth. パブリックドメイン。
+https://www.naturalearthdata.com/
+
+NASA Blue Marble Next Generation with Topography（2004年7月）
+NASA Earth Observatory。MODISの衛星画像を合成した全球画像。
+https://science.nasa.gov/earth/earth-observatory/blue-marble-next-generation/base-topography/
+
+取得URLとSHA-256は data/map-studies/comparison-sources.json に記録。

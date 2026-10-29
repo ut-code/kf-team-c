@@ -28,7 +28,6 @@ def main():
     files = ['世界地図.png']
     assert report['seafloor_relief'] is False
     assert len(report['ocean_palette']) == 2
-    assert report['land_materials'] == {}
     # 輪郭整理の変更面積を色の境界数に対して確認する。
     boundary_count = len(report['ocean_palette'])-1
     assert report['checks']['boundary_only_changed_ratio']/boundary_count < 0.05

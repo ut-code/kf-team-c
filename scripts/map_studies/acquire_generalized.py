@@ -7,6 +7,7 @@ from acquire import RAW, digest
 def main():
     sources = {
         'earth_relief_06m_p.grd': 'https://oceania.generic-mapping-tools.org/server/earth/earth_relief/earth_relief_06m_p.grd',
+        'ne_10m_glaciated_areas.geojson': 'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/v5.1.2/geojson/ne_10m_glaciated_areas.geojson',
         'ne_110m_land.geojson': 'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/v5.1.2/geojson/ne_110m_land.geojson',
         'ne_110m_lakes.geojson': 'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/v5.1.2/geojson/ne_110m_lakes.geojson',
     }

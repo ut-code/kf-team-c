@@ -2,17 +2,17 @@ import './components/ui/theme.css';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { GameApp } from './components/GameApp';
-import { mapConfig } from './map/config';
+import { detailedCountriesUrl, mapConfig } from './map/config';
 import { loadCountries } from './map/loadCountries';
 import { useGameStore } from './state/gameStore';
 
 const root = createRoot(document.getElementById('root')!);
-loadCountries(mapConfig.countriesUrl)
-    .then((countries) => {
+Promise.all([loadCountries(mapConfig.countriesUrl), loadCountries(detailedCountriesUrl)])
+    .then(([countries, detailedCountries]) => {
         useGameStore.getState().initialize(countries);
         root.render(
             <StrictMode>
-                <GameApp countries={countries} backgroundUrl={mapConfig.backgroundUrl} />
+                <GameApp countries={countries} detailedCountries={detailedCountries} />
             </StrictMode>,
         );
     })

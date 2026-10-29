@@ -1,6 +1,5 @@
 import { useEffect, useRef } from 'react';
 import settings from '../game/data/map/ocean-surface.json';
-import { mapConfig } from '../map/config';
 import { fitScale, type Size, visibleWidth, WORLD_WIDTH } from '../map/geometry';
 import { fragmentShader, vertexShader } from '../map/oceanShader';
 import styles from './TrafficLayer.module.css';
@@ -11,12 +10,14 @@ export function OceanSurface({
     cameraXRef,
     speed,
     tick,
+    surfaceMaskUrl,
 }: {
     size: Size;
     cameraX: number;
     cameraXRef: { current: number };
     speed: number;
     tick: number;
+    surfaceMaskUrl: string;
 }) {
     const canvas = useRef<HTMLCanvasElement>(null);
     const state = useRef({ size, cameraX, speed, tick, dirty: true, reset: false });
@@ -100,7 +101,7 @@ export function OceanSurface({
             ready = true;
             state.current.dirty = true;
         };
-        image.src = mapConfig.surfaceMaskUrl;
+        image.src = surfaceMaskUrl;
         function draw(now: number) {
             const current = state.current;
             if (current.cameraX !== cameraXRef.current) {
@@ -170,7 +171,7 @@ export function OceanSurface({
             gl.deleteShader(vertex);
             gl.deleteShader(fragment);
         };
-    }, [cameraXRef]);
+    }, [cameraXRef, surfaceMaskUrl]);
     return (
         <div className={styles.layer} aria-hidden="true">
             <canvas ref={canvas} tabIndex={-1} data-ocean-surface />

@@ -2,7 +2,7 @@
   "status": "passed",
   "adopted": true,
   "ocean_palette_colors": 2,
-  "boundary_only_changed_ratio": 0.01575054124089945,
+  "boundary_only_changed_ratio": 0.015749785474231826,
   "coast_coverage_without_bevel": "passed",
   "protected_reference_points": [
     "サハラ",
@@ -17,5 +17,5 @@
       63
     ]
   ],
-  "input_and_output_hashes": 9
+  "input_and_output_hashes": 8
 }

@@ -13,6 +13,7 @@ import {
 import { canChooseChat } from '../game/engine.ts';
 import { countryMetrics } from '../game/metrics';
 import { worldMetrics } from '../game/outcome.ts';
+import { type MapVariant, mapVariants } from '../map/config';
 import type { Country, MapMarker } from '../map/types';
 import { useGameStore } from '../state/gameStore';
 import { useMapStore } from '../state/mapStore';
@@ -56,10 +57,10 @@ const dock = [
 
 export function GameApp({
     countries,
-    backgroundUrl,
+    detailedCountries,
 }: {
     countries: Country[];
-    backgroundUrl: string;
+    detailedCountries: Country[];
 }) {
     const gameState = useGameStore((state) => state.game)!;
     const speed = useGameStore((state) => state.speed);
@@ -68,6 +69,8 @@ export function GameApp({
     const selected = useMapStore((state) => state.selectedCountryId);
     const marker = useMapStore((state) => state.selectedMarkerId);
     const markerSelection = useMapStore((state) => state.markerSelection);
+    const [mapVariant, setMapVariant] = useState<MapVariant>('current');
+    const activeMap = mapVariants[mapVariant];
     const [panel, setPanel] = useState<OpenPanel>(null);
     const [mapParameter, setMapParameter] = useState<CountryParameterKey | null>(null);
     const [inspectedCountry, setInspectedCountry] = useState<string | null>(null);
@@ -162,8 +165,10 @@ export function GameApp({
     return (
         <main className={styles.game}>
             <WorldMap
-                countries={countries}
-                backgroundUrl={backgroundUrl}
+                countries={activeMap.detailedBorders ? detailedCountries : countries}
+                backgroundUrl={activeMap.backgroundUrl}
+                waterMaskUrl={activeMap.waterMaskUrl}
+                surfaceMaskUrl={activeMap.surfaceMaskUrl}
                 countryStates={gameState.countries}
                 parameterValues={mapValues}
                 parameterLabel={mapParameter ? COUNTRY_PARAMETERS[mapParameter].name : undefined}
@@ -239,6 +244,11 @@ export function GameApp({
                             countries={countries}
                             selected={selected}
                             onRestart={closePanel}
+                            mapVariant={mapVariant}
+                            onMapVariantChange={(variant) => {
+                                setMapVariant(variant);
+                                setMapParameter(null);
+                            }}
                         />
                     )}
                     {panel === 'chat' && chat && person && (

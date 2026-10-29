@@ -1,6 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { CountryState } from '../game/types';
-import { mapConfig } from '../map/config';
 import { fitScale, type Size, visibleWidth, WORLD_WIDTH } from '../map/geometry';
 import { TRAFFIC_ROUTES, trafficActivity, trafficPosition } from '../map/traffic';
 import styles from './TrafficLayer.module.css';
@@ -20,6 +19,7 @@ export function TrafficLayer({
     speed,
     tick,
     countries,
+    waterMaskUrl,
 }: {
     size: Size;
     cameraX: number;
@@ -27,6 +27,7 @@ export function TrafficLayer({
     speed: number;
     tick: number;
     countries: Record<string, CountryState>;
+    waterMaskUrl: string;
 }) {
     const canvas = useRef<HTMLCanvasElement>(null);
     const elapsed = useRef(0);
@@ -38,14 +39,14 @@ export function TrafficLayer({
         Promise.all([
             loadImage(assetUrl('ui/traffic/plane.svg')),
             loadImage(assetUrl('ui/traffic/ship.svg')),
-            loadImage(mapConfig.waterMaskUrl),
+            loadImage(waterMaskUrl),
         ]).then((result) => {
             if (active) setImages(result);
         });
         return () => {
             active = false;
         };
-    }, []);
+    }, [waterMaskUrl]);
     useLayoutEffect(() => {
         if (tick < previousTick.current) elapsed.current = 0;
         else if (speed === 0) elapsed.current += tick - previousTick.current;
@@ -146,7 +147,7 @@ export function TrafficLayer({
                 }
                 drawing.restore();
             }
-            // 110m海岸に合わせた海マスクで、船影が陸に重ならないようにする。
+            // 表示中の海岸に合わせた海マスクで、船影が陸に重ならないようにする。
             shipContext.globalCompositeOperation = 'destination-in';
             shipContext.drawImage(sea, 0, 0, size.width, size.height);
             shipContext.globalCompositeOperation = 'source-over';

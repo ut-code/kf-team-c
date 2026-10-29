@@ -159,14 +159,24 @@ def main():
     # NetCDFは南から北へ並ぶ。画像では北を上にする。
     elevation = elevation[::-1]; shade = shade[::-1]
     size = (len(lon), len(lat)); step = float(lon[1]-lon[0])
-    source = np.asarray(terrain.read_source('HYP_50M_SR', size), dtype=np.float32) / 255
+    source = np.asarray(terrain.read_source('NE2_50M_SR', size), dtype=np.float32) / 255
     r, g, b = source[..., 0], source[..., 1], source[..., 2]
-    forest, forest_count = climate_regions(terrain.smoothstep(.008, .12, g-r), settings, step)
-    desert, desert_count = climate_regions(terrain.smoothstep(.008, .14, r-b), settings, step)
-    ice, ice_count = climate_regions(terrain.smoothstep(.002, .06, b-g)*terrain.smoothstep(.02, .1, b-r)*terrain.smoothstep(.48, .78, (r+g+b)/3), settings, step)
-    land = np.asarray(terrain.raster_mask('ne_110m_land.geojson', size), dtype=np.float32)/255
+    # 土地被覆を表す原画像から、明るさに依存しにくい相対的な緑・乾燥色を取る。
+    total = np.maximum(r+g+b, 1e-6)
+    greenness = (2*g-r-b)/total
+    forest, forest_count = polygon_region(greenness >= settings['forest_greenness_threshold'],
+        settings['forest_tolerance_degrees'], settings['forest_minimum_area_deg2'],
+        settings['forest_cleanup_degrees'], step)
+    forest = forest.astype(np.float32)
+    dryness = ((r-b)/total >= settings['desert_warmth_threshold']) & (greenness < settings['forest_greenness_threshold'])
+    desert, desert_count = climate_regions(dryness.astype(np.float32), settings, step)
+    # 氷雪は画像の白さでは推定せず、氷河域の地理データを使う。
+    glaciated = np.asarray(terrain.raster_mask('ne_10m_glaciated_areas.geojson', size)) > 127
+    ice, ice_count = polygon_region(glaciated, settings['ice_tolerance_degrees'],
+        settings['ice_minimum_area_deg2'], settings['ice_cleanup_degrees'], step)
+    ice = ice.astype(np.float32)
     lakes = np.asarray(terrain.raster_mask('ne_110m_lakes.geojson', size), dtype=np.float32)/255
-    rgb = np.broadcast_to(np.array(settings['land'], dtype=np.float32), (*land.shape, 3)).copy()
+    rgb = np.broadcast_to(np.array(settings['land'], dtype=np.float32), (*elevation.shape, 3)).copy()
     for mask, name in [(forest, 'forest'), (desert, 'desert'), (ice, 'ice')]:
         rgb = np.where(mask[..., None] > .5, np.array(settings[name]), rgb)
     # 斜面の照明や標高による明暗を付けず、岩地の色で山岳帯を表す。
@@ -183,11 +193,12 @@ def main():
     high, high_count = polygon_region(elevation >= settings['mountain_high_start_m'],
         settings['mountain_contour_tolerance_degrees'], settings['mountain_minimum_area_deg2'],
         settings['mountain_cleanup_degrees'], step)
-    mountain = mountain & (ice < .5)
+    # 森林のある山は緑を優先する。高緯度ほど低くなる森林限界より上だけ岩地へ変える。
+    treeline = np.interp(np.abs(lat[::-1]), settings['treeline_latitudes'], settings['treeline_elevations_m'])[:, None]
+    mountain = mountain & (ice < .5) & ((forest < .5) | (elevation >= treeline))
     high = high & mountain
     rock_color = np.where(high[..., None], np.array(settings['mountain_high']), np.array(settings['mountain']))
     rgb = np.where(mountain[..., None], rock_color, rgb)
-    mountain = mountain.astype(np.float32)
     rgb = rgb*(1-lakes[..., None]) + np.array(settings['lake'])*lakes[..., None]
     # 海との被覆率合成は最終投影後に一度だけ行う。
     flat = Image.fromarray(np.uint8(np.clip(rgb, 0, 255)))
@@ -197,27 +208,12 @@ def main():
     top = (math.pi-game.NORTH_Y)/(2*math.pi)*full.height
     bottom = (math.pi-game.SOUTH_Y)/(2*math.pi)*full.height
     world = full.transform((game.WIDTH, game.HEIGHT), Image.Transform.EXTENT, (0, top, full.width, bottom), Image.Resampling.BICUBIC)
-    # 岩地の素材マスクも地表の配色と同じ山岳帯へ揃える。
-    ice_cover = np.where(mountain > 0, 0, ice)
-    available = 1-ice_cover
-    rock = mountain
-    available = available-rock
-    desert_weight = available*desert
-    available = available-desert_weight
-    forest_weight = available*forest
-    cover = {'ice': ice_cover, 'rock': rock, 'desert': desert_weight, 'forest': forest_weight, 'grassland': available-forest_weight}
-    (OUT / 'masks').mkdir(exist_ok=True)
-    for name, mask in cover.items():
-        image = Image.fromarray(np.uint8(np.clip(mask*land*(1-lakes)*255, 0, 255))).convert('RGB')
-        projected = projection.raster(image, [0, 0, 0])
-        projected = projected.transform((game.WIDTH, game.HEIGHT), Image.Transform.EXTENT, (0, top, projected.width, bottom), Image.Resampling.BICUBIC)
-        projected.getchannel('R').save(OUT / 'masks' / f'{name}.png')
     # 表示中の画像を直接上書きせず、保存が完了してから置き換える。
     for suffix, options in [('png', {}), ('webp', {'quality': 95, 'method': 6})]:
         temporary = OUT / f'地形整理.tmp.{suffix}'
         world.save(temporary, **options)
         temporary.replace(OUT / f'地形整理.{suffix}')
-    inputs = [SETTINGS] + [terrain.RAW / name for name in ['earth_relief_06m_p.grd', 'HYP_50M_SR.tif', 'HYP_50M_SR.tfw', 'ne_110m_land.geojson', 'ne_110m_lakes.geojson']]
+    inputs = [SETTINGS] + [terrain.RAW / name for name in ['earth_relief_06m_p.grd', 'NE2_50M_SR.tif', 'NE2_50M_SR.tfw', 'ne_10m_glaciated_areas.geojson', 'ne_110m_land.geojson', 'ne_110m_lakes.geojson']]
     report.update({'climate_regions': {'forest': forest_count, 'desert': desert_count, 'ice': ice_count}, 'mountain_regions': {'mountain': mountain_count, 'high': high_count}, 'size': list(world.size), 'projection': 'EPSG:3857', 'extent': [-180, -60, 180, 75], 'source_description': source_description, 'settings': settings, 'script_sha256': script_hash, 'inputs': [{'file': p.relative_to(game.ROOT).as_posix(), 'sha256': hashlib.sha256(p.read_bytes()).hexdigest()} for p in inputs], 'output_sha256': hashlib.sha256((OUT / '地形整理.webp').read_bytes()).hexdigest()})
     (OUT / '生成記録.json').write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
     print(json.dumps({key: value for key, value in report.items() if key not in {'settings', 'source_description'}}, ensure_ascii=False), flush=True)

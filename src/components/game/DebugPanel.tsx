@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { Balance, CountryStateKey, GameState } from '../../game/types.ts';
+import { type MapVariant, mapVariants } from '../../map/config';
 import type { Country } from '../../map/types';
 import { useGameStore } from '../../state/gameStore';
 import { Button, Input, Select } from '../ui/Controls';
@@ -10,11 +11,15 @@ export function DebugPanel({
     countries,
     selected,
     onRestart,
+    mapVariant,
+    onMapVariantChange,
 }: {
     game: GameState;
     countries: Country[];
     selected: string | null;
     onRestart: () => void;
+    mapVariant: MapVariant;
+    onMapVariantChange: (variant: MapVariant) => void;
 }) {
     const dispatch = useGameStore((state) => state.dispatch);
     const [countryStateKey, setMetric] = useState<CountryStateKey>('aiInfiltration');
@@ -28,6 +33,22 @@ export function DebugPanel({
     return (
         <>
             <h2>設定</h2>
+            <label htmlFor="debug-world-map">[デバッグ用]世界地図の切り替え</label>
+            <Select
+                id="debug-world-map"
+                value={mapVariant}
+                onChange={(event) => onMapVariantChange(event.target.value as MapVariant)}
+            >
+                {(Object.keys(mapVariants) as MapVariant[]).map((key) => (
+                    <option key={key} value={key}>
+                        {mapVariants[key].label}
+                    </option>
+                ))}
+            </Select>
+            {mapVariant === 'satellite' && (
+                <small>画像: NASA Blue Marble（2004年7月の衛星画像合成）</small>
+            )}
+
             <Button type="button" onClick={() => useGameStore.getState().step()}>
                 1日進める
             </Button>

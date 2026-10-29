@@ -1,11 +1,21 @@
 {
   "status": "passed",
+  "landcover_reference_regions": {
+    "JPN": {
+      "category": "forest",
+      "coverage_percent": 99.6
+    },
+    "GRL": {
+      "category": "ice",
+      "coverage_percent": 80.4
+    }
+  },
   "size": [
     8192,
     4361
   ],
   "representative_vertices": 7998,
-  "input_hashes_checked": 6,
+  "input_hashes_checked": 7,
   "ocean_reference_point": "passed",
   "massif_merge_and_deep_valley_preservation": "passed"
 }

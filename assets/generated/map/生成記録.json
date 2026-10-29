@@ -40,12 +40,11 @@
       63
     ]
   ],
-  "land_materials": {},
   "shelf_regions": 67,
   "checks": {
     "protected_pixels_before_coast_processing": 11917928,
-    "boundary_only_changed_pixels": 562693,
-    "boundary_only_changed_ratio": 0.01575054124089945,
+    "boundary_only_changed_pixels": 562666,
+    "boundary_only_changed_ratio": 0.015749785474231826,
     "max_boundary_rgb_difference": 12,
     "coast_highlight_pixels": 0,
     "coast_shadow_pixels": 0,
@@ -59,7 +58,7 @@
     },
     {
       "file": "assets/generated/terrain/地形整理.png",
-      "sha256": "175925d65738b22b8c1096c5fd41e1898318fa39fa7b962075904c3940fa2749"
+      "sha256": "b4bd8e1fd6ee2afb1b3a58b323807d9b88c27883e1d2520d6fad3c92d10da249"
     },
     {
       "file": "data/map-studies/raw/ne_110m_land.geojson",
@@ -70,26 +69,22 @@
       "sha256": "b407986b9d6c5f7911d992fb7ec2a53404f96ebf4bd1446105674add19446b4e"
     },
     {
-      "file": "scripts/map_studies/land-materials.json",
-      "sha256": "30d2b9c2e9e7fe57a57d3ce77de6f39dc4ae8df0df4a63d3a78ee2a9265c194f"
-    },
-    {
       "file": "scripts/build_oceans.py",
-      "sha256": "507bd6dcc35e0e4de353c91d202723ca0ef46569a00dc21c8783d56c9039ee2a"
+      "sha256": "c5e1c449e1834056f4a43fb5fd29f048a44d150a1f409bfc827870e8abd10c05"
     },
     {
       "file": "scripts/build_generalized.py",
-      "sha256": "c2d6deb1f6651b84ed6cae41e66387e556dc5c844ee18aed34bd477fa5c4bd5b"
+      "sha256": "e797486d2fb80f70aa00f27542fc047241e0faa931557ec68f5f1927598b543a"
     }
   ],
   "outputs": [
     {
       "file": "assets/generated/map/世界地図.png",
-      "sha256": "9ede7e2944953135c044926ccf16a25e87cf7ba4b2858e2c47e5d931565fc956"
+      "sha256": "de94890c186be1bcca036017dc191e83b9e60a37f295f45c280ed07dd54015a8"
     },
     {
       "file": "assets/generated/map/世界地図.webp",
-      "sha256": "e936293a96a4b581318b203c4b812dfbc4dbb985c4d7aba6268e61305bb69a13"
+      "sha256": "e41d93587ebbbc094d123b4c5a7d927a753c0a72509c036738fa8fd254ddb04c"
     }
   ]
 }

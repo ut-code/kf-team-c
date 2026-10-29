@@ -1,0 +1,89 @@
+{
+  "projection": "EPSG:3857",
+  "extent": [
+    -180,
+    -60,
+    180,
+    75
+  ],
+  "size": [
+    8192,
+    4361
+  ],
+  "border_scale": "50m",
+  "countries": 176,
+  "natural_earth_color_scale": [
+    0.8721608519554138,
+    0.9907760620117188,
+    0.7923839688301086
+  ],
+  "natural_earth_target_mean": [
+    81.74434661865234,
+    95.22969818115234,
+    85.67120361328125
+  ],
+  "inputs": [
+    {
+      "file": "data/map-studies/raw/NE2_50M_SR.tif",
+      "sha256": "8b8cd00b9c34076ee061a0aba0b4773f9cf0efd0656ab2799a600b1864cf1a2c"
+    },
+    {
+      "file": "data/map-studies/raw/blue-marble-july.jpg",
+      "sha256": "85a24885616097b5e06532b7d8e30fa5d749a782e70ea55971dd8539a0899206"
+    },
+    {
+      "file": "data/map-studies/raw/ne_50m_admin_0_countries.geojson",
+      "sha256": "3e458fc036ad0a66411f2c1e6cac49c5d7bfb81cb1123bc513b22511a2b7fdeb"
+    },
+    {
+      "file": "data/map-studies/raw/ne_50m_land.geojson",
+      "sha256": "e874b27a51d146452be360cafb3cc50c86001074a67d534113e6534682f9826b"
+    },
+    {
+      "file": "data/map-studies/raw/ne_110m_lakes.geojson",
+      "sha256": "7b88f5377b5c6785ae478dea79b090801fd1119488aa6527a02614c6256cc7b4"
+    },
+    {
+      "file": "data/map-studies/raw/earth_relief_06m_p.grd",
+      "sha256": "b881500f34739b844658ecb00ce86d9352f9a2a45a1e88f26b914d496ea1b38e"
+    },
+    {
+      "file": "assets/generated/terrain/地形整理.png",
+      "sha256": "b4bd8e1fd6ee2afb1b3a58b323807d9b88c27883e1d2520d6fad3c92d10da249"
+    },
+    {
+      "file": "public/maps/countries.json",
+      "sha256": "19e95a5b7f27ae2f6116719e718f19417d9e765c73d2f1fbebef1c3579fe0ef0"
+    },
+    {
+      "file": "scripts/map_studies/ocean-parameters.json",
+      "sha256": "b407986b9d6c5f7911d992fb7ec2a53404f96ebf4bd1446105674add19446b4e"
+    },
+    {
+      "file": "scripts/build_map_comparison.py",
+      "sha256": "cc07c8b5b763d5d1b3bdd155c039d1de63eae955f0c9212be72818bfa59a0153"
+    }
+  ],
+  "outputs": [
+    {
+      "file": "public/maps/comparison/natural-earth.webp",
+      "sha256": "e304181b085b021c451218fd64959c0f525c47008f7fd3e8f5ba2161aeffcb39"
+    },
+    {
+      "file": "public/maps/comparison/satellite.webp",
+      "sha256": "c95b2d78207bae943301f4ce97550451460311490af578eefe46e70e5a963ef3"
+    },
+    {
+      "file": "public/maps/comparison/countries.json",
+      "sha256": "dd95dd2ed6ea9bb27a67f96cf2256b168107c7c5927c340d5c66addad68ab329"
+    },
+    {
+      "file": "public/maps/comparison/water-mask.png",
+      "sha256": "112b9c9569dea7e8f611930a3cfe7625ccc528c3dc7dcbe936b9f720779523f9"
+    },
+    {
+      "file": "public/maps/comparison/surface-mask.png",
+      "sha256": "d5ae86c0b0b5ba0d8c0a8e0d9e642d43ece437630ddf39bdeba1b9821cf59be5"
+    }
+  ]
+}

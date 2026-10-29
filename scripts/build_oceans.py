@@ -9,7 +9,6 @@ from netCDF4 import Dataset
 from PIL import Image, ImageDraw
 from scipy.ndimage import label
 
-from land_materials import apply_materials
 import build_generalized as generalized
 from build_generalized import terrain, game
 
@@ -114,18 +113,15 @@ def main():
     max_boundary_difference = int(np.abs(result.astype(np.int16)-original.astype(np.int16)).max())
     protected = alpha == 255
     assert np.array_equal(result[protected], base[protected])
-    # 海底の再計算なしで地表素材を調整できる中間画像。
-    Image.fromarray(result).save(OUT / 'untextured.png')
     Image.fromarray(alpha).save(OUT / 'land-mask.png')
-    texture_sources, materials = apply_materials(result)
     coast_checks = {'coast_highlight_pixels': 0, 'coast_shadow_pixels': 0, 'land_interior_unchanged': True}
     image = Image.fromarray(result)
     image.save(OUT / '世界地図.png')
     image.save(OUT / '世界地図.webp', quality=95, method=6)
     outputs = [{'file': p.relative_to(ROOT).as_posix(), 'sha256': digest(p)} for p in [OUT/'世界地図.png', OUT/'世界地図.webp']]
     checks = {'protected_pixels_before_coast_processing': int(protected.sum()), 'boundary_only_changed_pixels': changed_before_coast, 'boundary_only_changed_ratio': changed_before_coast/(game.WIDTH*game.HEIGHT), 'max_boundary_rgb_difference': max_boundary_difference, **coast_checks}
-    inputs = [source, ROOT / 'assets/generated/terrain/地形整理.png', terrain.RAW / 'ne_110m_land.geojson', PARAMETERS, *texture_sources, Path(__file__), Path(generalized.__file__)]
-    report = {'size': [game.WIDTH, game.HEIGHT], 'projection': 'EPSG:3857', 'extent': [-180, -60, 180, 75], 'settings': settings, 'seafloor_relief': False, 'ocean_palette': [settings['deep'], settings['shelf']], 'land_materials': materials, 'shelf_regions': shelf_regions, 'checks': checks, 'source_description': source_description, 'inputs': [{'file': p.relative_to(ROOT).as_posix(), 'sha256': digest(p)} for p in inputs], 'outputs': outputs}
+    inputs = [source, ROOT / 'assets/generated/terrain/地形整理.png', terrain.RAW / 'ne_110m_land.geojson', PARAMETERS, Path(__file__), Path(generalized.__file__)]
+    report = {'size': [game.WIDTH, game.HEIGHT], 'projection': 'EPSG:3857', 'extent': [-180, -60, 180, 75], 'settings': settings, 'seafloor_relief': False, 'ocean_palette': [settings['deep'], settings['shelf']], 'shelf_regions': shelf_regions, 'checks': checks, 'source_description': source_description, 'inputs': [{'file': p.relative_to(ROOT).as_posix(), 'sha256': digest(p)} for p in inputs], 'outputs': outputs}
     (OUT / '生成記録.json').write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
     print('世界地図を生成完了。山地・高山の岩色と二色の海を合成。', flush=True)
 

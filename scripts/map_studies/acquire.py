@@ -9,7 +9,7 @@ import zipfile
 ROOT = Path(__file__).resolve().parents[2]
 RAW = ROOT / "data" / "map-studies" / "raw"
 SOURCES = {
-    "HYP_50M_SR.zip": "https://naturalearth.s3.amazonaws.com/50m_raster/HYP_50M_SR.zip",
+    "NE2_50M_SR.zip": "https://naturalearth.s3.amazonaws.com/50m_raster/NE2_50M_SR.zip",
     "ne_110m_admin_0_countries.geojson": "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/v5.1.2/geojson/ne_110m_admin_0_countries.geojson",
 }
 

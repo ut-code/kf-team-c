@@ -38,6 +38,8 @@ function countryAt(target: EventTarget | null): string | null {
 export function WorldMap({
     countries,
     backgroundUrl,
+    waterMaskUrl,
+    surfaceMaskUrl,
     countryStates,
     facilityStates,
     onCountrySelect,
@@ -50,6 +52,8 @@ export function WorldMap({
 }: {
     countries: Country[];
     backgroundUrl: string;
+    waterMaskUrl: string;
+    surfaceMaskUrl: string;
     countryStates: Record<string, CountryState>;
     facilityStates?: Record<string, FacilityState>;
     onCountrySelect?: (id: string | null) => void;
@@ -112,7 +116,7 @@ export function WorldMap({
         if (gesture.current) return;
         cameraXRef.current = camera.x;
         paintCamera();
-    }, [camera.x, cameraY, renderSize]);
+    });
 
     useEffect(() => () => cancelAnimationFrame(dragFrame.current), []);
 
@@ -400,6 +404,7 @@ export function WorldMap({
                             }}
                         />
                         <OceanSurface
+                            surfaceMaskUrl={surfaceMaskUrl}
                             size={renderSize}
                             cameraX={camera.x}
                             cameraXRef={cameraXRef}
@@ -407,6 +412,7 @@ export function WorldMap({
                             tick={trafficTick}
                         />
                         <TrafficLayer
+                            waterMaskUrl={waterMaskUrl}
                             size={renderSize}
                             cameraX={camera.x}
                             cameraXRef={cameraXRef}

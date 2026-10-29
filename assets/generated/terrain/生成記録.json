@@ -11,9 +11,9 @@
     "mean_absolute_elevation_change_m": 14.381417274475098
   },
   "climate_regions": {
-    "forest": 36,
-    "desert": 11,
-    "ice": 12
+    "forest": 276,
+    "desert": 18,
+    "ice": 151
   },
   "mountain_regions": {
     "mountain": 113,
@@ -104,25 +104,53 @@
     "mountain_contour_tolerance_degrees": 0.3,
     "mountain_minimum_area_deg2": 0.35,
     "mountain_cleanup_degrees": 0.1,
-    "climate_threshold": 0.45
+    "climate_threshold": 0.45,
+    "forest_greenness_threshold": 0.055,
+    "forest_tolerance_degrees": 0.25,
+    "forest_minimum_area_deg2": 0.35,
+    "forest_cleanup_degrees": 0.1,
+    "desert_warmth_threshold": 0.05,
+    "ice_tolerance_degrees": 0.15,
+    "ice_minimum_area_deg2": 0.15,
+    "ice_cleanup_degrees": 0.1,
+    "treeline_latitudes": [
+      0,
+      30,
+      45,
+      60,
+      75,
+      90
+    ],
+    "treeline_elevations_m": [
+      4200,
+      3600,
+      2600,
+      1000,
+      400,
+      0
+    ]
   },
-  "script_sha256": "c2d6deb1f6651b84ed6cae41e66387e556dc5c844ee18aed34bd477fa5c4bd5b",
+  "script_sha256": "e797486d2fb80f70aa00f27542fc047241e0faa931557ec68f5f1927598b543a",
   "inputs": [
     {
       "file": "scripts/map_studies/generalized-parameters.json",
-      "sha256": "1fca06fef5dbb9e928006a991da34b65420c5a789b8524eb6e82ce66881771bd"
+      "sha256": "56c63f652710070915d85052fd0477ed0b46424919ab52e624f39191befd3dc4"
     },
     {
       "file": "data/map-studies/raw/earth_relief_06m_p.grd",
       "sha256": "b881500f34739b844658ecb00ce86d9352f9a2a45a1e88f26b914d496ea1b38e"
     },
     {
-      "file": "data/map-studies/raw/HYP_50M_SR.tif",
-      "sha256": "18320396c1ec7d9dc6096fcd288543e9b5e02811be87459761eb6a069e57714f"
+      "file": "data/map-studies/raw/NE2_50M_SR.tif",
+      "sha256": "8b8cd00b9c34076ee061a0aba0b4773f9cf0efd0656ab2799a600b1864cf1a2c"
     },
     {
-      "file": "data/map-studies/raw/HYP_50M_SR.tfw",
-      "sha256": "641762b1eaae2364ae75c0e28fa80c38c00a37f6c012100e6e3b68133f2cb0e4"
+      "file": "data/map-studies/raw/NE2_50M_SR.tfw",
+      "sha256": "7f1cc97126a52814c874ec326a8275c7ded3edc4d7bced417f76d71a995069bd"
+    },
+    {
+      "file": "data/map-studies/raw/ne_10m_glaciated_areas.geojson",
+      "sha256": "04fd2303d5f0ece2cf482af19d06731d745db9690501d7b0a2a4b7fe23a7726f"
     },
     {
       "file": "data/map-studies/raw/ne_110m_land.geojson",
@@ -133,5 +161,5 @@
       "sha256": "7b88f5377b5c6785ae478dea79b090801fd1119488aa6527a02614c6256cc7b4"
     }
   ],
-  "output_sha256": "a4b4814159a812ea3fdb8bdc0052fa91dbbf5316a8c10a05ca481dec0ef8a1f6"
+  "output_sha256": "fb85aab59f53969464362ffdb4a0f5e52595b6c95599ef63bdcb2e3bf1ed3e21"
 }

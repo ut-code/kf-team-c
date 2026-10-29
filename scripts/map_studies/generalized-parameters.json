@@ -71,5 +71,29 @@
   "mountain_contour_tolerance_degrees": 0.3,
   "mountain_minimum_area_deg2": 0.35,
   "mountain_cleanup_degrees": 0.1,
-  "climate_threshold": 0.45
+  "climate_threshold": 0.45,
+  "forest_greenness_threshold": 0.055,
+  "forest_tolerance_degrees": 0.25,
+  "forest_minimum_area_deg2": 0.35,
+  "forest_cleanup_degrees": 0.1,
+  "desert_warmth_threshold": 0.05,
+  "ice_tolerance_degrees": 0.15,
+  "ice_minimum_area_deg2": 0.15,
+  "ice_cleanup_degrees": 0.1,
+  "treeline_latitudes": [
+    0,
+    30,
+    45,
+    60,
+    75,
+    90
+  ],
+  "treeline_elevations_m": [
+    4200,
+    3600,
+    2600,
+    1000,
+    400,
+    0
+  ]
 }
