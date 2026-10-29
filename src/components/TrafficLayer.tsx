@@ -1,14 +1,15 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { CountryState } from '../game/types';
+import { mapConfig } from '../map/config';
 import { fitScale, type Size, visibleWidth, WORLD_WIDTH } from '../map/geometry';
 import { TRAFFIC_ROUTES, trafficActivity, trafficPosition } from '../map/traffic';
 import styles from './TrafficLayer.module.css';
 
 const assetUrl = (path: string) => `${import.meta.env.BASE_URL}${path}`;
 
-function loadImage(path: string) {
+function loadImage(url: string) {
     const image = new Image();
-    image.src = assetUrl(path);
+    image.src = url;
     return image.decode().then(() => image);
 }
 
@@ -35,9 +36,9 @@ export function TrafficLayer({
     useEffect(() => {
         let active = true;
         Promise.all([
-            loadImage('ui/traffic/plane.svg'),
-            loadImage('ui/traffic/ship.svg'),
-            loadImage('maps/water-mask.png'),
+            loadImage(assetUrl('ui/traffic/plane.svg')),
+            loadImage(assetUrl('ui/traffic/ship.svg')),
+            loadImage(mapConfig.waterMaskUrl),
         ]).then((result) => {
             if (active) setImages(result);
         });
@@ -164,7 +165,7 @@ export function TrafficLayer({
         return () => {
             cancelAnimationFrame(frame);
         };
-    }, [images]);
+    }, [images, cameraXRef]);
     return (
         <div className={styles.layer} aria-hidden="true">
             <canvas ref={canvas} tabIndex={-1} data-traffic-layer />

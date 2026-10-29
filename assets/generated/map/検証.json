@@ -1,9 +1,9 @@
 {
   "status": "passed",
   "adopted": true,
-  "approved_baseline_relief_opacity": 0.3,
-  "boundary_only_changed_ratio": 0.018943795368393145,
-  "coast_light_and_wrap": "passed",
+  "ocean_palette_colors": 2,
+  "boundary_only_changed_ratio": 0.01575054124089945,
+  "coast_coverage_without_bevel": "passed",
   "protected_reference_points": [
     "サハラ",
     "シベリア",
@@ -12,9 +12,9 @@
   ],
   "shelf_reference_colors": [
     [
-      32,
-      63,
-      77
+      27,
+      49,
+      63
     ]
   ],
   "input_and_output_hashes": 9

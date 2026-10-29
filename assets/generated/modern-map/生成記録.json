@@ -1,0 +1,36 @@
+{
+  "description": "標準的で見やすい現代風の地図。深い青の海、濃い緑と砂色の陸地、実地形の陰影、細い国境。白を混ぜる淡色化を取り除き、中間調を暗くして色の深みを保っている。画像生成は使用していない。",
+  "projection": "EPSG:3857",
+  "extent": [
+    -180,
+    -60,
+    180,
+    75
+  ],
+  "width": 8192,
+  "height": 4361,
+  "sources": [
+    {
+      "file": "data/map-studies/raw/HYP_50M_SR.tif",
+      "sha256": "18320396c1ec7d9dc6096fcd288543e9b5e02811be87459761eb6a069e57714f"
+    },
+    {
+      "file": "data/map-studies/raw/ne_50m_land.geojson",
+      "sha256": "e874b27a51d146452be360cafb3cc50c86001074a67d534113e6534682f9826b"
+    },
+    {
+      "file": "data/map-studies/raw/ne_110m_lakes.geojson",
+      "sha256": "7b88f5377b5c6785ae478dea79b090801fd1119488aa6527a02614c6256cc7b4"
+    },
+    {
+      "file": "data/map-studies/raw/ne_50m_admin_0_countries.geojson",
+      "sha256": "3e458fc036ad0a66411f2c1e6cac49c5d7bfb81cb1123bc513b22511a2b7fdeb"
+    }
+  ],
+  "outputs": {
+    "world-map.webp": "83135c7831619e82aec4b726b817ec4524908ca938918a786bb49e6ac9b520cb",
+    "countries.json": "c16c565d2ac219e7e78180aaa2404d6553c42b44a66d8eca497a204dba06b746",
+    "water-mask.png": "e2b672a4c09a06272743b0a8b1b3cbaa434e0b61f36e3343aca7bf40b756a239",
+    "surface-mask.png": "416f322f4ee1fabcd473ffe6f2f0b94b0271185771ebfaca4fb65a08a22d60b1"
+  }
+}

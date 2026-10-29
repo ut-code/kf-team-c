@@ -10,37 +10,32 @@
   "anchor_spacing_degrees": 3.5,
   "peak_spacing_degrees": 3.5,
   "minimum_peak_m": 1350,
-  "climate_thresholds": [
-    0.25,
-    0.65
-  ],
-  "climate_tolerance_degrees": 0.18,
-  "climate_minimum_area_deg2": 2.5,
-  "climate_transition_degrees": 0.18,
-  "relief_strength": 48,
+  "climate_tolerance_degrees": 0.65,
+  "climate_minimum_area_deg2": 9,
+  "relief_strength": 0,
   "vertical_exaggeration": 12.0,
-  "normal_smooth_mix": 1.0,
+  "normal_smooth_mix": 0.75,
   "light_azimuth_degrees": 315,
   "light_altitude_degrees": 48,
   "forest": [
-    65,
-    100,
-    87
+    62,
+    85,
+    74
   ],
   "land": [
-    105,
-    121,
-    100
+    86,
+    94,
+    87
   ],
   "desert": [
-    162,
-    148,
-    111
+    126,
+    115,
+    94
   ],
   "ice": [
-    195,
-    210,
-    210
+    145,
+    160,
+    163
   ],
   "ocean": [
     17,
@@ -55,5 +50,26 @@
   "massif_peak_prominence_m": 550,
   "massif_gap_radius_degrees": 0.3,
   "massif_max_valley_fill_m": 220,
-  "climate_shape_scale_degrees": 0.85
+  "mountain": [
+    112,
+    108,
+    99
+  ],
+  "mountain_high": [
+    143,
+    141,
+    132
+  ],
+  "mountain_start_m": 650,
+  "mountain_full_m": 2100,
+  "mountain_relief_start_m": 180,
+  "mountain_relief_full_m": 650,
+  "mountain_neighborhood_degrees": 0.7,
+  "climate_cleanup_degrees": 0.35,
+  "mountain_coverage_threshold": 0.35,
+  "mountain_high_start_m": 3000,
+  "mountain_contour_tolerance_degrees": 0.3,
+  "mountain_minimum_area_deg2": 0.35,
+  "mountain_cleanup_degrees": 0.1,
+  "climate_threshold": 0.45
 }

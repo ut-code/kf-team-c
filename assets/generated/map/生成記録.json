@@ -12,70 +12,41 @@
   ],
   "settings": {
     "deep": [
-      24,
-      48,
-      65
-    ],
-    "quiet_shallow": [
-      28,
-      56,
-      72
+      20,
+      38,
+      52
     ],
     "shelf": [
-      37,
-      72,
-      85
+      27,
+      49,
+      63
     ],
-    "shelf_strength": 0.45,
-    "shelf_transition_degrees": 0.3,
-    "shelf_contour_tolerance_degrees": 0.16,
-    "shelf_minimum_area_deg2": 0.08,
-    "ridge_tint": [
-      3,
-      6,
-      8
-    ],
-    "relief_strength": 7,
-    "trench_darkening": [
-      3,
-      4,
-      5
-    ],
-    "contour_levels_m": [
-      -7000,
-      -5500,
-      -4000,
-      -2500,
-      -1000,
-      -200
-    ],
-    "contour_tolerance_degrees": 0.45,
-    "minimum_contour_area_deg2": 0.8,
-    "anchor_spacing_degrees": 3,
-    "peak_spacing_degrees": 5,
-    "minimum_peak_m": -12000,
-    "vertical_exaggeration": 10,
-    "normal_smooth_mix": 0.65,
-    "light_azimuth_degrees": 315,
-    "light_altitude_degrees": 48,
-    "relief_opacity": 0.3,
-    "boundary_rounding_iterations": 2,
-    "coast_land_width_px": 4,
-    "coast_sea_width_px": 5,
-    "coast_highlight_strength": 10,
-    "coast_shadow_strength": 5,
-    "coast_light_azimuth_degrees": 315,
-    "seafloor_smoothing_degrees": 2.4,
-    "seafloor_shade_retention": 0.12
+    "shelf_depth_m": 700,
+    "shelf_cleanup_degrees": 0.2,
+    "shelf_contour_tolerance_degrees": 0.35,
+    "shelf_minimum_area_deg2": 1,
+    "boundary_rounding_iterations": 3
   },
-  "seafloor_relief": true,
+  "seafloor_relief": false,
+  "ocean_palette": [
+    [
+      20,
+      38,
+      52
+    ],
+    [
+      27,
+      49,
+      63
+    ]
+  ],
   "land_materials": {},
-  "shelf_regions": 669,
+  "shelf_regions": 67,
   "checks": {
     "protected_pixels_before_coast_processing": 11917928,
-    "boundary_only_changed_pixels": 676773,
-    "boundary_only_changed_ratio": 0.018943795368393145,
-    "max_boundary_rgb_difference": 7,
+    "boundary_only_changed_pixels": 562693,
+    "boundary_only_changed_ratio": 0.01575054124089945,
+    "max_boundary_rgb_difference": 12,
     "coast_highlight_pixels": 0,
     "coast_shadow_pixels": 0,
     "land_interior_unchanged": true
@@ -88,7 +59,7 @@
     },
     {
       "file": "assets/generated/terrain/地形整理.png",
-      "sha256": "919655c44a40f6dd7839886f2f3768fe43cfd4cd865579ff58c24e583986176a"
+      "sha256": "175925d65738b22b8c1096c5fd41e1898318fa39fa7b962075904c3940fa2749"
     },
     {
       "file": "data/map-studies/raw/ne_110m_land.geojson",
@@ -96,7 +67,7 @@
     },
     {
       "file": "scripts/map_studies/ocean-parameters.json",
-      "sha256": "84de45b99844f0735fbc6132d3c3008f4af7a40da3dc6df799d53b81d5e58358"
+      "sha256": "b407986b9d6c5f7911d992fb7ec2a53404f96ebf4bd1446105674add19446b4e"
     },
     {
       "file": "scripts/map_studies/land-materials.json",
@@ -104,21 +75,21 @@
     },
     {
       "file": "scripts/build_oceans.py",
-      "sha256": "5dedad425e7b7f3cfa590aa0ccc3946871b24a6e6fd84ad2e5928ced3057841c"
+      "sha256": "507bd6dcc35e0e4de353c91d202723ca0ef46569a00dc21c8783d56c9039ee2a"
     },
     {
       "file": "scripts/build_generalized.py",
-      "sha256": "424653ce39a5a3baba12a1bb27982c909dd1c0867f96e9e87d6052b08443d20c"
+      "sha256": "c2d6deb1f6651b84ed6cae41e66387e556dc5c844ee18aed34bd477fa5c4bd5b"
     }
   ],
   "outputs": [
     {
       "file": "assets/generated/map/世界地図.png",
-      "sha256": "73575b7d5182afb7bff14dbde74cbe9d4149f460431f0f1f47c5c8974b61cc3f"
+      "sha256": "9ede7e2944953135c044926ccf16a25e87cf7ba4b2858e2c47e5d931565fc956"
     },
     {
       "file": "assets/generated/map/世界地図.webp",
-      "sha256": "1e9d70100618626d4bd5639b5523e5c4d15078c928914cec27f6773fc15c81d8"
+      "sha256": "e936293a96a4b581318b203c4b812dfbc4dbb985c4d7aba6268e61305bb69a13"
     }
   ]
 }

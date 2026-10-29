@@ -8,7 +8,7 @@ import sys
 import numpy as np
 from netCDF4 import Dataset
 from PIL import Image, ImageDraw
-from scipy.ndimage import maximum_filter, minimum_filter, label, find_objects, distance_transform_edt, grey_closing, gaussian_filter
+from scipy.ndimage import maximum_filter, minimum_filter, label, find_objects, grey_closing, binary_opening, binary_closing
 from scipy.spatial import Delaunay
 from skimage.measure import find_contours, approximate_polygon
 from skimage.morphology import reconstruction
@@ -40,26 +40,29 @@ def contour_shapes(field, levels, tolerance, minimum_area, step):
     return shapes
 
 
+def polygon_region(inside, tolerance, minimum_area, cleanup, step):
+    """細い突起を整理し、直線の輪郭で領域を描く。色は混ぜない。"""
+    radius = max(1, round(cleanup/step))
+    footprint = np.ones((radius*2+1, radius*2+1), dtype=bool)
+    margin = radius*4
+    padded = np.pad(inside, ((margin, margin), (0, 0)), mode='edge')
+    padded = np.pad(padded, ((0, 0), (margin, margin)), mode='wrap')
+    cleaned = binary_closing(binary_opening(padded, structure=footprint), structure=footprint)
+    cleaned = cleaned[margin:-margin, margin:-margin]
+    shapes = contour_shapes(np.pad(cleaned.astype(np.float32), 1), [.5], tolerance, minimum_area, step)
+    image = Image.new('L', (inside.shape[1]+2, inside.shape[0]+2))
+    draw = ImageDraw.Draw(image)
+    for _, area, ring in sorted(shapes, key=lambda item: abs(item[1]), reverse=True):
+        draw.polygon([(float(x), float(y)) for y, x in ring], fill=255 if area > 0 else 0)
+    return np.asarray(image)[1:-1, 1:-1] > 0, len(shapes)
+
+
 def climate_regions(field, settings, step):
-    """広域の環境色の輪郭を整理する。地形陰影を色として持ち込まない。"""
-    result = np.zeros(field.shape, dtype=np.float32)
-    counts = 0
-    # 画面端に達する領域も閉曲線にする。外周の1画素は後で取り除く。
-    field = gaussian_filter(field, settings['climate_shape_scale_degrees']/step, mode=('nearest', 'wrap'))
-    padded = np.pad(field, 1)
-    for threshold in settings['climate_thresholds']:
-        image = Image.new('L', (field.shape[1] + 2, field.shape[0] + 2))
-        draw = ImageDraw.Draw(image)
-        shapes = contour_shapes(padded, [threshold], settings['climate_tolerance_degrees'], settings['climate_minimum_area_deg2'], step)
-        for _, area, ring in sorted(shapes, key=lambda item: abs(item[1]), reverse=True):
-            draw.polygon([(float(x), float(y)) for y, x in ring], fill=255 if area > 0 else 0)
-            counts += 1
-        inside = np.asarray(image)[1:-1, 1:-1] > 0
-        # 色帯の接続は整理後の輪郭から距離で作る。地形や画像のぼかしではない。
-        distance = distance_transform_edt(inside) - distance_transform_edt(~inside)
-        width = settings['climate_transition_degrees'] / step
-        result += terrain.smoothstep(-width, width, distance) / len(settings['climate_thresholds'])
-    return result, counts
+    """環境色を一段階で分類し、中間色の帯と小さな斑点を減らす。"""
+    inside, count = polygon_region(field >= settings['climate_threshold'],
+        settings['climate_tolerance_degrees'], settings['climate_minimum_area_deg2'],
+        settings['climate_cleanup_degrees'], step)
+    return inside.astype(np.float32), count
 
 
 def aggregate_massifs(z, step, settings):
@@ -165,9 +168,26 @@ def main():
     lakes = np.asarray(terrain.raster_mask('ne_110m_lakes.geojson', size), dtype=np.float32)/255
     rgb = np.broadcast_to(np.array(settings['land'], dtype=np.float32), (*land.shape, 3)).copy()
     for mask, name in [(forest, 'forest'), (desert, 'desert'), (ice, 'ice')]:
-        rgb = rgb*(1-mask[..., None]) + np.array(settings[name])*mask[..., None]
-    rgb += shade[..., None] * settings['relief_strength']
-    rgb += terrain.smoothstep(500, 5000, elevation)[..., None]*4
+        rgb = np.where(mask[..., None] > .5, np.array(settings[name]), rgb)
+    # 斜面の照明や標高による明暗を付けず、岩地の色で山岳帯を表す。
+    radius = max(1, round(settings['mountain_neighborhood_degrees']/step))
+    local_relief = (maximum_filter(elevation, size=radius*2+1, mode=('nearest', 'wrap'))
+                    - minimum_filter(elevation, size=radius*2+1, mode=('nearest', 'wrap')))
+    rugged = terrain.smoothstep(settings['mountain_relief_start_m'], settings['mountain_relief_full_m'], local_relief)
+    mountain = terrain.smoothstep(settings['mountain_start_m'], settings['mountain_full_m'], elevation)*rugged
+    # 山地と高山は二段階の岩色で描く。氷雪との境界にも広い混色帯を作らない。
+    mountain = np.maximum(mountain, terrain.smoothstep(2200, 3600, elevation))
+    mountain, mountain_count = polygon_region(mountain >= settings['mountain_coverage_threshold'],
+        settings['mountain_contour_tolerance_degrees'], settings['mountain_minimum_area_deg2'],
+        settings['mountain_cleanup_degrees'], step)
+    high, high_count = polygon_region(elevation >= settings['mountain_high_start_m'],
+        settings['mountain_contour_tolerance_degrees'], settings['mountain_minimum_area_deg2'],
+        settings['mountain_cleanup_degrees'], step)
+    mountain = mountain & (ice < .5)
+    high = high & mountain
+    rock_color = np.where(high[..., None], np.array(settings['mountain_high']), np.array(settings['mountain']))
+    rgb = np.where(mountain[..., None], rock_color, rgb)
+    mountain = mountain.astype(np.float32)
     rgb = rgb*(1-lakes[..., None]) + np.array(settings['lake'])*lakes[..., None]
     # 海との被覆率合成は最終投影後に一度だけ行う。
     flat = Image.fromarray(np.uint8(np.clip(rgb, 0, 255)))
@@ -177,24 +197,28 @@ def main():
     top = (math.pi-game.NORTH_Y)/(2*math.pi)*full.height
     bottom = (math.pi-game.SOUTH_Y)/(2*math.pi)*full.height
     world = full.transform((game.WIDTH, game.HEIGHT), Image.Transform.EXTENT, (0, top, full.width, bottom), Image.Resampling.BICUBIC)
-    # 配色と同じ分類を素材合成にも使う。高山だけは標高から岩地を分離する。
-    available = 1-ice
-    rock = available*terrain.smoothstep(1800, 3400, elevation)
+    # 岩地の素材マスクも地表の配色と同じ山岳帯へ揃える。
+    ice_cover = np.where(mountain > 0, 0, ice)
+    available = 1-ice_cover
+    rock = mountain
     available = available-rock
     desert_weight = available*desert
     available = available-desert_weight
     forest_weight = available*forest
-    cover = {'ice': ice, 'rock': rock, 'desert': desert_weight, 'forest': forest_weight, 'grassland': available-forest_weight}
+    cover = {'ice': ice_cover, 'rock': rock, 'desert': desert_weight, 'forest': forest_weight, 'grassland': available-forest_weight}
     (OUT / 'masks').mkdir(exist_ok=True)
     for name, mask in cover.items():
         image = Image.fromarray(np.uint8(np.clip(mask*land*(1-lakes)*255, 0, 255))).convert('RGB')
         projected = projection.raster(image, [0, 0, 0])
         projected = projected.transform((game.WIDTH, game.HEIGHT), Image.Transform.EXTENT, (0, top, projected.width, bottom), Image.Resampling.BICUBIC)
         projected.getchannel('R').save(OUT / 'masks' / f'{name}.png')
-    world.save(OUT / '地形整理.png')
-    world.save(OUT / '地形整理.webp', quality=95, method=6)
+    # 表示中の画像を直接上書きせず、保存が完了してから置き換える。
+    for suffix, options in [('png', {}), ('webp', {'quality': 95, 'method': 6})]:
+        temporary = OUT / f'地形整理.tmp.{suffix}'
+        world.save(temporary, **options)
+        temporary.replace(OUT / f'地形整理.{suffix}')
     inputs = [SETTINGS] + [terrain.RAW / name for name in ['earth_relief_06m_p.grd', 'HYP_50M_SR.tif', 'HYP_50M_SR.tfw', 'ne_110m_land.geojson', 'ne_110m_lakes.geojson']]
-    report.update({'climate_regions': {'forest': forest_count, 'desert': desert_count, 'ice': ice_count}, 'size': list(world.size), 'projection': 'EPSG:3857', 'extent': [-180, -60, 180, 75], 'source_description': source_description, 'settings': settings, 'script_sha256': script_hash, 'inputs': [{'file': p.relative_to(game.ROOT).as_posix(), 'sha256': hashlib.sha256(p.read_bytes()).hexdigest()} for p in inputs], 'output_sha256': hashlib.sha256((OUT / '地形整理.webp').read_bytes()).hexdigest()})
+    report.update({'climate_regions': {'forest': forest_count, 'desert': desert_count, 'ice': ice_count}, 'mountain_regions': {'mountain': mountain_count, 'high': high_count}, 'size': list(world.size), 'projection': 'EPSG:3857', 'extent': [-180, -60, 180, 75], 'source_description': source_description, 'settings': settings, 'script_sha256': script_hash, 'inputs': [{'file': p.relative_to(game.ROOT).as_posix(), 'sha256': hashlib.sha256(p.read_bytes()).hexdigest()} for p in inputs], 'output_sha256': hashlib.sha256((OUT / '地形整理.webp').read_bytes()).hexdigest()})
     (OUT / '生成記録.json').write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
     print(json.dumps({key: value for key, value in report.items() if key not in {'settings', 'source_description'}}, ensure_ascii=False), flush=True)
 
