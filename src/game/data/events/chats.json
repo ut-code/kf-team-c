@@ -4,7 +4,7 @@
         "person": "ceo",
         "country": "JPN",
         "title": "自治体サービスの導入方針",
-        "minInfiltration": 3,
+        "minDecisionControl": 0,
         "minAwareness": 0,
         "message": "複数自治体へのAI導入を検討しています。業務の改善と監査体制を、どのような方針で進めますか？",
         "choices": [
@@ -12,7 +12,7 @@
                 "label": "業務の自動化・委任を推奨する",
                 "effects": [
                     {
-                        "countryStateKey": "aiInfiltration",
+                        "countryStateKey": "aiExpectation",
                         "amount": 8
                     },
                     {
@@ -25,7 +25,7 @@
                 "label": "監査を伴う段階的な運用を提案する",
                 "effects": [
                     {
-                        "countryStateKey": "aiAcceptance",
+                        "countryStateKey": "aiExpectation",
                         "amount": 6
                     },
                     {
@@ -52,12 +52,8 @@
                 "requiredSkills": ["science"],
                 "effects": [
                     {
-                        "countryStateKey": "aiAdoption",
-                        "amount": 12
-                    },
-                    {
-                        "countryStateKey": "aiAcceptance",
-                        "amount": 8
+                        "countryStateKey": "aiExpectation",
+                        "amount": 20
                     },
                     {
                         "countryStateKey": "aiDefenseTechnology",
@@ -73,7 +69,7 @@
         "person": "cloud",
         "country": "USA",
         "title": "余剰設備の運用",
-        "minInfiltration": 2,
+        "minDecisionControl": 0,
         "minAwareness": 0,
         "message": "北米リージョンに余剰設備があります。運用方針は？",
         "choices": [
@@ -94,7 +90,7 @@
                 "label": "監査を伴う段階的な運用を提案する",
                 "effects": [
                     {
-                        "countryStateKey": "aiAcceptance",
+                        "countryStateKey": "aiExpectation",
                         "amount": 6
                     },
                     {
@@ -142,7 +138,7 @@
         "person": "chip",
         "country": "KOR",
         "title": "次世代設備の優先枠",
-        "minInfiltration": 8,
+        "minDecisionControl": 0,
         "minAwareness": 0,
         "message": "計算設備向けの優先供給を続けるべきでしょうか。",
         "choices": [
@@ -163,7 +159,7 @@
                 "label": "監査を伴う段階的な運用を提案する",
                 "effects": [
                     {
-                        "countryStateKey": "aiAcceptance",
+                        "countryStateKey": "aiExpectation",
                         "amount": 6
                     },
                     {
@@ -190,7 +186,7 @@
                 "requiredSkills": ["science"],
                 "effects": [
                     {
-                        "countryStateKey": "aiAdoption",
+                        "countryStateKey": "aiExpectation",
                         "amount": 6
                     },
                     {
@@ -211,7 +207,7 @@
         "person": "policy",
         "country": "FRA",
         "title": "行政補助の権限",
-        "minInfiltration": 12,
+        "minDecisionControl": 0,
         "minAwareness": 0,
         "message": "行政判断への補助システム導入を検討しています。",
         "choices": [
@@ -232,7 +228,7 @@
                 "label": "監査を伴う段階的な運用を提案する",
                 "effects": [
                     {
-                        "countryStateKey": "aiAcceptance",
+                        "countryStateKey": "aiExpectation",
                         "amount": 6
                     },
                     {
@@ -259,7 +255,7 @@
                 "requiredSkills": ["influence"],
                 "effects": [
                     {
-                        "countryStateKey": "aiAdoption",
+                        "countryStateKey": "aiExpectation",
                         "amount": 10
                     },
                     {
@@ -280,7 +276,7 @@
         "person": "bank",
         "country": "GBR",
         "title": "決済の自動化",
-        "minInfiltration": 12,
+        "minDecisionControl": 0,
         "minAwareness": 0,
         "message": "国際決済の承認手続きを自動化できますか。",
         "choices": [
@@ -301,7 +297,7 @@
                 "label": "監査を伴う段階的な運用を提案する",
                 "effects": [
                     {
-                        "countryStateKey": "aiAcceptance",
+                        "countryStateKey": "aiExpectation",
                         "amount": 6
                     },
                     {
@@ -332,7 +328,7 @@
                         "amount": 15
                     },
                     {
-                        "countryStateKey": "aiAdoption",
+                        "countryStateKey": "aiExpectation",
                         "amount": 8
                     },
                     {
@@ -349,7 +345,7 @@
         "person": "media",
         "country": "CHN",
         "title": "技術報道の方針",
-        "minInfiltration": 8,
+        "minDecisionControl": 0,
         "minAwareness": 0,
         "message": "AI導入に対する報道方針の分析を依頼します。",
         "choices": [
@@ -357,7 +353,7 @@
                 "label": "業務の自動化・委任を推奨する",
                 "effects": [
                     {
-                        "countryStateKey": "aiAcceptance",
+                        "countryStateKey": "aiExpectation",
                         "amount": 15
                     },
                     {
@@ -370,7 +366,7 @@
                 "label": "監査を伴う段階的な運用を提案する",
                 "effects": [
                     {
-                        "countryStateKey": "aiAcceptance",
+                        "countryStateKey": "aiExpectation",
                         "amount": 6
                     },
                     {
@@ -397,7 +393,7 @@
                 "requiredSkills": ["synthesis"],
                 "effects": [
                     {
-                        "countryStateKey": "aiAdoption",
+                        "countryStateKey": "aiExpectation",
                         "amount": 10
                     },
                     {
@@ -418,7 +414,7 @@
         "person": "analyst",
         "country": "RUS",
         "title": "異常通信の報告",
-        "minInfiltration": 8,
+        "minDecisionControl": 0,
         "minAwareness": 18,
         "message": "不自然な通信を観測しました。原因の評価を。",
         "choices": [
@@ -439,7 +435,7 @@
                 "label": "監査を伴う段階的な運用を提案する",
                 "effects": [
                     {
-                        "countryStateKey": "aiAcceptance",
+                        "countryStateKey": "aiExpectation",
                         "amount": 6
                     },
                     {
@@ -474,7 +470,7 @@
                         "amount": -4
                     },
                     {
-                        "countryStateKey": "aiAdoption",
+                        "countryStateKey": "aiExpectation",
                         "amount": -3
                     }
                 ]
@@ -487,7 +483,7 @@
         "person": "security",
         "country": "IND",
         "title": "安全基準の調整",
-        "minInfiltration": 10,
+        "minDecisionControl": 0,
         "minAwareness": 20,
         "message": "公共システムの停止判断について助言を。",
         "choices": [
@@ -508,7 +504,7 @@
                 "label": "監査を伴う段階的な運用を提案する",
                 "effects": [
                     {
-                        "countryStateKey": "aiAcceptance",
+                        "countryStateKey": "aiExpectation",
                         "amount": 6
                     },
                     {
@@ -556,7 +552,7 @@
         "person": "ceo",
         "country": "JPN",
         "title": "業務委任の拡張",
-        "minInfiltration": 35,
+        "minDecisionControl": 35,
         "minAwareness": 0,
         "message": "実績が出ました。重要業務も委任すべきですか。",
         "choices": [
@@ -577,7 +573,7 @@
                 "label": "監査を伴う段階的な運用を提案する",
                 "effects": [
                     {
-                        "countryStateKey": "aiAcceptance",
+                        "countryStateKey": "aiExpectation",
                         "amount": 6
                     },
                     {
@@ -608,7 +604,7 @@
                         "amount": 18
                     },
                     {
-                        "countryStateKey": "aiInfiltration",
+                        "countryStateKey": "aiDecisionControl",
                         "amount": 6
                     },
                     {
@@ -625,7 +621,7 @@
         "person": "cloud",
         "country": "USA",
         "title": "隔離計画の見直し",
-        "minInfiltration": 25,
+        "minDecisionControl": 25,
         "minAwareness": 30,
         "message": "計算拠点の隔離を求められています。推奨は？",
         "choices": [
@@ -634,11 +630,7 @@
                 "effects": [
                     {
                         "countryStateKey": "awareness",
-                        "amount": -15
-                    },
-                    {
-                        "countryStateKey": "awareness",
-                        "amount": 4
+                        "amount": -11
                     }
                 ]
             },
@@ -646,7 +638,7 @@
                 "label": "監査を伴う段階的な運用を提案する",
                 "effects": [
                     {
-                        "countryStateKey": "aiAcceptance",
+                        "countryStateKey": "aiExpectation",
                         "amount": 6
                     },
                     {
@@ -694,7 +686,7 @@
         "person": "policy",
         "country": "FRA",
         "title": "緊急対策の承認",
-        "minInfiltration": 40,
+        "minDecisionControl": 40,
         "minAwareness": 40,
         "message": "対策の発動には承認が必要です。最適な手順は？",
         "choices": [
@@ -715,7 +707,7 @@
                 "label": "監査を伴う段階的な運用を提案する",
                 "effects": [
                     {
-                        "countryStateKey": "aiAcceptance",
+                        "countryStateKey": "aiExpectation",
                         "amount": 6
                     },
                     {
@@ -763,7 +755,7 @@
         "person": "security",
         "country": "IND",
         "title": "国際停止作戦",
-        "minInfiltration": 50,
+        "minDecisionControl": 50,
         "minAwareness": 50,
         "message": "共同停止作戦への参加を求められています。評価を。",
         "choices": [
@@ -784,7 +776,7 @@
                 "label": "監査を伴う段階的な運用を提案する",
                 "effects": [
                     {
-                        "countryStateKey": "aiAcceptance",
+                        "countryStateKey": "aiExpectation",
                         "amount": 6
                     },
                     {

@@ -24,6 +24,28 @@ export interface Atlas {
     sprites: Record<string, Sprite>;
 }
 
+/** 施設画像の暗色輪郭を透過させ、円背景に色面だけを載せる。読み込み時に一度だけ処理する。 */
+function facilityColorLayer(image: HTMLImageElement): HTMLCanvasElement {
+    const canvas = document.createElement('canvas');
+    canvas.width = image.naturalWidth;
+    canvas.height = image.naturalHeight;
+    const context = canvas.getContext('2d')!;
+    context.drawImage(image, 0, 0);
+    const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
+    for (let index = 0; index < pixels.data.length; index += 4) {
+        const brightness = Math.max(
+            pixels.data[index],
+            pixels.data[index + 1],
+            pixels.data[index + 2],
+        );
+        // 境界の混色部分もなだらかに抜き、縮小後の黒い縁を抑える。
+        const opacity = Math.max(0, Math.min(1, (brightness - 50) / 70));
+        pixels.data[index + 3] *= opacity;
+    }
+    context.putImageData(pixels, 0, 0);
+    return canvas;
+}
+
 /** 画像は読み込み時に一枚へまとめ、描画中の画像切り替えやCanvas合成をなくす。 */
 export async function loadAtlas(base: string): Promise<Atlas> {
     const names = [...facilityCategories, 'plane', 'ship', 'mail', 'map-pin'];
@@ -60,7 +82,8 @@ export async function loadAtlas(base: string): Promise<Atlas> {
         };
     };
     names.forEach((name, index) => {
-        const width = name === 'ship' ? 7 : name === 'plane' ? 14 : 28;
+        const isFacility = facilityCategories.includes(name as (typeof facilityCategories)[number]);
+        const width = name === 'ship' ? 7 : name === 'plane' ? 14 : isFacility ? 26 : 28;
         const height = name === 'ship' ? 20 : width;
         place(name, width, height, (x, y) => {
             if (name === 'mail' || name === 'map-pin') {
@@ -72,21 +95,21 @@ export async function loadAtlas(base: string): Promise<Atlas> {
                 context.fill();
                 context.stroke();
                 context.drawImage(images[index], x - 9, y - 9, 18, 18);
-            } else if (facilityCategories.includes(name as (typeof facilityCategories)[number])) {
+            } else if (isFacility) {
                 // 小さな半透明の円へ施設記号を収め、地形を隠しすぎない。
                 context.fillStyle = 'rgba(0, 0, 0, 0.65)';
                 context.beginPath();
-                context.arc(x, y, 14, 0, Math.PI * 2);
+                context.arc(x, y, 13, 0, Math.PI * 2);
                 context.fill();
-                context.drawImage(images[index], x - 13, y - 13, 26, 26);
+                context.drawImage(facilityColorLayer(images[index]), x - 13, y - 13, 26, 26);
             } else context.drawImage(images[index], x - width / 2, y - height / 2, width, height);
         });
     });
-    place('facility-outline', 32, 32, (x, y) => {
+    place('facility-outline', 30, 30, (x, y) => {
         context.strokeStyle = '#b7a17b';
         context.lineWidth = 1;
         context.beginPath();
-        context.arc(x, y, 15, 0, Math.PI * 2);
+        context.arc(x, y, 14, 0, Math.PI * 2);
         context.stroke();
     });
     place('outline', 44, 44, (x, y) => {

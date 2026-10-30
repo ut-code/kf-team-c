@@ -1,22 +1,24 @@
 import { countryMetrics } from '../metrics.ts';
-import type { Balance, CountryState, CountryStateKey, Effect } from '../types.ts';
+import type {
+    Balance,
+    CountryAttributes,
+    CountryState,
+    CountryStateKey,
+    Effect,
+} from '../types.ts';
 
 type CountryStateValues = Record<CountryStateKey, number>;
-type Baseline = Pick<
-    CountryStateValues,
-    'infrastructure' | 'economy' | 'governmentCapacity' | 'aiAcceptance'
->;
 
 export type CountryRuleInput = {
     countryState: CountryStateValues;
-    baseline: Baseline;
+    baseline: CountryAttributes['baseline'];
     serviceSupply: number;
     previousServiceSupply: number;
-    infiltrationAllocation: number;
+    influenceAllocation: number;
     defenseAllocation: number;
     networkIncoming: number;
     foothold: boolean;
-    anyInfiltrationFunded: boolean;
+    anyInfluenceFunded: boolean;
     science: boolean;
     languages: boolean;
     institutions: boolean;
@@ -25,11 +27,10 @@ export type CountryRuleInput = {
     spreadBonus: number;
     decisionBonus: number;
     stealthBonus: number;
-    infiltrationSpeed: number;
-    spillover: number;
     decisionSpeed: number;
     defenseResearchSpeed: number;
     awarenessDecay: number;
+    expectationDecay: number;
 };
 
 export type CountryRuleResult = {
@@ -40,7 +41,6 @@ export type CountryRuleResult = {
 export function controlTransition(
     country: Pick<
         CountryState,
-        | 'aiInfiltration'
         | 'aiDecisionControl'
         | 'aiDefenseTechnology'
         | 'economy'
@@ -51,40 +51,27 @@ export function controlTransition(
     >,
     limits: Pick<
         Balance,
-        | 'controlInfiltration'
-        | 'controlDecision'
-        | 'controlCounter'
-        | 'releaseThreshold'
-        | 'releaseDays'
+        'controlDecision' | 'controlCounter' | 'releaseThreshold' | 'releaseDays'
     >,
 ): Pick<CountryState, 'controlStatus' | 'lossDays'> {
     if (
-        country.aiInfiltration >= limits.controlInfiltration &&
         country.aiDecisionControl >= limits.controlDecision &&
         countryMetrics(country).aiDefenseEffectiveness <= limits.controlCounter
     )
         return { controlStatus: 'controlled', lossDays: 0 };
+    const partialStatus = country.aiDecisionControl >= 5 ? 'influenced' : 'free';
     if (country.controlStatus === 'controlled') {
         const lossDays =
-            country.aiInfiltration < limits.releaseThreshold ||
             country.aiDecisionControl < limits.releaseThreshold ||
             countryMetrics(country).aiDefenseEffectiveness > limits.controlCounter + 20
                 ? country.lossDays + 1
                 : 0;
         return {
             lossDays,
-            controlStatus:
-                lossDays >= limits.releaseDays
-                    ? country.aiInfiltration >= 5
-                        ? 'infiltrated'
-                        : 'free'
-                    : 'controlled',
+            controlStatus: lossDays >= limits.releaseDays ? partialStatus : 'controlled',
         };
     }
-    return {
-        lossDays: country.lossDays,
-        controlStatus: country.aiInfiltration >= 5 ? 'infiltrated' : 'free',
-    };
+    return { lossDays: 0, controlStatus: partialStatus };
 }
 
 export function serviceBenefit(
@@ -104,85 +91,50 @@ export function serviceOutage(previousSupply: number, supply: number, dependency
     return previousSupply > 0 && supply === 0 ? dependency : 0;
 }
 
-export function adoptionChange(benefit: number, acceptance: number, adoption: number): number {
-    return benefit * 0.12 * (0.4 + acceptance / 100) * (1 - adoption / 100) - adoption * 0.0007;
-}
-
+/** 依存は業務統合後の実際のサービス提供で蓄積し、停止後もゆっくりしか解消しない。 */
 export function dependencyChange(
-    adoption: number,
+    benefit: number,
     dependency: number,
-    supply: number,
     institutions: boolean,
 ): number {
-    return institutions && supply > 0 && adoption >= 25
-        ? Math.max(0, adoption - dependency) * 0.003 * Math.sqrt(supply)
+    return institutions && benefit > 0
+        ? benefit * 0.08 * (1 - dependency / 100)
         : -0.0005 * dependency;
 }
 
-export function infiltrationResistance(
-    acceptance: number,
-    adoption: number,
-    countermeasure: number,
-    awareness: number,
-): number {
-    return (0.3 + acceptance / 100 + adoption / 300) / (1 + countermeasure / 40 + awareness / 140);
-}
-
-export function fundedInfiltration(
-    allocation: number,
-    speed: number,
-    spreadBonus: number,
-    resistance: number,
-    infiltration: number,
-): number {
-    return allocation * speed * spreadBonus * resistance * (1 - infiltration / 105);
-}
-
-export function networkSpillover(
-    incoming: number,
-    infiltration: number,
-    speed: number,
-    spreadBonus: number,
-    resistance: number,
-    funded: boolean,
-): number {
-    return funded
-        ? Math.max(0, incoming - infiltration * 0.8) * speed * spreadBonus * resistance
-        : 0;
-}
-
-export function infiltrationDecay(infiltration: number, countermeasure: number): number {
-    return -1 * infiltration * (0.0002 + countermeasure * 0.000009);
+/** 国内の施設がなくても、研究解放後は接続国で確立した影響力から介入できる。 */
+export function hasInterventionAccess(
+    foothold: boolean,
+    networkIncoming: number,
+    networkControlUnlocked: boolean,
+): boolean {
+    return foothold || (networkControlUnlocked && networkIncoming >= 5);
 }
 
 export function decisionEffort(
     allocation: number,
     networkIncoming: number,
     networkControlUnlocked: boolean,
-    anyInfiltrationFunded: boolean,
+    anyInfluenceFunded: boolean,
 ): number {
     return (
-        (allocation > 0 ? Math.sqrt(allocation) : 0) +
-        (networkControlUnlocked && anyInfiltrationFunded ? networkIncoming / 25 : 0)
+        Math.sqrt(allocation) +
+        (networkControlUnlocked && anyInfluenceFunded ? networkIncoming / 25 : 0)
     );
 }
 
 export function decisionGrowth(
-    infiltration: number,
     dependency: number,
     control: number,
     effort: number,
     speed: number,
     bonus: number,
+    resistance: number,
+    accessible: boolean,
     unlocked: boolean,
 ): number {
-    return unlocked && infiltration >= 25
-        ? speed *
-              bonus *
-              effort *
-              (infiltration / 100) *
-              (1 + dependency / 100) *
-              (1 - control / 103)
+    return unlocked && accessible
+        ? speed * bonus * effort * resistance * (1 + dependency / 100) * (1 - control / 103)
         : 0;
 }
 
@@ -205,10 +157,7 @@ export function observedActivity(
     stealth: number,
     decisionControl: number,
 ): number {
-    return (
-        allocation * 0.006 * (1 - stealth) +
-        (decisionControl > 30 ? (decisionControl - 30) * 0.001 : 0)
-    );
+    return allocation * 0.006 * (1 - stealth) + Math.max(0, decisionControl - 30) * 0.001;
 }
 
 export function awarenessDecay(
@@ -229,52 +178,43 @@ function effect(
 }
 
 export function evaluateCountryRules(input: CountryRuleInput): CountryRuleResult {
-    const countryState = input.countryState;
+    const country = input.countryState;
     const benefit = serviceBenefit(
         input.serviceSupply,
-        countryState.infrastructure,
+        country.infrastructure,
         input.science,
         input.languages,
     );
     const outage = serviceOutage(
         input.previousServiceSupply,
         input.serviceSupply,
-        countryState.aiDependency,
+        country.aiDependency,
     );
-    const defense = countryMetrics(countryState).aiDefenseEffectiveness;
-    const resistance = infiltrationResistance(
-        countryState.aiAcceptance,
-        countryState.aiAdoption,
-        defense,
-        countryState.awareness,
-    );
-    const effort = decisionEffort(
-        input.infiltrationAllocation,
+    const defense = countryMetrics(country).aiDefenseEffectiveness;
+    const accessible = hasInterventionAccess(
+        input.foothold,
         input.networkIncoming,
         input.networkControlUnlocked,
-        input.anyInfiltrationFunded,
     );
-    const activity = observedActivity(
-        input.infiltrationAllocation,
-        input.stealthBonus,
-        countryState.aiDecisionControl,
+    const effort = decisionEffort(
+        input.influenceAllocation,
+        input.networkIncoming,
+        input.networkControlUnlocked,
+        input.anyInfluenceFunded,
     );
+    const resistance =
+        (0.3 + country.aiExpectation / 100) / (1 + defense / 40 + country.awareness / 140);
+    // 復旧の規模は経済、実行効率は行政能力が担う。
+    const recovery = (country.economy / 100) * (country.governmentCapacity / 100);
     return {
         serviceOutage: outage,
         effects: [
-            effect(
-                'aiAdoption',
-                adoptionChange(benefit, countryState.aiAcceptance, countryState.aiAdoption),
-                '公共サービスの実績と導入継続',
-            ),
+            effect('aiExpectation', benefit * 0.06, '公共サービスの成果への期待'),
+            effect('aiExpectation', -input.expectationDecay, '成果への関心の時間減衰'),
+            effect('aiExpectation', -outage * 0.05, 'サービス停止による期待の低下'),
             effect(
                 'aiDependency',
-                dependencyChange(
-                    countryState.aiAdoption,
-                    countryState.aiDependency,
-                    input.serviceSupply,
-                    input.institutions,
-                ),
+                dependencyChange(benefit, country.aiDependency, input.institutions),
                 '業務統合と代替手段の縮小',
             ),
             effect(
@@ -283,89 +223,60 @@ export function evaluateCountryRules(input: CountryRuleInput): CountryRuleResult
                 'AI支援の稼働・停止による社会への影響',
             ),
             effect('economy', benefit * 0.03 - outage * 0.1, 'AI支援による生産性と停止損失'),
-            effect('aiAcceptance', benefit * 0.025, 'サービスへの評価'),
             effect('aiDefenseTechnology', benefit * 0.008, '公開された能力に対する安全性研究'),
-            effect(
-                'aiInfiltration',
-                fundedInfiltration(
-                    input.infiltrationAllocation,
-                    input.infiltrationSpeed,
-                    input.spreadBonus,
-                    resistance,
-                    countryState.aiInfiltration,
-                ),
-                '計算資源による浸透',
-            ),
-            effect(
-                'aiInfiltration',
-                networkSpillover(
-                    input.networkIncoming,
-                    countryState.aiInfiltration,
-                    input.spillover,
-                    input.spreadBonus,
-                    resistance,
-                    input.anyInfiltrationFunded,
-                ),
-                '接続国家からの波及',
-            ),
-            effect(
-                'aiInfiltration',
-                infiltrationDecay(countryState.aiInfiltration, defense),
-                '接続の自然減衰・対AI検疫',
-            ),
             effect(
                 'aiDecisionControl',
                 decisionGrowth(
-                    countryState.aiInfiltration,
-                    countryState.aiDependency,
-                    countryState.aiDecisionControl,
+                    country.aiDependency,
+                    country.aiDecisionControl,
                     effort,
                     input.decisionSpeed,
-                    input.decisionBonus,
+                    input.decisionBonus * input.spreadBonus,
+                    resistance,
+                    accessible,
                     input.decisionUnlocked,
                 ),
-                '意思決定モデルによる介入',
+                '施設・国家間接続を経由した意思決定介入',
             ),
             effect(
                 'aiDecisionControl',
-                -0.0008 * countryState.aiDecisionControl,
-                '人間による権限の再確認',
+                -country.aiDecisionControl * (0.0008 + defense * 0.000009),
+                '人間による権限の再確認と対AI防御',
             ),
             effect(
                 'infrastructure',
-                (input.baseline.infrastructure - countryState.infrastructure) * 0.012,
-                'インフラの復旧と基準回帰',
+                (input.baseline.infrastructure - country.infrastructure) * 0.012 * recovery,
+                '経済と行政能力に応じたインフラ復旧',
             ),
             effect(
                 'economy',
-                economyRecovery(
-                    input.baseline.economy,
-                    countryState.infrastructure,
-                    countryState.economy,
-                ),
+                economyRecovery(input.baseline.economy, country.infrastructure, country.economy),
                 'インフラによる経済稼働',
             ),
             effect(
                 'governmentCapacity',
-                (input.baseline.governmentCapacity - countryState.governmentCapacity) * 0.008,
+                (input.baseline.governmentCapacity - country.governmentCapacity) * 0.008,
                 '行政組織の復旧',
-            ),
-            effect(
-                'aiAcceptance',
-                (input.baseline.aiAcceptance - countryState.aiAcceptance) * 0.003,
-                '社会受容の基準回帰',
             ),
             effect(
                 'aiDefenseTechnology',
                 defenseTechnologyGrowth(
-                    countryState.aiDefenseTechnology,
-                    countryState.awareness,
-                    countryState.economy,
+                    country.aiDefenseTechnology,
+                    country.awareness,
+                    country.economy,
                     input.defenseResearchSpeed,
                 ),
                 '警戒と経済に応じた対AI技術研究',
             ),
-            effect('awareness', activity, '国家での介入活動の観測'),
+            effect(
+                'awareness',
+                observedActivity(
+                    accessible && input.decisionUnlocked ? input.influenceAllocation : 0,
+                    input.stealthBonus,
+                    country.aiDecisionControl,
+                ),
+                '国家での介入活動の観測',
+            ),
             effect(
                 'awareness',
                 awarenessDecay(input.awarenessDecay, input.defenseAllocation, input.foothold),

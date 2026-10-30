@@ -10,7 +10,7 @@ document.documentElement.style.setProperty('--map-land-brightness','1');
 document.documentElement.style.setProperty('--map-ocean-brightness','1');
 const failures=[];window.addEventListener('unhandledrejection',e=>failures.push(String(e.reason)));window.addEventListener('error',e=>failures.push(e.message));
 const markers=facilities.map(f=>({id:f.id,kind:'facility',category:f.category,longitude:f.longitude,latitude:f.latitude,label:f.name}));markers.push({id:'country:SGP',kind:'country',longitude:103.85,latitude:1.28,label:'シンガポール'});
-const states=Object.fromEntries(countries.map(c=>[c.id,{economy:100,infrastructure:100,aiInfiltration:0,controlStatus:'free'}]));states.SGP={economy:100,infrastructure:100,aiInfiltration:0,controlStatus:'free'};
+const states=Object.fromEntries(countries.map(c=>[c.id,{economy:100,infrastructure:100,aiDecisionControl:0,controlStatus:'free'}]));states.SGP={economy:100,infrastructure:100,aiDecisionControl:0,controlStatus:'free'};
 const data={countries,countryStates:states,markers,facilityStates:{},selectedCountry:null,selectedMarker:null,speed:0,tick:0};
 const view={width:1280,height:720,zoom:1,x:-1500,y:0};
 window.result={ready:false,failures};

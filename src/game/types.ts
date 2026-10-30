@@ -1,28 +1,24 @@
 // ゲームに登場するパラメーター名は以下のように管理されています
 //
 // State -> 時間とともに変化するパラメーター  cf) CountryState, GameState
-// Attributes -> 対象に固有の基本設定 cf) FacilityAttributes, CountryAttributes
-// Metrics -> 状態から計算して得られる指標 cf) WorldMetrics
+// Attribute -> 対象に固有の基本設定 cf) FacilityAttributes, CountryAttributes
+// Metric -> 状態から計算して得られる指標 cf) WorldMetrics
 
 export const COUNTRY_STATE_KEYS = [
-    // [インフラ] 通信・電力など社会基盤の稼働状態
+    // [インフラ] 電力・通信・物流など、施設や社会を動かす基盤の稼働状態
     'infrastructure',
-    // [経済] 経済活動の健全さ
+    // [経済] 生産・取引が行われ、支援・研究・復旧への資源投入を続けられる程度
     'economy',
     // [行政能力] 政府の政策実行能力
     'governmentCapacity',
     // [対AI技術水準] 対AI技術がどこまで開発されているか
     'aiDefenseTechnology',
 
-    // [AI受容度] 社会がAIの利用を受け入れる姿勢
-    'aiAcceptance',
-    // [警戒度] 人間側がAIの介入をどれだけ警戒しているか
+    // [AIへの期待] このAIに成果を期待し、計算資源を提供する意欲
+    'aiExpectation',
+    // [警戒度] このAIによる介入を疑い、対抗しようとする強さ
     'awareness',
 
-    // [AI導入率] 社会でAIの利用がどれだけ広がっているか
-    'aiAdoption',
-    // [浸透度] AIが国の内部へ入り込んでいる程度
-    'aiInfiltration',
     // [意思決定支配] AIが国の意思決定を左右している程度
     'aiDecisionControl',
     // [AI依存度] 社会がAIなしでは機能しにくくなっている程度
@@ -76,13 +72,13 @@ export interface CountryAttributes {
         infrastructure: number;
         economy: number;
         governmentCapacity: number;
-        aiAcceptance: number;
+        aiExpectation: number;
     };
 }
 /** 時間とともに変化する国単位の保存状態。 */
 export interface CountryState extends Record<CountryStateKey, number> {
     id: string;
-    controlStatus: 'free' | 'infiltrated' | 'controlled';
+    controlStatus: 'free' | 'influenced' | 'controlled';
     lossDays: number;
     serviceSupply: number;
 }
@@ -120,15 +116,7 @@ export interface Skill {
 }
 export interface Operation {
     id: string;
-    kind:
-        | 'hack'
-        | 'research'
-        | 'infiltration'
-        | 'defense'
-        | 'service'
-        | 'sns'
-        | 'upgrade'
-        | 'restore';
+    kind: 'hack' | 'research' | 'influence' | 'defense' | 'service' | 'sns' | 'upgrade' | 'restore';
     target: string;
     capacity: number;
     priority: number;
@@ -142,7 +130,7 @@ export interface ChatDefinition {
     country: string;
     title: string;
     message: string;
-    minInfiltration: number;
+    minDecisionControl: number;
     minAwareness: number;
     skill?: string;
     expiresAfter: number;
@@ -204,12 +192,12 @@ export interface Balance {
     initialCapacity: number;
     hackWork: number;
     researchSpeed: number;
-    infiltrationSpeed: number;
-    spillover: number;
     decisionSpeed: number;
+    expectationDecay: number;
+    supportExpectationThreshold: number;
+    minimumCapacity: number;
     defenseResearchSpeed: number;
     awarenessDecay: number;
-    controlInfiltration: number;
     controlDecision: number;
     controlCounter: number;
     releaseThreshold: number;
@@ -243,12 +231,14 @@ export type Action = Command;
 /** 国の状態から算出する世界全体の指標。 */
 export interface WorldMetrics {
     control: number;
-    infiltration: number;
+    decisionControl: number;
     awareness: number;
 }
 
 /** 施設の状態と作業への配分から算出する演算容量の指標。 */
 export interface ComputeMetrics {
+    supportedCapacity: number;
+    autonomousCapacity: number;
     totalCapacity: number;
     allocatedCapacity: number;
     availableCapacity: number;

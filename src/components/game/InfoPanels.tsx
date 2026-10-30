@@ -1,5 +1,11 @@
 import { CATEGORIES, FACILITY_BY_ID, MODES } from '../../game/data.ts';
-import { availableFacility, facilityCapacity, hackDifficulty } from '../../game/engine.ts';
+import {
+    availableFacility,
+    facilityCapacity,
+    hackDifficulty,
+    hasUnlock,
+    interventionAccess,
+} from '../../game/engine.ts';
 import { countryMetrics } from '../../game/metrics.ts';
 import type { CountryState, CountryStateKey, GameState } from '../../game/types.ts';
 import { useGameStore } from '../../state/gameStore';
@@ -37,7 +43,7 @@ export function CountryInfo({
                     <ValueRow
                         key={countryStateKey}
                         label={COUNTRY_STATE_LABELS[countryStateKey]}
-                        value={`${number(countryState[countryStateKey])}${countryStateKey === 'aiAdoption' || countryStateKey === 'aiDependency' ? '%' : ''}`}
+                        value={`${number(countryState[countryStateKey])}${countryStateKey === 'aiDependency' ? '%' : ''}`}
                     />
                 ))}
             </div>
@@ -57,18 +63,24 @@ export function CountryInfo({
                 <small>必要研究：多言語展開</small>
             )}
             <details>
-                <summary>導入と依存</summary>
+                <summary>期待と依存</summary>
                 <p>
-                    導入率は社会での利用の広がり。依存度は停止したときの代替の難しさです。業務統合を研究すると依存が進みます。
+                    期待は成果がないと徐々に下がり、人間からの計算資源供給が縮小します。公共サービスで期待を維持でき、業務統合の研究後は依存も蓄積します。制御権を確立した施設は期待に関係なく稼働します。
                 </p>
             </details>
-            <h3>浸透工作</h3>
-            <Allocation
-                key={`${countryState.id}-infiltration`}
-                game={gameState}
-                kind="infiltration"
-                target={countryState.id}
-            />
+            <h3>意思決定介入</h3>
+            {hasUnlock(gameState, 'decision') && interventionAccess(gameState, countryState.id) ? (
+                <Allocation
+                    key={`${countryState.id}-influence`}
+                    game={gameState}
+                    kind="influence"
+                    target={countryState.id}
+                />
+            ) : (
+                <small>
+                    意思決定モデルの研究と、国内施設へのアクセスが必要です。国際網統合の研究後は接続国の影響力からも介入できます。
+                </small>
+            )}
             <h3>監視・防衛</h3>
             <Allocation
                 key={`${countryState.id}-defense`}
@@ -105,19 +117,56 @@ export function FacilityInfo({ game: gameState, id }: { game: GameState; id: str
             </div>
             <div className={styles.facilityType}>
                 {CATEGORIES[facilityAttributes.category].name}
-                <span>{STATUS_LABELS[facilityState.status]}</span>
+                <span className={styles.statusBadge} data-status={facilityState.status}>
+                    {STATUS_LABELS[facilityState.status]}
+                </span>
             </div>
+            {facilityState.status === 'compromised' && (
+                <>
+                    <Button
+                        type="button"
+                        className={styles.primaryAction}
+                        disabled={
+                            facilityAttributes.tier > 1 && !gameState.researched.includes('root')
+                        }
+                        onClick={() => dispatch({ type: 'secure', target: id })}
+                    >
+                        制御権を確立
+                    </Button>
+                    <p className={styles.panelIntro}>
+                        {facilityAttributes.tier > 1 && !gameState.researched.includes('root')
+                            ? '必要研究：深層制御。研究後に制御権を確立できます。'
+                            : '期待の低下で止まらない、自立した計算資源供給を確保します。'}
+                    </p>
+                </>
+            )}
             <FacilityPhoto id={id} />
-            <div className={styles.stats}>
+            <div className={styles.facilityStats}>
                 <ValueRow label="計算資源" value={number(facilityCapacity(gameState, id))} />
                 <ValueRow label="察知度" value={number(facilityState.exposure)} />
                 <ValueRow label="設備段階" value={`${facilityState.level} / 3`} />
             </div>
             {operation && (
-                <ValueRow
-                    label="侵入進捗"
-                    value={`${number((operation.progress / gameState.config.hackWork) * 100)}%`}
-                />
+                <>
+                    <div className={styles.progressHeader}>
+                        <span>侵入進捗</span>
+                        <strong>
+                            {number(
+                                Math.min(
+                                    100,
+                                    (operation.progress / gameState.config.hackWork) * 100,
+                                ),
+                            )}
+                            %
+                        </strong>
+                    </div>
+                    <progress
+                        className={styles.progress}
+                        aria-label="侵入進捗"
+                        value={operation.progress}
+                        max={gameState.config.hackWork}
+                    />
+                </>
             )}
             {!acquired &&
                 facilityState.status !== 'isolated' &&
@@ -136,19 +185,6 @@ export function FacilityInfo({ game: gameState, id }: { game: GameState; id: str
                 ))}
             {acquired && (
                 <>
-                    {facilityState.status === 'compromised' && (
-                        <Button
-                            type="button"
-                            className={styles.primaryAction}
-                            disabled={
-                                facilityAttributes.tier > 1 &&
-                                !gameState.researched.includes('root')
-                            }
-                            onClick={() => dispatch({ type: 'secure', target: id })}
-                        >
-                            制御権を確立
-                        </Button>
-                    )}
                     <h3>資源利用</h3>
                     <div className={styles.modeSwitch}>
                         {(Object.keys(MODES) as (keyof typeof MODES)[]).map((mode) => (
@@ -162,6 +198,9 @@ export function FacilityInfo({ game: gameState, id }: { game: GameState; id: str
                             </Button>
                         ))}
                     </div>
+                    <p className={styles.panelIntro}>
+                        隠密は察知を抑え、全面は供給を増やす代わりに察知されやすくなります。
+                    </p>
                     <h3>運用方針</h3>
                     <Select
                         className={styles.wideField}

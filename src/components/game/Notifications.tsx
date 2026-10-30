@@ -1,7 +1,8 @@
-import { CircleCheck, Newspaper, TriangleAlert } from 'lucide-react';
+import { CircleCheck, Newspaper, TriangleAlert, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import presentation from '../../game/data/ui/presentation.json';
 import type { GameEvent } from '../../game/types.ts';
+import { IconButton } from '../ui/Controls';
 import { Panel } from '../ui/Panel';
 import styles from './Notifications.module.css';
 
@@ -25,6 +26,12 @@ function Notice({ event, expire }: { event: GameEvent; expire: (id: number) => v
                 <strong>{event.title}</strong>
                 <p>{event.message}</p>
             </div>
+            <IconButton
+                icon={X}
+                label={`${event.title}の通知を閉じる`}
+                className={styles.dismiss}
+                onClick={() => expire(event.id)}
+            />
         </Panel>
     );
 }

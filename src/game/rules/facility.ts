@@ -3,7 +3,6 @@ import type { Effect, FacilityState } from '../types.ts';
 export function facilityCapacityValue(input: {
     capacity: number;
     level: number;
-    economy: number;
     infrastructure: number;
     modeMultiplier: number;
     accessMultiplier: number;
@@ -13,7 +12,6 @@ export function facilityCapacityValue(input: {
     return (
         input.capacity *
         input.level *
-        (0.3 + (0.7 * input.economy) / 100) *
         (input.infrastructure / 100) *
         input.modeMultiplier *
         input.accessMultiplier *
@@ -64,12 +62,9 @@ export function facilitySupportEffect(
     accessMultiplier: number,
     infrastructure: number,
     decisionUnlocked: boolean,
-    targetInfiltration: number,
+    targetAccessible: boolean,
 ): Effect | null {
-    if (
-        effect.countryStateKey === 'aiDecisionControl' &&
-        (!decisionUnlocked || targetInfiltration < 25)
-    )
+    if (effect.countryStateKey === 'aiDecisionControl' && (!decisionUnlocked || !targetAccessible))
         return null;
     return { ...effect, amount: effect.amount * accessMultiplier * (infrastructure / 100) };
 }

@@ -4,8 +4,9 @@
     border: 0;
     min-inline-size: 0;
     position: absolute;
-    top: 82px;
-    left: 20px;
+    bottom: 114px;
+    left: 326px;
+    z-index: 3;
 }
 .toggle {
     width: 38px;
@@ -14,7 +15,9 @@
     border: 1px solid var(--color-border);
 }
 .panel {
-    margin-top: 8px;
+    position: absolute;
+    left: 0;
+    bottom: 48px;
     width: 248px;
     padding: 14px 16px;
     font-size: 12px;
@@ -49,13 +52,19 @@
     margin-top: 10px;
     font-variant-numeric: tabular-nums;
 }
-@media (max-width: 700px) {
+@media (max-width: 900px) {
     .container {
-        top: 118px;
-        left: 10px;
+        top: 12px;
+        left: auto;
+        right: 16px;
+        bottom: auto;
     }
     .panel {
-        width: 205px;
+        top: 44px;
+        bottom: auto;
+        right: 0;
+        left: auto;
+        width: min(248px, calc(100vw - 32px));
         padding: 10px 12px;
     }
 }

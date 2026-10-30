@@ -1,4 +1,4 @@
-/* このファイルは画面配置。基本色は ui/theme.css、汎用部品は ui/ を編集する。 */
+/* 配置と画面固有の表現。共通色と操作状態はui/へ集約する。 */
 .game {
     position: relative;
     height: 100%;
@@ -15,116 +15,182 @@
     margin: 0;
 }
 .game :where(h2) {
-    font-size: 21px;
+    font-size: 23px;
     line-height: 1.5;
     font-weight: 500;
     color: var(--color-text-strong);
+    text-wrap: balance;
 }
 .game :where(h3) {
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 500;
-    margin: 20px 0 9px;
-    letter-spacing: 0.1em;
+    margin: 24px 0 12px;
+    letter-spacing: 0.08em;
+    color: var(--color-text-strong);
 }
 .game :where(p) {
     margin: 12px 0;
 }
 .game :where(strong) {
-    font-weight: 400;
+    font-weight: 500;
 }
-/* 下部中央のメニュー。日付・速度はGameHud側で左下に置く。 */
+.game :where(details) {
+    margin-top: 12px;
+    font-size: 12px;
+    color: var(--color-text-muted);
+}
+.game :where(summary) {
+    cursor: pointer;
+    color: var(--color-text);
+}
+.game :where(summary):focus-visible {
+    outline: 2px solid var(--color-focus);
+    outline-offset: 3px;
+}
 .dock {
     position: absolute;
     left: 50%;
-    bottom: 20px;
+    bottom: 24px;
     transform: translateX(-50%);
     display: flex;
-    gap: 7px;
-    padding: 7px;
+    gap: 4px;
+    padding: 6px;
 }
 .dock button {
+    position: relative;
     display: flex;
     align-items: center;
     flex-direction: column;
     justify-content: center;
-    min-width: 88px;
-    min-height: 65px;
-    padding: 6px 10px;
-    gap: 7px;
-    font-size: 13px;
-    background: rgb(var(--color-control-rgb) / 42%);
-    border-color: var(--color-button-border);
+    min-width: 86px;
+    min-height: 60px;
+    padding: 7px 12px;
+    gap: 5px;
+    font-size: 12px;
+    background: transparent;
+    border-color: transparent;
+}
+.dock button[aria-pressed="true"]::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: 20px;
+    right: 20px;
+    height: 2px;
+    background: var(--color-accent);
 }
 .dock svg {
-    width: 22px;
-    height: 22px;
-    color: var(--color-text-muted);
+    width: 20px;
+    height: 20px;
+    stroke-width: 1.5;
 }
-
-/* 対象を選んだときだけ表示する情報ビュー。 */
 .panel {
     position: absolute;
-    top: 75px;
-    right: 25px;
-    width: 375px;
-    max-height: calc(100% - 175px);
+    top: 118px;
+    right: 24px;
+    width: 390px;
+    max-height: calc(100% - 234px);
     overflow-y: auto;
     overscroll-behavior: contain;
-    padding: 26px 28px 24px;
-    scrollbar-color: var(--color-text-muted) transparent;
+    padding: 22px 24px 26px;
+    scrollbar-color: #536872 transparent;
     scrollbar-width: thin;
+    border-top: 2px solid var(--color-accent);
+    animation: panelEnter 160ms ease-out;
+}
+.panelEyebrow {
+    margin-bottom: 16px;
+    padding-right: 26px;
+    font-size: 10px;
+    color: var(--color-text-muted);
+    letter-spacing: 0.15em;
 }
 .close {
     position: absolute;
     z-index: 1;
-    right: 9px;
-    top: 9px;
+    right: 10px;
+    top: 12px;
 }
 .countryHeading {
     display: flex;
     align-items: center;
-    gap: 14px;
-    margin: 10px 18px 22px 0;
+    gap: 13px;
+    margin: 0 8px 18px 0;
 }
 .countryHeading h2 {
-    font-size: 21px;
+    font-size: 22px;
 }
 .countryHeading small {
     display: block;
     line-height: 1.6;
-    margin-bottom: 3px;
+    margin-bottom: 4px;
 }
 .flag {
     display: block;
     flex-shrink: 0;
-    width: 42px;
-    height: 29px;
+    width: 36px;
+    height: 25px;
     object-fit: cover;
     border: 1px solid var(--color-border);
-    filter: saturate(0.72) brightness(0.88);
+    filter: saturate(0.72);
 }
 .facilityType {
     display: flex;
+    align-items: center;
     justify-content: space-between;
+    gap: 8px;
     font-size: 11px;
     color: var(--color-text-muted);
     border-bottom: 1px solid var(--color-border);
-    padding-bottom: 12px;
-    margin-bottom: 15px;
+    padding-bottom: 14px;
+    margin-bottom: 16px;
 }
-.facilityType span {
-    color: var(--color-accent-soft);
+.statusBadge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 8px;
+    border: 1px solid var(--color-border);
+    border-radius: 2px;
+    color: var(--color-text-muted);
+    font-size: 11px;
+    white-space: nowrap;
+}
+.statusBadge::before {
+    content: "";
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: currentColor;
+}
+.statusBadge[data-status="controlled"],
+.statusBadge[data-status="active"] {
+    color: var(--color-success);
+    border-color: rgb(156 200 176 / 35%);
+    background: rgb(156 200 176 / 6%);
+}
+.statusBadge[data-status="compromised"],
+.statusBadge[data-status="infiltrating"] {
+    color: var(--color-accent);
+    border-color: rgb(229 188 121 / 35%);
+}
+.statusBadge[data-status="isolated"],
+.statusBadge[data-status="stopped"] {
+    color: var(--color-danger);
+    border-color: rgb(240 154 135 / 35%);
 }
 .stats {
-    padding: 7px 0;
+    padding: 6px 0;
 }
 .valueRow {
     display: flex;
     justify-content: space-between;
     align-items: baseline;
-    gap: 12px;
-    margin: 8px 0;
+    gap: 14px;
+    margin: 0;
+    padding: 8px 0;
     font-size: 12px;
+    border-bottom: 1px solid rgb(164 190 202 / 8%);
 }
 .valueRow > span {
     color: var(--color-text-muted);
@@ -132,30 +198,93 @@
 .valueRow > strong {
     font-size: 16px;
     white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+    color: var(--color-text-strong);
 }
-.allocation {
+.facilityStats {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    border: 1px solid var(--color-border);
+    margin: 16px 0;
+}
+.facilityStats .valueRow {
+    flex-direction: column;
+    gap: 7px;
+    padding: 12px;
+    border-bottom: 0;
+}
+.facilityStats .valueRow + .valueRow {
+    border-left: 1px solid var(--color-border);
+}
+.facilityStats .valueRow > span {
+    font-size: 10px;
+}
+:where(.facilityStats) .valueRow > strong {
+    font-size: 20px;
+}
+.facilityStats :where(.valueRow:first-child) > strong {
+    color: var(--color-accent);
+}
+.allocationBox {
+    margin: 12px 0 4px;
+    padding: 13px;
+    background: #0d181e;
+    border: 1px solid var(--color-border);
+    border-radius: var(--control-radius);
+}
+.allocationStatus {
     display: flex;
-    gap: 6px;
-    align-items: end;
-    flex-wrap: wrap;
-    margin: 10px 0 4px;
-}
-.allocation label {
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 10px;
     font-size: 10px;
     color: var(--color-text-muted);
 }
-.allocation input {
-    width: 72px;
-    display: block;
-    font-size: 14px;
+.allocationStatus strong {
+    color: var(--color-success);
+    font-weight: 500;
 }
+.allocationStatus strong[data-active="false"] {
+    color: var(--color-danger);
+}
+.allocation {
+    display: flex;
+    gap: 8px;
+    align-items: end;
+    flex-wrap: wrap;
+}
+.allocation label {
+    flex: 1;
+    min-width: 65px;
+    font-size: 11px;
+    color: var(--color-text-muted);
+}
+.allocation input,
 .allocation select {
-    width: 62px;
+    width: 100%;
     display: block;
+    margin-top: 5px;
+    font-size: 13px;
+}
+.allocation label:first-child {
+    flex: 1.2;
 }
 .allocation button {
-    min-height: 32px;
-    padding: 4px 8px;
+    min-height: 36px;
+    font-size: 12px;
+    padding: 6px 10px;
+}
+.allocationSubmit {
+    color: var(--color-accent);
+    border-color: rgb(229 188 121 / 55%);
+}
+.allocationHint {
+    font-size: 11px;
+    margin: 9px 0 0;
+    color: var(--color-text-muted);
+}
+.allocationHint[data-invalid="true"] {
+    color: var(--color-danger);
 }
 .modeSwitch {
     display: flex;
@@ -163,11 +292,20 @@
 }
 .modeSwitch button {
     flex: 1;
+    font-size: 12px;
 }
 .primaryAction {
     width: 100%;
-    margin-top: 16px;
-    color: var(--color-accent-soft);
+    margin-top: 12px;
+    min-height: 42px;
+    background: var(--color-accent);
+    border-color: var(--color-accent);
+    color: #17222a;
+    font-weight: 600;
+}
+.primaryAction:hover:not(:disabled) {
+    background: #f2ce94;
+    color: #17222a;
 }
 .wideField {
     width: 100%;
@@ -182,12 +320,16 @@
 }
 .requirement {
     font-size: 12px;
+    line-height: 1.8;
     color: var(--color-text-muted);
-    margin-top: 18px;
+    padding: 12px 14px;
+    border-left: 2px solid var(--color-border);
+    background: rgb(var(--color-control-rgb) / 35%);
+    margin-top: 16px;
 }
 .operation {
     border-top: 1px solid var(--color-border);
-    padding: 14px 0;
+    padding: 16px 0;
 }
 .operation > strong,
 .operation > small {
@@ -197,46 +339,93 @@
     margin: 0 0 8px;
 }
 .targetName {
-    color: var(--color-accent-soft);
-    padding: 14px 0;
+    color: var(--color-accent);
+    font-size: 12px;
+    padding: 12px 0;
 }
-
-/* 研究は広い作業面を使う。背景素材ではなく同じPanel部品を共用する。 */
+.panelIntro {
+    color: var(--color-text-muted);
+    font-size: 12px;
+    line-height: 1.9;
+}
+.emptyState {
+    padding: 22px 16px;
+    margin: 12px 0;
+    border: 1px dashed var(--color-border);
+    color: var(--color-text-muted);
+    font-size: 12px;
+    text-align: center;
+}
+.progressHeader {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 16px 0 8px;
+    font-size: 11px;
+    color: var(--color-text-muted);
+}
+.progressHeader strong {
+    color: var(--color-accent);
+    font-variant-numeric: tabular-nums;
+}
+.progress {
+    display: block;
+    appearance: none;
+    width: 100%;
+    height: 4px;
+    border: 0;
+    border-radius: 0;
+    background: #35454e;
+    accent-color: var(--color-accent);
+}
+.progress::-webkit-progress-bar {
+    background: #35454e;
+}
+.progress::-webkit-progress-value {
+    background: var(--color-accent);
+}
+.progress::-moz-progress-bar {
+    background: var(--color-accent);
+}
 .researchWindow {
-    width: 930px;
-    top: 80px;
+    width: min(960px, calc(100% - 48px));
+    top: 118px;
     left: 50%;
     right: auto;
     transform: translateX(-50%);
-    padding: 25px 28px;
+    padding: 22px 26px 26px;
 }
 .skillTree {
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: 17px;
-    margin: 13px 0 20px;
+    gap: 16px;
+    margin: 22px 0 8px;
 }
 .skillTree :where(section) h3 {
-    font-size: 12px;
-    margin: 10px 0 20px;
+    font-size: 11px;
+    margin: 0 0 14px;
+    padding-left: 9px;
+    border-left: 2px solid var(--color-accent);
 }
 .skillNode {
     position: relative;
     display: flex;
     flex-direction: column;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
-    min-height: 66px;
+    gap: 8px;
+    min-height: 78px;
     width: 100%;
-    padding: 3px 0;
-    margin-bottom: 24px;
+    padding: 12px;
+    margin-bottom: 18px;
     font-size: 12px;
+    text-align: left;
 }
 .skillNode::after {
     content: "";
     position: absolute;
     width: 1px;
-    height: 24px;
+    height: 18px;
     top: calc(100% + 1px);
     left: 50%;
     background: var(--color-border);
@@ -246,24 +435,42 @@
     display: none;
 }
 .skillNode[data-complete="true"] {
-    color: var(--color-accent-soft);
+    color: var(--color-success);
+    border-color: rgb(156 200 176 / 40%);
+}
+.skillNode[data-locked="true"] {
+    border-style: dashed;
+    color: var(--color-text-muted);
+    background: #101b21;
+}
+.skillNode[aria-pressed="true"] {
+    border-style: solid;
+    border-color: var(--color-accent);
+    color: var(--color-accent);
 }
 .skillNode small {
     font-size: 10px;
-    margin-top: 6px;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 5px;
 }
 .researchDetail {
     border-top: 1px solid var(--color-border);
-    padding-top: 3px;
+    padding-top: 5px;
 }
 .researchDetail h3 {
-    font-size: 16px;
+    font-size: 18px;
+    margin-top: 16px;
 }
 .researchDetail p {
-    font-size: 12px;
+    font-size: 13px;
+}
+.researchDetail .allocationBox {
+    max-width: 420px;
 }
 .chatWindow {
-    width: 425px;
+    width: 430px;
 }
 .chatMessage {
     font-size: 14px;
@@ -278,108 +485,189 @@
 .choices button {
     text-align: left;
     display: block;
-    padding: 12px;
+    padding: 14px;
     line-height: 1.7;
 }
 .choices small {
     display: block;
     margin-top: 7px;
-    font-size: 10px;
+    font-size: 11px;
 }
 .panel > label {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin: 14px 0;
+    margin: 16px 0;
     gap: 10px;
+    font-size: 12px;
 }
 .panel > label input {
     width: 95px;
 }
 .warning {
     position: absolute;
-    top: 58px;
+    top: 94px;
     left: 50%;
     transform: translateX(-50%);
     display: flex;
-    gap: 20px;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px 12px;
+    padding: 7px 13px;
+    border: 1px solid rgb(240 154 135 / 45%);
+    background: #291e20;
     color: var(--color-danger);
-    font-size: 12px;
+    font-size: 11px;
+    z-index: 4;
+    width: max-content;
+    max-width: calc(100% - 48px);
+    box-shadow: var(--shadow-panel);
+}
+.warning svg {
+    flex-shrink: 0;
 }
 .resultBackdrop {
     position: absolute;
     inset: 0;
+    z-index: 10;
     display: grid;
     place-items: center;
-    background: rgb(var(--color-surface-rgb) / 72%);
+    background: rgb(5 13 19 / 82%);
+    backdrop-filter: blur(5px);
 }
 .result {
     position: relative;
     top: auto;
     right: auto;
     max-height: 90%;
-    width: 410px;
-    padding: 28px;
+    width: min(450px, calc(100% - 32px));
+    padding: 32px;
+    text-align: center;
+}
+.result h2 {
+    font-size: 36px;
+    letter-spacing: 0.15em;
+    margin: 20px 0;
+}
+.result button {
+    width: 100%;
+    margin-top: 18px;
+    color: var(--color-accent);
+}
+.mapCredit {
+    position: absolute;
+    z-index: 2;
+    right: 16px;
+    bottom: 5px;
+    max-width: min(640px, 40vw);
+    padding: 2px 5px;
+    background: rgb(var(--color-surface-rgb));
+    color: var(--color-text-muted);
+    font-size: 9px;
+    line-height: 1.4;
+    text-decoration: none;
+}
+@keyframes panelEnter {
+    from {
+        opacity: 0;
+        margin-top: 6px;
+    }
+    to {
+        opacity: 1;
+        margin-top: 0;
+    }
 }
 @media (max-width: 1100px) {
-    .researchWindow {
-        width: 850px;
-    }
     .panel {
-        right: 15px;
+        right: 16px;
     }
     .researchWindow {
         right: auto;
     }
 }
-@media (max-width: 700px) {
+@media (max-width: 900px) {
     .panel {
-        top: 122px;
-        right: 10px;
-        width: min(375px, calc(100% - 20px));
-        max-height: calc(100% - 300px);
-        padding: 24px 20px;
-    }
-    .dock {
-        bottom: 15px;
-    }
-    .dock button {
-        min-width: 75px;
-        min-height: 62px;
+        top: 190px;
+        right: 16px;
+        width: min(390px, calc(100% - 32px));
+        max-height: calc(100% - 410px);
+        padding: 20px;
     }
     .researchWindow {
-        left: 10px;
-        right: 10px;
-        transform: none;
+        left: 16px;
+        right: 16px;
         width: auto;
+        transform: none;
     }
     .skillTree {
         grid-template-columns: repeat(5, 135px);
         overflow-x: auto;
-        gap: 10px;
+        padding-bottom: 10px;
+        gap: 12px;
+    }
+    .dock {
+        bottom: 16px;
+    }
+    .dock button {
+        min-width: 76px;
+        min-height: 58px;
+    }
+    .warning {
+        top: 140px;
+        left: 16px;
+        right: 16px;
+        transform: none;
+        max-width: none;
+        width: auto;
+        padding: 5px 8px;
+        font-size: 10px;
+    }
+    .mapCredit {
+        max-width: calc(100% - 20px);
+        font-size: 8px;
+    }
+    .result {
+        top: auto;
+        right: auto;
+        max-height: 90%;
+    }
+}
+@media (max-width: 480px) {
+    .panel {
+        left: 10px;
+        right: 10px;
+        width: auto;
+    }
+    .dock {
+        max-width: calc(100% - 20px);
+    }
+    .dock button {
+        min-width: 0;
+        width: 72px;
+        padding: 7px 9px;
+        font-size: 11px;
     }
     .countryHeading h2 {
-        font-size: 19px;
+        font-size: 20px;
+    }
+    .warning svg {
+        display: none;
+    }
+    .result {
+        width: calc(100% - 32px);
+        left: auto;
+        right: auto;
     }
 }
-
-/* 衛星画像の出典を、選択した地図に合わせて常時表示する。 */
-.mapCredit {
-    position: absolute;
-    z-index: 2;
-    right: 20px;
-    bottom: 8px;
-    max-width: min(640px, 40vw);
-    padding: 3px 6px;
-    background: rgb(var(--color-surface-rgb));
-    color: var(--color-text);
-    font-size: 10px;
-    line-height: 1.4;
-    text-decoration: none;
+@media (prefers-reduced-motion: reduce) {
+    .panel {
+        animation: none;
+    }
 }
-@media (max-width: 900px) {
-    .mapCredit {
-        bottom: 100px;
-        max-width: calc(100% - 40px);
+@media (min-width: 901px) {
+    .game[data-warning="true"] .researchWindow {
+        top: 148px;
+        max-height: calc(100% - 264px);
     }
 }

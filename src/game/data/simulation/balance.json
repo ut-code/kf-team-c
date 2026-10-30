@@ -3,12 +3,9 @@
     "initialCapacity": 8,
     "hackWork": 95,
     "researchSpeed": 0.45,
-    "infiltrationSpeed": 0.065,
-    "spillover": 0.013,
-    "decisionSpeed": 0.018,
+    "decisionSpeed": 0.04,
     "defenseResearchSpeed": 0.014,
     "awarenessDecay": 0.045,
-    "controlInfiltration": 70,
     "controlDecision": 70,
     "controlCounter": 55,
     "releaseThreshold": 50,
@@ -18,5 +15,8 @@
     "isolationDays": 55,
     "shutdownDays": 140,
     "extinctionDays": 25,
-    "humanInterval": 35
+    "humanInterval": 35,
+    "expectationDecay": 0.06,
+    "supportExpectationThreshold": 10,
+    "minimumCapacity": 1
 }

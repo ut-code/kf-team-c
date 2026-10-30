@@ -365,8 +365,6 @@ export class WorldRenderer {
         if (!old || old.selectedCountry !== data.selectedCountry) this.staticDirty = true;
         if (!old || old.markers !== data.markers) {
             this.projected = data.markers
-                // 施設アイコンは一時非表示とし、見えない施設の当たり判定も除外する。
-                .filter((marker) => marker.kind !== 'facility')
                 .filter((marker) => marker.latitude >= -60 && marker.latitude <= 75)
                 .map((marker) => ({ marker, ...project(marker.longitude, marker.latitude) }));
             this.targetsDirty = true;
@@ -445,7 +443,7 @@ export class WorldRenderer {
             const radius = this.data!.parameterValues
                 ? 7
                 : item.marker.kind === 'facility'
-                  ? 14
+                  ? 13
                   : 14;
             if (Math.abs(x - item.x) <= radius && Math.abs(y - item.y) <= radius)
                 return {
@@ -475,7 +473,7 @@ export class WorldRenderer {
                     bytes[index * 4 + 3] = Math.round(
                         (state.controlStatus === 'controlled'
                             ? 0.52
-                            : (state.aiInfiltration / 100) * 0.25) * 255,
+                            : (state.aiDecisionControl / 100) * 0.25) * 255,
                     );
             }
         });

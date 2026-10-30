@@ -22,13 +22,13 @@ export function DebugPanel({
     onMapVariantChange: (variant: MapVariant) => void;
 }) {
     const dispatch = useGameStore((state) => state.dispatch);
-    const [countryStateKey, setMetric] = useState<CountryStateKey>('aiInfiltration');
+    const [countryStateKey, setMetric] = useState<CountryStateKey>('aiExpectation');
     const [value, setValue] = useState(75);
     const [seed, setSeed] = useState(gameState.seed);
     const settings: [keyof Balance, string, number][] = [
         ['secondsPerTick', '秒 / 日', 0.1],
-        ['infiltrationSpeed', '浸透係数', 0.005],
-        ['spillover', '波及係数', 0.001],
+        ['decisionSpeed', '意思決定介入係数', 0.005],
+        ['expectationDecay', '期待の減衰量 / 日', 0.01],
     ];
     return (
         <>

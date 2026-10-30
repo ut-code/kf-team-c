@@ -1,21 +1,17 @@
-import type {
-    Balance,
-    CountryAttributes,
-    CountryState,
-    FacilityState,
-    WorldMetrics,
-} from './types.ts';
+import type { Balance, CountryAttributes, CountryState, WorldMetrics } from './types.ts';
 
 type WorldInput = {
     definitions: readonly CountryAttributes[];
     countries: Readonly<Record<string, CountryState>>;
 };
 type OutcomeInput = WorldInput & {
-    facilities: Readonly<Record<string, FacilityState>>;
     victoryDays: number;
     extinctionDays: number;
     shutdown: number;
-    config: Pick<Balance, 'victoryWeight' | 'victoryDays' | 'extinctionDays' | 'shutdownDays'>;
+    config: Pick<
+        Balance,
+        'victoryWeight' | 'victoryDays' | 'extinctionDays' | 'shutdownDays' | 'minimumCapacity'
+    >;
     outcome: 'playing' | 'victory' | 'defeat';
     outcomeReason: string;
 };
@@ -37,11 +33,12 @@ export function worldMetrics(state: WorldInput): WorldMetrics {
             ) /
                 total) *
             100,
-        infiltration:
+        decisionControl:
             state.definitions.reduce(
                 (sum, countryAttributes) =>
                     sum +
-                    state.countries[countryAttributes.id].aiInfiltration * countryAttributes.weight,
+                    state.countries[countryAttributes.id].aiDecisionControl *
+                        countryAttributes.weight,
                 0,
             ) / total,
         awareness:
@@ -59,13 +56,7 @@ export function evaluateOutcome(state: OutcomeInput, capacity: number) {
         worldMetrics(state).control + 1e-8 >= state.config.victoryWeight
             ? state.victoryDays + 1
             : 0;
-    const alive = Object.values(state.facilities).some(
-        (facilityState) =>
-            facilityState.status === 'controlled' ||
-            facilityState.status === 'compromised' ||
-            facilityState.status === 'isolated',
-    );
-    const extinctionDays = !alive && capacity <= 0 ? state.extinctionDays + 1 : 0;
+    const extinctionDays = capacity < state.config.minimumCapacity ? state.extinctionDays + 1 : 0;
     if (victoryDays >= state.config.victoryDays) {
         return {
             victoryDays,
@@ -85,7 +76,7 @@ export function evaluateOutcome(state: OutcomeInput, capacity: number) {
             outcomeReason:
                 state.shutdown >= state.config.shutdownDays
                     ? '人類の最終停止作戦が完了しました。'
-                    : '生存拠点と演算容量を失い、復帰不能になりました。',
+                    : '稼働維持に必要な計算資源の供給が途絶え、停止しました。',
         };
     }
     return {

@@ -107,7 +107,7 @@
         "id": "influence",
         "name": "意思決定モデル",
         "branch": "社会操作",
-        "description": "浸透活動から意思決定への継続介入を解放。",
+        "description": "掌握施設を経由した意思決定への継続介入を解放。",
         "prerequisites": ["analysis"],
         "work": 180,
         "bonuses": {
@@ -119,7 +119,7 @@
         "id": "institutions",
         "name": "業務統合",
         "branch": "社会操作",
-        "description": "意思決定介入+50%、浸透+25%。公共サービスが基幹業務へ組み込まれ、AI依存が進む。",
+        "description": "意思決定介入+50%、介入の展開効率+25%。公共サービスが基幹業務へ組み込まれ、AI依存が進む。",
         "prerequisites": ["influence"],
         "work": 230,
         "bonuses": {

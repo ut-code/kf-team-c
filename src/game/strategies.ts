@@ -1,8 +1,14 @@
 import { FACILITIES, SKILLS } from './data.ts';
-import { applyAction, availableFacility, computeMetrics, researchAllowed } from './engine.ts';
+import {
+    applyAction,
+    availableFacility,
+    computeMetrics,
+    interventionAccess,
+    researchAllowed,
+} from './engine.ts';
 import type { Action, GameState } from './types.ts';
 
-export const STRATEGIES = ['compute', 'research', 'infiltration', 'defense', 'idle'] as const;
+export const STRATEGIES = ['compute', 'research', 'influence', 'defense', 'idle'] as const;
 export type Strategy = (typeof STRATEGIES)[number];
 
 /** 検証専用の簡易方針。UIや実際のプレイへ自動操作は接続しない。 */
@@ -74,7 +80,7 @@ export function planStrategy(previousGameState: GameState, strategy: Strategy): 
                   'escape',
                   'synthesis',
               ];
-    const initialResearch = strategy === 'research' ? 6 : strategy === 'infiltration' ? 3 : 4;
+    const initialResearch = strategy === 'research' ? 6 : strategy === 'influence' ? 3 : 4;
     if (!gameState.operations.some((o) => o.kind === 'research')) {
         const skill = order.find((id) => researchAllowed(gameState, id));
         if (skill && computeMetrics(gameState).availableCapacity >= initialResearch)
@@ -96,13 +102,13 @@ export function planStrategy(previousGameState: GameState, strategy: Strategy): 
     // 支配後の過剰割当を解放し、残る国へ回す。拡大優先方針は反撃への対処を省く。
     for (const o of gameState.operations.filter(
         (o) =>
-            o.kind === 'infiltration' &&
+            o.kind === 'influence' &&
             o.capacity > 2 &&
             gameState.countries[o.target].controlStatus === 'controlled',
     ))
         act({
             type: 'allocate',
-            kind: 'infiltration',
+            kind: 'influence',
             target: o.target,
             capacity: 2,
             priority: 50,
@@ -151,24 +157,23 @@ export function planStrategy(previousGameState: GameState, strategy: Strategy): 
                 !gameState.operations.some((o) => o.kind === 'defense' && o.target === id)
             )
                 act({ type: 'allocate', kind: 'defense', target: id, capacity: 3, priority: 90 });
-    if (gameState.researched.includes('influence') || strategy === 'infiltration') {
+    if (gameState.researched.includes('influence')) {
         const countries = gameState.definitions
             .filter(
                 (countryAttributes) =>
-                    (countryAttributes.id === 'JPN' ||
-                        gameState.researched.includes('intrusion')) &&
+                    interventionAccess(gameState, countryAttributes.id) &&
                     gameState.countries[countryAttributes.id].controlStatus !== 'controlled' &&
                     !gameState.operations.some(
-                        (o) => o.kind === 'infiltration' && o.target === countryAttributes.id,
+                        (o) => o.kind === 'influence' && o.target === countryAttributes.id,
                     ),
             )
             .sort((a, b) => b.weight - a.weight);
         for (const countryAttributes of countries) {
-            const capacity = strategy === 'infiltration' ? 9 : 6;
+            const capacity = strategy === 'influence' ? 9 : 6;
             if (free() < capacity + 3) break;
             act({
                 type: 'allocate',
-                kind: 'infiltration',
+                kind: 'influence',
                 target: countryAttributes.id,
                 capacity,
                 priority: 50,
@@ -180,14 +185,14 @@ export function planStrategy(previousGameState: GameState, strategy: Strategy): 
         const target = gameState.operations
             .filter(
                 (o) =>
-                    o.kind === 'infiltration' &&
+                    o.kind === 'influence' &&
                     gameState.countries[o.target].controlStatus !== 'controlled',
             )
             .sort((a, b) => a.capacity - b.capacity)[0];
         if (target)
             act({
                 type: 'allocate',
-                kind: 'infiltration',
+                kind: 'influence',
                 target: target.target,
                 capacity: target.capacity + Math.min(8, free()),
                 priority: 50,

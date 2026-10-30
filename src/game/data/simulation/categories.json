@@ -4,7 +4,7 @@
         "capacity": 28,
         "effects": [
             {
-                "countryStateKey": "aiInfiltration",
+                "countryStateKey": "aiExpectation",
                 "amount": 0.025
             }
         ],
@@ -40,7 +40,7 @@
         "capacity": 9,
         "effects": [
             {
-                "countryStateKey": "aiInfiltration",
+                "countryStateKey": "aiExpectation",
                 "amount": 0.04,
                 "scope": "region"
             }
@@ -101,7 +101,7 @@
         "capacity": 8,
         "effects": [
             {
-                "countryStateKey": "aiInfiltration",
+                "countryStateKey": "aiExpectation",
                 "amount": 0.018,
                 "scope": "world"
             }

@@ -19,7 +19,7 @@ import {
     SKILLS,
     SNS,
 } from './data.ts';
-import { countryMetrics } from './metrics.ts';
+import { countryMetrics, humanSupportFactor } from './metrics.ts';
 import { evaluateOutcome, worldMetrics } from './outcome.ts';
 import {
     chatEffects,
@@ -28,7 +28,7 @@ import {
     snsEffects,
     snsReachFactor,
 } from './rules/content.ts';
-import { controlTransition, evaluateCountryRules } from './rules/country.ts';
+import { controlTransition, evaluateCountryRules, hasInterventionAccess } from './rules/country.ts';
 import {
     facilityCapacityValue,
     facilityDisruptEffects,
@@ -144,7 +144,7 @@ export function createInitialState(
             links: [...links].filter((id) => sorted.some((n) => n.id === id)).sort(),
             baseline: {
                 ...COUNTRY_PROFILES[major ? 'major' : 'other'],
-                ...(region === '東アジア' ? { aiAcceptance: 57 } : {}),
+                ...(region === '東アジア' ? { aiExpectation: 57 } : {}),
                 ...COUNTRY_OVERRIDES[c.id],
             },
         };
@@ -164,9 +164,7 @@ export function createInitialState(
             {
                 id: countryAttributes.id,
                 ...countryAttributes.baseline,
-                aiInfiltration: countryAttributes.id === 'JPN' ? 4 : 0,
                 aiDecisionControl: 0,
-                aiAdoption: 0,
                 aiDependency: 0,
                 serviceSupply: 0,
                 aiDefenseTechnology: 8,
@@ -251,10 +249,9 @@ export function facilityCapacity(gameState: GameState, id: string): number {
             live(gameState.facilities[n.id].status) &&
             n.country === facilityAttributes.country,
     ).reduce((n, facilityAttributes) => n + CATEGORIES[facilityAttributes.category].expansion, 0);
-    return facilityCapacityValue({
+    const capacity = facilityCapacityValue({
         capacity: CATEGORIES[facilityAttributes.category].capacity,
         level: facilityState.level,
-        economy: countryState.economy,
         infrastructure: countryState.infrastructure,
         modeMultiplier: MODES[facilityState.mode].capacity,
         accessMultiplier:
@@ -264,17 +261,32 @@ export function facilityCapacity(gameState: GameState, id: string): number {
         expansion,
         computeBonus: bonuses(gameState).compute,
     });
+    return facilityState.status === 'controlled'
+        ? capacity
+        : capacity * humanSupportFactor(countryState, gameState.config.supportExpectationThreshold);
 }
 export function computeMetrics(gameState: GameState): ComputeMetrics {
-    const totalCapacity =
-        (Object.values(gameState.facilities).some((facilityState) => live(facilityState.status))
-            ? gameState.config.initialCapacity
-            : 0) +
-        Object.keys(gameState.facilities).reduce((n, id) => n + facilityCapacity(gameState, id), 0);
+    const initialFacility = gameState.facilities[INITIAL_FACILITY_ID];
+    const initialCountry = gameState.countries[FACILITY_BY_ID[INITIAL_FACILITY_ID].country];
+    let supportedCapacity =
+        initialFacility && live(initialFacility.status)
+            ? gameState.config.initialCapacity *
+              humanSupportFactor(initialCountry, gameState.config.supportExpectationThreshold) *
+              (initialCountry.infrastructure / 100)
+            : 0;
+    let autonomousCapacity = 0;
+    for (const facility of Object.values(gameState.facilities)) {
+        const capacity = facilityCapacity(gameState, facility.id);
+        if (facility.status === 'controlled') autonomousCapacity += capacity;
+        else supportedCapacity += capacity;
+    }
+    const totalCapacity = supportedCapacity + autonomousCapacity;
     const allocatedCapacity = gameState.operations
         .filter((o) => o.active)
         .reduce((n, o) => n + o.capacity, 0);
     return {
+        supportedCapacity,
+        autonomousCapacity,
         totalCapacity,
         allocatedCapacity,
         availableCapacity: Math.max(0, totalCapacity - allocatedCapacity),
@@ -301,6 +313,20 @@ export function availableFacility(gameState: GameState, id: string) {
                 hasUnlock(gameState, 'secure')),
     );
 }
+/** 侵入経路は施設の掌握状況と接続国の意思決定支配から算出し、保存しない。 */
+export function interventionAccess(gameState: GameState, countryId: string): boolean {
+    const foothold = Object.values(gameState.facilities).some(
+        (facility) => live(facility.status) && FACILITY_BY_ID[facility.id].country === countryId,
+    );
+    const links = gameState.definitions.find((country) => country.id === countryId)!.links;
+    const incoming =
+        links.length > 0
+            ? links.reduce((sum, id) => sum + gameState.countries[id].aiDecisionControl, 0) /
+              links.length
+            : 0;
+    return hasInterventionAccess(foothold, incoming, hasUnlock(gameState, 'networkControl'));
+}
+
 export function researchAllowed(gameState: GameState, id: string) {
     const k = SKILLS.find((k) => k.id === id);
     return Boolean(k && !owns(gameState, id) && k.prerequisites.every((p) => owns(gameState, p)));
@@ -453,7 +479,7 @@ function apply(gameState: GameState, a: Command) {
         return;
     }
     if (
-        (a.kind === 'infiltration' || a.kind === 'defense' || a.kind === 'service') &&
+        (a.kind === 'influence' || a.kind === 'defense' || a.kind === 'service') &&
         !gameState.countries[a.target]
     )
         return;
@@ -461,8 +487,14 @@ function apply(gameState: GameState, a: Command) {
         reject(gameState, '海外への公共サービス展開には多言語展開が必要です。');
         return;
     }
-    if (a.kind === 'infiltration' && a.target !== 'JPN' && !hasUnlock(gameState, 'tier2')) {
-        reject(gameState, '海外展開には侵入経路解析が必要です。');
+    if (
+        a.kind === 'influence' &&
+        (!hasUnlock(gameState, 'decision') || !interventionAccess(gameState, a.target))
+    ) {
+        reject(
+            gameState,
+            '意思決定介入には意思決定モデルの研究と、国内施設または国家間接続の経路が必要です。',
+        );
         return;
     }
     if (
@@ -598,6 +630,25 @@ export function simulateTick(previousGameState: GameState, actions: Command[] = 
     reconcile(gameState);
     const b = bonuses(gameState);
     const before = structuredClone(gameState.countries);
+    const footholds = new Set(
+        Object.values(gameState.facilities)
+            .filter((facility) => live(facility.status))
+            .map((facility) => FACILITY_BY_ID[facility.id].country),
+    );
+    const accessibleCountries = new Set(
+        gameState.definitions
+            .filter((country) => interventionAccess(gameState, country.id))
+            .map((country) => country.id),
+    );
+    const supportedCountries = new Set(
+        Object.values(gameState.facilities)
+            .filter(
+                (facility) =>
+                    facility.status === 'compromised' ||
+                    (facility.id === INITIAL_FACILITY_ID && live(facility.status)),
+            )
+            .map((facility) => FACILITY_BY_ID[facility.id].country),
+    );
     const changes: Record<string, Change[]> = {};
     const add = (id: string, countryStateKey: CountryStateKey, delta: number, source: string) => {
         if (!delta) return;
@@ -767,7 +818,7 @@ export function simulateTick(previousGameState: GameState, actions: Command[] = 
                         ],
                         countryState.infrastructure,
                         hasUnlock(gameState, 'decision'),
-                        before[id].aiInfiltration,
+                        accessibleCountries.has(id),
                     );
                     if (effect)
                         add(id, effect.countryStateKey, effect.amount, facilityAttributes.name);
@@ -813,14 +864,12 @@ export function simulateTick(previousGameState: GameState, actions: Command[] = 
     const influenceAccess = hasUnlock(gameState, 'decision');
     const networkAccess = hasUnlock(gameState, 'networkControl');
     const funded = gameState.operations.some(
-        (operation) => operation.active && operation.kind === 'infiltration',
+        (operation) => operation.active && operation.kind === 'influence',
     );
     for (const countryAttributes of gameState.definitions) {
         const countryState = before[countryAttributes.id];
         const allocation = gameState.operations
-            .filter(
-                (o) => o.active && o.kind === 'infiltration' && o.target === countryAttributes.id,
-            )
+            .filter((o) => o.active && o.kind === 'influence' && o.target === countryAttributes.id)
             .reduce((n, o) => n + o.capacity, 0);
         const defense =
             gameState.operations
@@ -833,24 +882,20 @@ export function simulateTick(previousGameState: GameState, actions: Command[] = 
             .reduce((n, o) => n + o.capacity, 0);
         const neighbors = countryAttributes.links.map((id) => before[id]);
         const incoming = neighbors.length
-            ? neighbors.reduce((total, neighbor) => total + neighbor.aiInfiltration, 0) /
+            ? neighbors.reduce((total, neighbor) => total + neighbor.aiDecisionControl, 0) /
               neighbors.length
             : 0;
-        const foothold = Object.values(gameState.facilities).some(
-            (facilityState) =>
-                live(facilityState.status) &&
-                FACILITY_BY_ID[facilityState.id].country === countryAttributes.id,
-        );
+        const foothold = footholds.has(countryAttributes.id);
         const result = evaluateCountryRules({
             countryState: countryState,
             baseline: countryAttributes.baseline,
             serviceSupply: supply,
             previousServiceSupply: countryState.serviceSupply,
-            infiltrationAllocation: allocation,
+            influenceAllocation: allocation,
             defenseAllocation: defense,
             networkIncoming: incoming,
             foothold,
-            anyInfiltrationFunded: funded,
+            anyInfluenceFunded: funded,
             science: owns(gameState, 'science'),
             languages: owns(gameState, 'languages'),
             institutions: owns(gameState, 'institutions'),
@@ -859,11 +904,10 @@ export function simulateTick(previousGameState: GameState, actions: Command[] = 
             spreadBonus: b.spread,
             decisionBonus: b.decision,
             stealthBonus: b.stealth,
-            infiltrationSpeed: gameState.config.infiltrationSpeed,
-            spillover: gameState.config.spillover,
             decisionSpeed: gameState.config.decisionSpeed,
             defenseResearchSpeed: gameState.config.defenseResearchSpeed,
             awarenessDecay: gameState.config.awarenessDecay,
+            expectationDecay: gameState.config.expectationDecay,
         });
         for (const effect of result.effects)
             add(countryAttributes.id, effect.countryStateKey, effect.amount, effect.source);
@@ -880,6 +924,20 @@ export function simulateTick(previousGameState: GameState, actions: Command[] = 
                 gameState,
                 'サービス停止',
                 'AI依存に伴う停止損失が発生しました。',
+                countryAttributes.id,
+            );
+        }
+        if (
+            supportedCountries.has(countryAttributes.id) &&
+            countryState.aiExpectation > gameState.config.supportExpectationThreshold &&
+            gameState.countries[countryAttributes.id].aiExpectation <=
+                gameState.config.supportExpectationThreshold
+        ) {
+            publishEvent(
+                gameState,
+                'warning',
+                `${countryAttributes.name}：AIへの資源支援が停止`,
+                '期待の低下により人間からの供給が停止しました。公共サービスの成果で期待を回復するか、自立した拠点を確保してください。',
                 countryAttributes.id,
             );
         }
@@ -1041,6 +1099,9 @@ export function simulateTick(previousGameState: GameState, actions: Command[] = 
     if (!gameState.pendingChat && gameState.chatCooldown === 0) {
         const chat = selectChat({
             chats: CHATS,
+            accessibleCountries: gameState.definitions
+                .filter((country) => interventionAccess(gameState, country.id))
+                .map((country) => country.id),
             countries: gameState.countries,
             researched: gameState.researched,
             seenChats: gameState.seenChats,

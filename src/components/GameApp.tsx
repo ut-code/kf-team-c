@@ -1,4 +1,4 @@
-import { BookOpen, Cpu, Mail, SlidersHorizontal } from 'lucide-react';
+import { BookOpen, Cpu, Mail, SlidersHorizontal, TriangleAlert } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { CountryParameterKey } from '../game/countryParameters';
 import { COUNTRY_PARAMETERS } from '../game/countryParameters';
@@ -12,7 +12,6 @@ import {
 } from '../game/data.ts';
 import { canChooseChat } from '../game/engine.ts';
 import { countryMetrics } from '../game/metrics';
-import { worldMetrics } from '../game/outcome.ts';
 import { type MapVariant, mapVariants } from '../map/config';
 import type { Country, MapMarker } from '../map/types';
 import { useGameStore } from '../state/gameStore';
@@ -21,8 +20,10 @@ import styles from './GameApp.module.css';
 import { CloseButton, COUNTRY_STATE_LABELS, CountryFlag, number } from './game/controls';
 import { DebugPanel } from './game/DebugPanel';
 import { GameHud } from './game/GameHud';
+import { GameResult } from './game/GameResult';
 import { CountryInfo, FacilityInfo } from './game/InfoPanels';
 import { MapDataPanel } from './game/MapDataPanel';
+import { MissionBrief } from './game/MissionBrief';
 import { Notifications } from './game/Notifications';
 import { ComputePanel, ResearchPanel, SnsPanel } from './game/StrategyPanels';
 import { Button } from './ui/Controls';
@@ -89,7 +90,6 @@ export function GameApp({
         [gameState.countries, mapParameter],
     );
     const readoutId = inspectedCountry ?? selected;
-    const world = worldMetrics(gameState);
     const chat = CHATS.find((item) => item.id === gameState.pendingChat);
     const person = chat ? PEOPLE.find((item) => item.id === chat.person)! : null;
     const countryState = selected ? gameState.countries[selected] : null;
@@ -158,12 +158,30 @@ export function GameApp({
         dispatch({ type: 'chat-close' });
         setPanel(null);
     }
+    useEffect(() => {
+        if (!panel) return;
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                useGameStore.getState().dispatch({ type: 'chat-close' });
+                setPanel(null);
+            }
+        };
+        window.addEventListener('keydown', onKeyDown);
+        return () => window.removeEventListener('keydown', onKeyDown);
+    }, [panel]);
     const selectCountry = useCallback(() => {
         dispatch({ type: 'chat-close' });
         setPanel((current) => (current === 'sns' ? 'sns' : 'country'));
     }, [dispatch]);
     return (
-        <main className={styles.game}>
+        <main
+            className={styles.game}
+            data-panel-open={Boolean(panel)}
+            data-active-panel={panel}
+            data-warning={
+                gameState.shortage || gameState.shutdown > 0 || gameState.extinctionDays > 0
+            }
+        >
             <a
                 className={styles.mapCredit}
                 href={activeMap.attributionUrl}
@@ -203,10 +221,37 @@ export function GameApp({
                     setPanel('compute');
                 }}
             />
+            {gameState.outcome === 'playing' && (
+                <MissionBrief
+                    key={gameState.seed}
+                    game={gameState}
+                    onFacility={() => useMapStore.getState().selectMarker(INITIAL_FACILITY_ID)}
+                    onResearch={() => {
+                        dispatch({ type: 'chat-close' });
+                        setPanel('research');
+                    }}
+                    onCountry={() => {
+                        dispatch({ type: 'chat-close' });
+                        useMapStore.getState().selectCountry('JPN');
+                        setPanel('country');
+                    }}
+                    onCompute={() => {
+                        dispatch({ type: 'chat-close' });
+                        setPanel('compute');
+                    }}
+                />
+            )}
             <Notifications events={gameState.events} nextEvent={gameState.nextEvent} />
-            {(gameState.shortage || gameState.shutdown > 0) && (
-                <div className={styles.warning}>
-                    {gameState.shortage && <span>計算資源不足</span>}
+            {(gameState.shortage || gameState.shutdown > 0 || gameState.extinctionDays > 0) && (
+                <div className={styles.warning} role="status">
+                    <TriangleAlert size={16} aria-hidden="true" />
+                    {gameState.shortage && <span>資源不足・一部作戦が停止中</span>}
+                    {gameState.extinctionDays > 0 && (
+                        <span>
+                            稼働停止まであと
+                            {gameState.config.extinctionDays - gameState.extinctionDays}日
+                        </span>
+                    )}
                     {gameState.shutdown > 0 && (
                         <span>
                             停止作戦：{number(gameState.shutdown)} / {gameState.config.shutdownDays}
@@ -238,6 +283,7 @@ export function GameApp({
                     role={panel === 'chat' ? 'dialog' : undefined}
                 >
                     <CloseButton onClick={closePanel} />
+                    <div className={styles.panelEyebrow}>{panelNames[panel]} / 情報・操作</div>
                     {panel === 'country' && countryState && (
                         <CountryInfo game={gameState} country={countryState} />
                     )}
@@ -318,27 +364,13 @@ export function GameApp({
                 </Panel>
             )}
             {gameState.outcome !== 'playing' && (
-                <div className={styles.resultBackdrop}>
-                    <Panel
-                        as="section"
-                        className={`${styles.panel} ${styles.result}`}
-                        role="dialog"
-                        aria-label="ゲーム結果"
-                    >
-                        <h2>{gameState.outcome === 'victory' ? '勝利' : '敗北'}</h2>
-                        <p>{gameState.outcomeReason}</p>
-                        <p>支配率：{number(world.control)}%</p>
-                        <Button
-                            type="button"
-                            onClick={() => {
-                                useGameStore.getState().initialize(countries, gameState.seed);
-                                closePanel();
-                            }}
-                        >
-                            再開
-                        </Button>
-                    </Panel>
-                </div>
+                <GameResult
+                    game={gameState}
+                    onRestart={() => {
+                        useGameStore.getState().initialize(countries, gameState.seed);
+                        closePanel();
+                    }}
+                />
             )}
         </main>
     );

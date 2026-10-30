@@ -7,7 +7,7 @@
         "duration": 35,
         "effects": [
             {
-                "countryStateKey": "aiAcceptance",
+                "countryStateKey": "aiExpectation",
                 "amount": 0.24
             }
         ],
@@ -35,7 +35,7 @@
         "duration": 45,
         "effects": [
             {
-                "countryStateKey": "aiAcceptance",
+                "countryStateKey": "aiExpectation",
                 "amount": 0.35
             },
             {
@@ -53,7 +53,7 @@
         "duration": 55,
         "effects": [
             {
-                "countryStateKey": "aiAcceptance",
+                "countryStateKey": "aiExpectation",
                 "amount": 0.18
             }
         ],
@@ -67,7 +67,7 @@
         "duration": 35,
         "effects": [
             {
-                "countryStateKey": "aiAcceptance",
+                "countryStateKey": "aiExpectation",
                 "amount": 0.4
             },
             {

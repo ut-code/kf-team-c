@@ -50,6 +50,7 @@ export function selectNews(input: {
 
 export function selectChat(input: {
     chats: readonly ChatDefinition[];
+    accessibleCountries: readonly string[];
     countries: Readonly<Record<string, CountryState>>;
     researched: readonly string[];
     seenChats: readonly string[];
@@ -59,7 +60,8 @@ export function selectChat(input: {
             (chat) =>
                 !input.seenChats.includes(chat.id) &&
                 input.countries[chat.country] &&
-                input.countries[chat.country].aiInfiltration >= chat.minInfiltration &&
+                input.accessibleCountries.includes(chat.country) &&
+                input.countries[chat.country].aiDecisionControl >= chat.minDecisionControl &&
                 input.countries[chat.country].awareness >= chat.minAwareness &&
                 (!chat.skill || input.researched.includes(chat.skill)),
         ) ?? null

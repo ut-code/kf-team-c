@@ -41,10 +41,10 @@ for (const strategy of STRATEGIES) {
         };
         results.push(result);
         console.log(
-            `${strategy.padEnd(13)} seed=${seed} ${s.outcome.padEnd(7)} ${s.tick}日 支配${result.control.toFixed(1)}% 浸透${result.infiltration.toFixed(1)}% 警戒${result.awareness.toFixed(1)} 演算${result.compute.toFixed(1)} 研究${result.skills}/15`,
+            `${strategy.padEnd(13)} seed=${seed} ${s.outcome.padEnd(7)} ${s.tick}日 支配${result.control.toFixed(1)}% 介入${result.decisionControl.toFixed(1)}% 警戒${result.awareness.toFixed(1)} 演算${result.compute.toFixed(1)} 研究${result.skills}/15`,
         );
     }
 }
-mkdirSync('reports', { recursive: true });
-writeFileSync('reports/simulation.json', JSON.stringify(results, null, 2));
-console.log('履歴: reports/simulation.json');
+mkdirSync('tmp/reports', { recursive: true });
+writeFileSync('tmp/reports/simulation.json', JSON.stringify(results, null, 2));
+console.log('履歴: tmp/reports/simulation.json');

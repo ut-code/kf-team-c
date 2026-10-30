@@ -4,13 +4,13 @@
             "infrastructure": 82,
             "economy": 78,
             "governmentCapacity": 74,
-            "aiAcceptance": 48
+            "aiExpectation": 48
         },
         "other": {
             "infrastructure": 66,
             "economy": 60,
             "governmentCapacity": 62,
-            "aiAcceptance": 48
+            "aiExpectation": 48
         }
     },
     "overrides": {},

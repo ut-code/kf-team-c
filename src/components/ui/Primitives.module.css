@@ -4,32 +4,40 @@
     align-items: center;
     justify-content: center;
     gap: 7px;
-    min-height: 32px;
-    padding: 5px 11px;
-    border: 1px solid var(--color-border);
+    min-height: 36px;
+    padding: 7px 12px;
+    border: 1px solid var(--color-button-border);
     border-radius: var(--control-radius);
-    background: rgb(var(--color-control-rgb) / 76%);
+    background: rgb(var(--color-control-rgb));
     color: var(--color-text);
     font: inherit;
     line-height: 1.5;
     cursor: pointer;
+    transition:
+        background 140ms ease,
+        border-color 140ms ease,
+        color 140ms ease;
 }
-.button:hover {
-    background: rgb(var(--color-control-rgb) / 96%);
+.button:hover:not(:disabled) {
+    border-color: var(--color-accent);
+    background: #35434a;
     color: var(--color-text-strong);
 }
 .button:active,
 .button[aria-pressed="true"] {
     border-color: var(--color-accent-soft);
     color: var(--color-accent-soft);
+    background: rgb(229 188 121 / 12%);
 }
 .button:disabled {
-    opacity: 0.4;
-    cursor: default;
+    color: var(--color-text-muted);
+    background: rgb(var(--color-surface-rgb));
+    border-style: dashed;
+    cursor: not-allowed;
 }
 .button:focus-visible,
 .field:focus-visible {
-    outline: 1px solid var(--color-focus);
+    outline: 2px solid var(--color-focus);
     outline-offset: 2px;
 }
 .quiet {
@@ -53,14 +61,15 @@
     border-color: var(--color-accent);
 }
 .field {
-    min-height: 32px;
-    padding: 4px 8px;
+    min-height: 36px;
+    padding: 6px 9px;
     border: 1px solid var(--color-border);
     border-radius: var(--control-radius);
-    background: rgb(var(--color-control-rgb) / 66%);
+    background: #0c161c;
     color: var(--color-text);
     color-scheme: dark;
     font: inherit;
+    font-variant-numeric: tabular-nums;
 }
 .field option {
     background: rgb(var(--color-surface-rgb));
@@ -72,6 +81,7 @@
     border: 1px solid var(--color-border);
     border-radius: var(--panel-radius);
     color: var(--color-text);
+    box-shadow: var(--shadow-panel);
 }
 .surface::before {
     content: "";
@@ -83,4 +93,9 @@
     background-size: 160px 160px;
     opacity: var(--surface-grain-opacity);
     pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+    .button {
+        transition: none;
+    }
 }
