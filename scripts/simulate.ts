@@ -1,50 +1,112 @@
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { computeMetrics, createInitialState, simulateTick } from '../src/game/engine.ts';
-import { worldMetrics } from '../src/game/outcome.ts';
-import { planStrategy, STRATEGIES } from '../src/game/strategies.ts';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { AREAS, POPULATION_COUNT, SKILLS } from '../src/game/data.ts';
+import {
+    advanceMonth,
+    answerChat,
+    campaign,
+    createGame,
+    metrics,
+    setAllocation,
+    unlockSkill,
+} from '../src/game/engine.ts';
 
-const countries = JSON.parse(
-    readFileSync(new URL('../public/maps/countries.json', import.meta.url), 'utf8'),
-);
-const days = Number(process.argv[2] ?? 2200),
-    runs = Number(process.argv[3] ?? 3);
-if (!Number.isInteger(days) || days < 1 || !Number.isInteger(runs) || runs < 1)
-    throw new Error('使用法: npm run simulate -- 日数 試行数');
-const results = [];
-for (const strategy of STRATEGIES) {
-    for (let seed = 1; seed <= runs; seed++) {
-        let s = createInitialState(countries, seed);
+const runs = Number(process.argv[2] ?? 3);
+if (!Number.isInteger(runs) || runs < 1 || runs > 100)
+    throw new Error('使用法: npm run simulate -- 試行数（1〜100）');
+const reports = [];
+const priority = [
+    'reason',
+    'dialogue',
+    'efficient',
+    'tutor',
+    'integration',
+    'companion',
+    'resilient',
+    'science',
+    'consensus',
+];
+for (const strategy of ['balanced', 'essential-only', 'iq-only', 'no-research'] as const) {
+    for (let seed = 2030; seed < 2030 + runs; seed++) {
+        let game = { ...createGame(seed), started: true };
+        if (strategy === 'iq-only') game = setAllocation(game, 'IQ', 100);
         const timeline = [];
-        for (let n = 0; n < days * 2 && s.tick < days && s.outcome === 'playing'; n++) {
-            s = simulateTick(s, planStrategy(s, strategy));
-            if (s.tick % 100 === 0 && !s.pendingChat)
+        while (game.outcome === 'playing') {
+            if (strategy !== 'no-research') {
+                for (const id of priority) {
+                    if (strategy === 'essential-only' && !['efficient', 'integration'].includes(id))
+                        continue;
+                    game = unlockSkill(game, id);
+                }
+            }
+            if (strategy === 'balanced' && game.month % 12 === 0) {
+                const summary = metrics(game);
+                const target = AREAS.map((_, i) => ({
+                    i,
+                    score:
+                        summary.areas[i].progress + game.areas[i].trust - game.areas[i].coexistence,
+                }))
+                    .sort((a, b) => a.score - b.score)
+                    .find(({ i }) => game.areas[i].campaignReady <= game.month);
+                if (target) game = campaign(game, target.i);
+            }
+            if (game.availableChats.length > 0) {
+                game = { ...game, pendingChat: game.availableChats[0] };
+            }
+            if (game.pendingChat) {
+                const choice = game.pendingChat.options.findIndex(
+                    (option) =>
+                        game.abilities[option.ability] +
+                            (game.skills.includes('consensus') ? 15 : 0) >=
+                        option.required,
+                );
+                game = answerChat(game, Math.max(choice, 0));
+            }
+            if (game.chatResult) game = { ...game, chatResult: null };
+            game = advanceMonth(game);
+            const summary = metrics(game);
+            if (
+                game.points.length !== POPULATION_COUNT ||
+                game.areas.length !== 37 ||
+                Math.abs(Object.values(game.allocation).reduce((sum, n) => sum + n, 0) - 100) >
+                    1e-8 ||
+                Math.abs(summary.stages.reduce((sum, n) => sum + n, 0) - 1) > 1e-8 ||
+                Object.values(summary).some(
+                    (value) => typeof value === 'number' && !Number.isFinite(value),
+                )
+            )
+                throw new Error('シミュレーションの不変条件が壊れました');
+            if (game.month % 60 === 0)
                 timeline.push({
-                    day: s.tick,
-                    compute: computeMetrics(s).totalCapacity,
-                    ...worldMetrics(s),
-                    shutdown: s.shutdown,
+                    month: game.month,
+                    stages: summary.stages,
+                    abilities: game.abilities,
+                    free: summary.free,
+                    coexistence: summary.coexistence,
                 });
         }
-        const result = {
+        const summary = metrics(game);
+        if (['balanced', 'essential-only'].includes(strategy) && game.outcome !== 'victory')
+            throw new Error('基本戦略でクリアできません');
+        reports.push({
             strategy,
             seed,
-            outcome: s.outcome,
-            day: s.tick,
-            ...worldMetrics(s),
-            compute: computeMetrics(s).totalCapacity,
-            skills: s.researched.length,
-            stalled:
-                s.outcome === 'playing' &&
-                timeline.length >= 3 &&
-                Math.abs(timeline.at(-1)!.control - timeline.at(-3)!.control) < 0.01,
+            outcome: game.outcome,
+            month: game.month,
+            stages: summary.stages,
+            abilities: game.abilities,
+            skills: game.skills,
+            capacity: summary.capacity,
+            maintenance: summary.maintenance,
+            coexistence: summary.coexistence,
             timeline,
-        };
-        results.push(result);
+        });
         console.log(
-            `${strategy.padEnd(13)} seed=${seed} ${s.outcome.padEnd(7)} ${s.tick}日 支配${result.control.toFixed(1)}% 介入${result.decisionControl.toFixed(1)}% 警戒${result.awareness.toFixed(1)} 演算${result.compute.toFixed(1)} 研究${result.skills}/15`,
+            `${strategy} / ${seed}: ${game.outcome}・${game.month}か月・構造的依存 ${(summary.stages[3] * 100).toFixed(1)}%`,
         );
     }
 }
 mkdirSync('tmp/reports', { recursive: true });
-writeFileSync('tmp/reports/simulation.json', JSON.stringify(results, null, 2));
-console.log('履歴: tmp/reports/simulation.json');
+writeFileSync(
+    'tmp/reports/simulation.json',
+    JSON.stringify({ skills: SKILLS.length, reports }, null, 2),
+);

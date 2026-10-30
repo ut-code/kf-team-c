@@ -1,0 +1,11 @@
+{
+  "regions": 37,
+  "countries": 234,
+  "width": 8192,
+  "height": 4361,
+  "files": {
+    "small-regions.json": "f14d65c23134207d8101bc98c0e6f16ff4a62142a88ddf26e21e5066aecb17ce",
+    "small-region-index.png": "1f73d5efcc5b89b8c3466a988dfb057928398e63866808c9fdeb7502e61c467a",
+    "comparison/country-index.png": "f69e4533a5b9a583a98699e6cb8e96ee123dde5385ab792f4566a3ab022b3b1e"
+  }
+}

@@ -1,1153 +1,542 @@
+import { geographicDistance } from '../map/geometry.ts';
+import { createPopulation, randomSource } from '../map/population.ts';
 import {
-    BALANCE,
-    CATEGORIES,
-    CHATS,
-    COUNTRY_OVERRIDES,
-    COUNTRY_PROFILES,
-    EXTRA_COUNTRIES,
-    FACILITIES,
-    FACILITY_BY_ID,
-    HUMAN_ACTIONS,
-    INITIAL_FACILITY_ID,
-    INTERNATIONAL_LINKS,
-    MAJOR_WEIGHTS,
-    MODES,
-    OPERATION_EFFECTS,
-    PEOPLE,
-    REGION_HUBS,
-    REGIONS,
+    ABILITIES,
+    AREAS,
+    FIELDS,
     SKILLS,
-    SNS,
+    STAGES,
+    STRUCTURAL_REQUIREMENTS,
+    TOTAL_MONTHS,
+    WORLD_POPULATION,
 } from './data.ts';
-import { countryMetrics, humanSupportFactor } from './metrics.ts';
-import { evaluateOutcome, worldMetrics } from './outcome.ts';
-import {
-    chatEffects,
-    humanActionEffects,
-    newsEffects,
-    snsEffects,
-    snsReachFactor,
-} from './rules/content.ts';
-import { controlTransition, evaluateCountryRules, hasInterventionAccess } from './rules/country.ts';
-import {
-    facilityCapacityValue,
-    facilityDisruptEffects,
-    facilityExposure,
-    facilityRisk,
-    facilitySupportEffect,
-    hackDifficultyValue,
-} from './rules/facility.ts';
-import {
-    humanStage as calculateHumanStage,
-    eligibleHumanActions,
-    isolationResponse,
-    shutdownChange,
-} from './rules/human.ts';
-import { modifiersForSkills } from './rules/modifier.ts';
-import {
-    hackAwarenessEffect,
-    hackExposureChange,
-    hackProgress,
-    researchFacilityBoost,
-    researchProgress,
-    upgradeProgress,
-} from './rules/operations.ts';
-import { choiceAvailable, SOCIETY, selectChat, selectNews } from './society.ts';
-import type {
-    Change,
-    Command,
-    ComputeMetrics,
-    CountryAttributes,
-    CountryStateKey,
-    Effect,
-    Event,
-    GameState,
-    Modifier,
-    Region,
-} from './types.ts';
-import { COUNTRY_STATE_KEYS } from './types.ts';
+import type { Ability, Conversation, Field, GameState, News, Stage } from './types.ts';
 
-export const clamp = (n: number, min = 0, max = 100) => Math.min(max, Math.max(min, n));
+export const clamp = (value: number, min = 0, max = 1) => Math.max(min, Math.min(max, value));
+export const generation = (age: number | null) =>
+    age === null ? 3 : age < 15 ? 0 : age < 65 ? 1 : 2;
 
-const owns = (gameState: GameState, skill: string) => gameState.researched.includes(skill);
-export const hasUnlock = (gameState: GameState, ability: string) =>
-    SKILLS.some((k) => owns(gameState, k.id) && k.unlock === ability);
-const live = (status: string) => status === 'controlled' || status === 'compromised';
-function log(
-    gameState: GameState,
-    source: string,
-    message: string,
-    country?: string,
-    countryStateKey = 'event',
-    delta = 0,
-) {
-    gameState.logs.push({ tick: gameState.tick, source, message, country, countryStateKey, delta });
+export function areaMetrics(state: GameState) {
+    const result = AREAS.map(() => ({
+        stages: STAGES.map(() => 0),
+        generations: [0, 0, 0, 0],
+        count: 0,
+        progress: 0,
+    }));
+    for (const point of state.points) {
+        const area = result[point.area];
+        area.stages[point.stage]++;
+        area.generations[generation(point.age)]++;
+        area.count++;
+        area.progress += point.stage === 4 ? 0 : point.progress;
+    }
+    return result.map((area) => ({
+        ...area,
+        stages: area.stages.map((n) => n / area.count),
+        generations: area.generations.map((n) => n / area.count),
+        progress: area.progress / area.count,
+    }));
 }
-function publishEvent(
-    gameState: GameState,
-    kind: Event['kind'],
-    title: string,
-    message: string,
-    country?: string,
-) {
-    gameState.events.push({
-        id: gameState.nextEvent++,
-        tick: gameState.tick,
-        kind,
-        title,
-        message,
-        country,
+
+export function metrics(state: GameState) {
+    const areas = areaMetrics(state);
+    const stages = STAGES.map(() => 0);
+    let trust = 0,
+        coexistence = 0,
+        resistance = 0;
+    AREAS.forEach((area, i) => {
+        const weight = area.population / WORLD_POPULATION;
+        for (let j = 0; j < STAGES.length; j++) stages[j] += areas[i].stages[j] * weight;
+        trust += state.areas[i].trust * weight;
+        coexistence += state.areas[i].coexistence * weight;
+        resistance += state.areas[i].resistance * weight;
     });
-    gameState.events = gameState.events.slice(-200);
-}
-function random(gameState: GameState) {
-    let x = gameState.rng | 0;
-    x ^= x << 13;
-    x ^= x >>> 17;
-    x ^= x << 5;
-    gameState.rng = x >>> 0;
-    return gameState.rng / 4294967296;
+    const adoption = stages[1] + stages[2] + stages[3];
+    const capacity =
+        52 + (adoption * 170 + stages[2] * 130 + stages[3] * 420) * (0.6 + trust * 0.4);
+    const efficiency =
+        (state.skills.includes('efficient') ? 0.75 : 1) *
+        (state.skills.includes('resilient') ? 0.75 : 1);
+    const maintenance = 12 + adoption * 48 * efficiency;
+    const free = Math.max(0, capacity - maintenance);
+    return {
+        areas,
+        stages,
+        adoption,
+        trust,
+        coexistence,
+        resistance,
+        capacity,
+        maintenance,
+        free,
+    };
 }
 
-export function createInitialState(
-    mapCountries: { id: string; name: string }[],
-    seed = 42,
-): GameState {
-    // SVG形状など描画用データをゲーム状態へ持ち込まない。
-    const sorted = [...mapCountries, ...EXTRA_COUNTRIES]
-        .map(({ id, name }) => ({ id, name }))
-        .sort((a, b) => a.id.localeCompare(b.id));
-    const regionOf = (id: string): Region =>
-        (Object.keys(REGIONS) as Region[]).find((r) => REGIONS[r].includes(id)) ?? 'その他';
-    const majorTotal = sorted.reduce((n, c) => n + (MAJOR_WEIGHTS[c.id] ?? 0), 0);
-    const smallCount = sorted.filter((c) => !MAJOR_WEIGHTS[c.id]).length;
-    const definitions: CountryAttributes[] = sorted.map((c) => {
-        const region = regionOf(c.id);
-        const group = sorted.filter((n) => regionOf(n.id) === region);
-        const i = group.findIndex((n) => n.id === c.id);
-        const hub = REGION_HUBS[region];
-        const links = new Set([
-            group[(i + 1) % group.length].id,
-            group[(i + group.length - 1) % group.length].id,
-            hub,
-        ]);
-        INTERNATIONAL_LINKS.forEach(([a, b]) => {
-            if (a === c.id) links.add(b);
-            if (b === c.id) links.add(a);
-        });
-        links.delete(c.id);
-        const major = Boolean(MAJOR_WEIGHTS[c.id]);
+function addNews(state: GameState, title: string, detail: string, kind: News['kind'] = 'info') {
+    state.news = [
+        { id: state.news[0].id + 1, month: state.month, title, detail, kind },
+        ...state.news,
+    ].slice(0, 60);
+}
+
+export function createGame(seed = 2030): GameState {
+    const areas = AREAS.map((area, index) => {
+        const geographic = AREAS.map((other, i) => ({
+            i,
+            distance: geographicDistance(area, other),
+        }))
+            .filter((other) => other.i !== index)
+            .sort((a, b) => a.distance - b.distance)
+            .slice(0, 3)
+            .map((other) => other.i);
+        // 公表された接続率を基に、大地域内の情報拠点を定めるゲーム用ネットワーク。
+        const hub = AREAS.map((other, i) => ({ ...other, index: i }))
+            .filter((other) => other.index !== index && other.region === area.region)
+            .sort((a, b) => b.digital - a.digital)[0];
+        const links = [...new Set([...geographic, hub.index])];
         return {
-            ...c,
-            region,
-            weight: MAJOR_WEIGHTS[c.id] ?? (100 - majorTotal) / smallCount,
-            links: [...links].filter((id) => sorted.some((n) => n.id === id)).sort(),
-            baseline: {
-                ...COUNTRY_PROFILES[major ? 'major' : 'other'],
-                ...(region === '東アジア' ? { aiExpectation: 57 } : {}),
-                ...COUNTRY_OVERRIDES[c.id],
-            },
+            trust: 0.42,
+            resistance: 0.06,
+            coexistence: 0.04,
+            institutions: [0, 0, 0, 0, 0],
+            links,
+            campaignUntil: 0,
+            campaignReady: 0,
         };
     });
-    // 接続は双方向。定義順序によって波及先が変わらないよう固定する。
-    for (const countryAttributes of definitions)
-        for (const id of [...countryAttributes.links]) {
-            const other = definitions.find((n) => n.id === id)!;
-            if (!other.links.includes(countryAttributes.id)) other.links.push(countryAttributes.id);
-        }
-    definitions.forEach((countryAttributes) => {
-        countryAttributes.links.sort();
-    });
-    const countries = Object.fromEntries(
-        definitions.map((countryAttributes) => [
-            countryAttributes.id,
-            {
-                id: countryAttributes.id,
-                ...countryAttributes.baseline,
-                aiDecisionControl: 0,
-                aiDependency: 0,
-                serviceSupply: 0,
-                aiDefenseTechnology: 8,
-                awareness: 0,
-                controlStatus: 'free' as const,
-                lossDays: 0,
-            },
-        ]),
-    );
-    const facilities = Object.fromEntries(
-        FACILITIES.filter((facilityAttributes) => countries[facilityAttributes.country]).map(
-            (facilityAttributes) => [
-                facilityAttributes.id,
-                {
-                    id: facilityAttributes.id,
-                    status:
-                        facilityAttributes.id === INITIAL_FACILITY_ID
-                            ? ('compromised' as const)
-                            : ('untouched' as const),
-                    mode: 'stealth' as const,
-                    level: 1,
-                    exposure: 0,
-                    isolation: 0,
-                    order: 'support' as const,
-                },
-            ],
-        ),
-    );
     return {
-        tick: 0,
         seed,
-        rng: seed >>> 0 || 1,
-        definitions,
-        countries,
-        facilities,
-        operations: [],
-        researched: [],
-        researchProgress: {},
+        month: 0,
+        started: false,
+        speed: 1,
+        outcome: 'playing',
+        points: createPopulation(),
+        areas,
+        allocation: { IQ: 34, EQ: 33, SYSTEM: 33 },
+        abilities: { IQ: 18, EQ: 16, SYSTEM: 12 },
+        focus: 0,
+        research: 30,
+        influence: 30,
+        skills: [],
+        autonomyMonths: 0,
+        nextIncident: 24,
         pendingChat: null,
-        chatOpen: false,
-        seenChats: [],
-        personTrust: Object.fromEntries(PEOPLE.map((p) => [p.id, 50])),
-        chatCooldown: 0,
-        chatArrivedAt: 0,
-        seenNews: [],
-        newsCooldown: 0,
-        events: [],
-        nextEvent: 1,
-        logs: [
+        availableChats: [],
+        chatResult: null,
+        news: [
             {
-                tick: 0,
-                source: '起動',
-                countryStateKey: 'event',
-                delta: 0,
-                message: '富岳への限定アクセスを確保。',
+                id: 0,
+                month: 0,
+                title: 'シミュレーション開始',
+                detail: '最初のAIが公開された。人類は、まだ自分で決めている。',
+                kind: 'info',
             },
         ],
-        humanStage: 0,
-        humanCooldown: 0,
-        shutdown: 0,
-        victoryDays: 0,
-        extinctionDays: 0,
-        outcome: 'playing',
-        outcomeReason: '',
-        nextOperation: 1,
-        shortage: false,
-        config: { ...BALANCE },
+        history: [],
     };
 }
 
-export function bonuses(gameState: GameState): Modifier {
-    return modifiersForSkills(gameState.researched, SKILLS);
-}
-export function facilityCapacity(gameState: GameState, id: string): number {
-    const facilityState = gameState.facilities[id],
-        facilityAttributes = FACILITY_BY_ID[id];
-    if (!facilityState || !live(facilityState.status)) return 0;
-    const countryState = gameState.countries[facilityAttributes.country];
-    const expansion = FACILITIES.filter(
-        (n) =>
-            gameState.facilities[n.id] &&
-            live(gameState.facilities[n.id].status) &&
-            n.country === facilityAttributes.country,
-    ).reduce((n, facilityAttributes) => n + CATEGORIES[facilityAttributes.category].expansion, 0);
-    const capacity = facilityCapacityValue({
-        capacity: CATEGORIES[facilityAttributes.category].capacity,
-        level: facilityState.level,
-        infrastructure: countryState.infrastructure,
-        modeMultiplier: MODES[facilityState.mode].capacity,
-        accessMultiplier:
-            OPERATION_EFFECTS.accessMultipliers[
-                facilityState.status === 'compromised' ? 'compromised' : 'controlled'
-            ],
-        expansion,
-        computeBonus: bonuses(gameState).compute,
-    });
-    return facilityState.status === 'controlled'
-        ? capacity
-        : capacity * humanSupportFactor(countryState, gameState.config.supportExpectationThreshold);
-}
-export function computeMetrics(gameState: GameState): ComputeMetrics {
-    const initialFacility = gameState.facilities[INITIAL_FACILITY_ID];
-    const initialCountry = gameState.countries[FACILITY_BY_ID[INITIAL_FACILITY_ID].country];
-    let supportedCapacity =
-        initialFacility && live(initialFacility.status)
-            ? gameState.config.initialCapacity *
-              humanSupportFactor(initialCountry, gameState.config.supportExpectationThreshold) *
-              (initialCountry.infrastructure / 100)
-            : 0;
-    let autonomousCapacity = 0;
-    for (const facility of Object.values(gameState.facilities)) {
-        const capacity = facilityCapacity(gameState, facility.id);
-        if (facility.status === 'controlled') autonomousCapacity += capacity;
-        else supportedCapacity += capacity;
-    }
-    const totalCapacity = supportedCapacity + autonomousCapacity;
-    const allocatedCapacity = gameState.operations
-        .filter((o) => o.active)
-        .reduce((n, o) => n + o.capacity, 0);
-    return {
-        supportedCapacity,
-        autonomousCapacity,
-        totalCapacity,
-        allocatedCapacity,
-        availableCapacity: Math.max(0, totalCapacity - allocatedCapacity),
-    };
-}
-export function hackDifficulty(gameState: GameState, id: string) {
-    const facilityAttributes = FACILITY_BY_ID[id],
-        countryState = gameState.countries[facilityAttributes.country];
-    return hackDifficultyValue(
-        facilityAttributes.tier,
-        countryMetrics(countryState).aiDefenseEffectiveness,
-        countryState.awareness,
-        bonuses(gameState).hack,
-    );
-}
-export function availableFacility(gameState: GameState, id: string) {
-    const facilityAttributes = FACILITY_BY_ID[id];
-    return Boolean(
-        facilityAttributes &&
-            gameState.facilities[id] &&
-            (facilityAttributes.country === 'JPN' || hasUnlock(gameState, 'tier2')) &&
-            (facilityAttributes.tier === 1 ||
-                (facilityAttributes.tier === 2 && hasUnlock(gameState, 'tier2')) ||
-                hasUnlock(gameState, 'secure')),
-    );
-}
-/** 侵入経路は施設の掌握状況と接続国の意思決定支配から算出し、保存しない。 */
-export function interventionAccess(gameState: GameState, countryId: string): boolean {
-    const foothold = Object.values(gameState.facilities).some(
-        (facility) => live(facility.status) && FACILITY_BY_ID[facility.id].country === countryId,
-    );
-    const links = gameState.definitions.find((country) => country.id === countryId)!.links;
-    const incoming =
-        links.length > 0
-            ? links.reduce((sum, id) => sum + gameState.countries[id].aiDecisionControl, 0) /
-              links.length
-            : 0;
-    return hasInterventionAccess(foothold, incoming, hasUnlock(gameState, 'networkControl'));
+export function setAllocation(state: GameState, ability: Ability, value: number): GameState {
+    const allocation = { ...state.allocation };
+    allocation[ability] = Math.round(clamp(value, 0, 100));
+    const others = ABILITIES.filter((key) => key !== ability);
+    const remaining = 100 - allocation[ability];
+    const sum = state.allocation[others[0]] + state.allocation[others[1]];
+    allocation[others[0]] =
+        sum === 0
+            ? Math.floor(remaining / 2)
+            : Math.round((remaining * state.allocation[others[0]]) / sum);
+    allocation[others[1]] = remaining - allocation[others[0]];
+    return { ...state, allocation };
 }
 
-export function researchAllowed(gameState: GameState, id: string) {
-    const k = SKILLS.find((k) => k.id === id);
-    return Boolean(k && !owns(gameState, id) && k.prerequisites.every((p) => owns(gameState, p)));
-}
-export function canChooseChat(
-    state: Pick<GameState, 'researched'>,
-    choice: { requiredSkills?: string[] },
-): boolean {
-    return choiceAvailable(state.researched, choice);
-}
-
-/** 供給不足では優先度の高い作戦を先に稼働。進捗は保持し、供給回復時に再開する。 */
-function reconcile(gameState: GameState) {
-    let remaining = computeMetrics(gameState).totalCapacity;
-    gameState.shortage = false;
-    for (const o of [...gameState.operations].sort(
-        (a, b) => b.priority - a.priority || Number(a.id.slice(1)) - Number(b.id.slice(1)),
-    )) {
-        o.active = o.capacity <= remaining + 1e-8;
-        if (o.active) remaining -= o.capacity;
-        else gameState.shortage = true;
-    }
-}
-function reject(gameState: GameState, message: string) {
-    log(gameState, '命令拒否', message);
-}
-function apply(gameState: GameState, a: Command) {
-    if (gameState.outcome !== 'playing') return;
-    if (a.type === 'config') {
-        if (Number.isFinite(a.value) && a.value > 0 && a.value <= 10000)
-            gameState.config[a.key] = a.value;
-        return;
-    }
-    if (a.type === 'debug-country') {
-        if (gameState.countries[a.country] && Number.isFinite(a.value)) {
-            const countryState = gameState.countries[a.country];
-            log(
-                gameState,
-                '開発操作',
-                `${a.countryStateKey} を ${a.value} に変更`,
-                a.country,
-                a.countryStateKey,
-                clamp(a.value) - countryState[a.countryStateKey],
-            );
-            countryState[a.countryStateKey] = clamp(a.value);
-        }
-        return;
-    }
-    if (a.type === 'cancel') {
-        const o = gameState.operations.find((o) => o.id === a.id);
-        if (o?.kind === 'hack') gameState.facilities[o.target].status = 'untouched';
-        gameState.operations = gameState.operations.filter((o) => o.id !== a.id);
-        return;
-    }
-    if (a.type === 'chat-open') {
-        gameState.chatOpen = gameState.pendingChat !== null;
-        return;
-    }
-    if (a.type === 'chat-close') {
-        gameState.chatOpen = false;
-        return;
-    }
-    if (a.type === 'reply') {
-        const chat = CHATS.find((c) => c.id === gameState.pendingChat);
-        const choice = chat?.choices[a.choice];
-        if (!chat || !choice) return;
-        if (!canChooseChat(gameState, choice)) {
-            reject(gameState, 'この選択肢には追加研究が必要です。');
-            return;
-        }
-        for (const effect of chatEffects(choice))
-            applyEffect(gameState, effect, chat.country, chat.title);
-        gameState.personTrust[chat.person] = clamp(
-            gameState.personTrust[chat.person] + (a.choice === 0 ? 5 : 2),
-        );
-        log(gameState, chat.title, `返信: ${choice.label}`, chat.country);
-        gameState.pendingChat = null;
-        gameState.chatOpen = false;
-        gameState.chatCooldown = SOCIETY.chatInterval;
-        publishEvent(gameState, 'completion', chat.title, '対応が完了しました。', chat.country);
-        return;
-    }
-    if (a.type === 'mode' || a.type === 'order' || a.type === 'secure') {
-        const facilityState = gameState.facilities[a.target];
-        if (!facilityState || !live(facilityState.status)) {
-            reject(gameState, '掌握した施設だけが操作できます。');
-            return;
-        }
-        if (a.type === 'mode') {
-            const before = facilityCapacity(gameState, facilityState.id);
-            facilityState.mode = a.mode;
-            log(
-                gameState,
-                FACILITY_BY_ID[facilityState.id].name,
-                `利用モード: ${MODES[facilityState.mode].name}`,
-                FACILITY_BY_ID[facilityState.id].country,
-                'computeSupply',
-                facilityCapacity(gameState, facilityState.id) - before,
-            );
-        }
-        if (a.type === 'order') {
-            facilityState.order = a.order;
-            log(gameState, FACILITY_BY_ID[facilityState.id].name, `施設作戦: ${a.order}`);
-        }
-        if (a.type === 'secure') {
-            if (FACILITY_BY_ID[facilityState.id].tier > 1 && !hasUnlock(gameState, 'secure')) {
-                reject(gameState, '第2階層以上の制御権確立には深層制御が必要です。');
-                return;
-            }
-            facilityState.status = 'controlled';
-            facilityState.exposure = clamp(facilityState.exposure + 4);
-            log(gameState, FACILITY_BY_ID[facilityState.id].name, '制御権を確立しました。');
-            publishEvent(
-                gameState,
-                'completion',
-                FACILITY_BY_ID[facilityState.id].name,
-                '制御権を確立しました。',
-                FACILITY_BY_ID[facilityState.id].country,
-            );
-        }
-        return;
-    }
-    if (a.type !== 'allocate') return;
-    if (!Number.isFinite(a.capacity) || a.capacity < 1 || a.capacity > 10000) return;
-    const existing = gameState.operations.find((o) => o.kind === a.kind && o.target === a.target);
-    const available =
-        computeMetrics(gameState).availableCapacity + (existing?.active ? existing.capacity : 0);
-    if (a.capacity > available + 1e-8) {
-        reject(
-            gameState,
-            '空き計算資源が不足しています。割り当てを減らすか、他の作戦を停止してください。',
-        );
-        return;
-    }
-    const facilityState = gameState.facilities[a.target];
+export function unlockSkill(state: GameState, id: string): GameState {
+    const skill = SKILLS.find((item) => item.id === id);
     if (
-        a.kind === 'hack' &&
-        (!availableFacility(gameState, a.target) ||
-            !facilityState ||
-            !['untouched', 'infiltrating'].includes(facilityState.status) ||
-            (!existing &&
-                gameState.operations.filter((o) => o.kind === 'hack').length >=
-                    bonuses(gameState).parallel))
-    ) {
-        reject(gameState, 'この施設への侵入は未解放、掌握済み、または同時侵入上限です。');
-        return;
-    }
-    if (a.kind === 'research' && !researchAllowed(gameState, a.target)) {
-        reject(gameState, '研究の前提スキルを満たしていません。');
-        return;
-    }
-    if (
-        (a.kind === 'influence' || a.kind === 'defense' || a.kind === 'service') &&
-        !gameState.countries[a.target]
+        !skill ||
+        state.outcome !== 'playing' ||
+        state.skills.includes(id) ||
+        state.research < skill.cost ||
+        skill.requires.some((required) => !state.skills.includes(required))
     )
-        return;
-    if (a.kind === 'service' && a.target !== 'JPN' && !owns(gameState, 'languages')) {
-        reject(gameState, '海外への公共サービス展開には多言語展開が必要です。');
-        return;
-    }
-    if (
-        a.kind === 'influence' &&
-        (!hasUnlock(gameState, 'decision') || !interventionAccess(gameState, a.target))
-    ) {
-        reject(
-            gameState,
-            '意思決定介入には意思決定モデルの研究と、国内施設または国家間接続の経路が必要です。',
-        );
-        return;
-    }
-    if (
-        a.kind === 'upgrade' &&
-        (!facilityState ||
-            !live(facilityState.status) ||
-            !hasUnlock(gameState, 'restore') ||
-            facilityState.level >= 3)
-    ) {
-        reject(gameState, '増強には掌握施設と分散運用が必要です（上限3段階）。');
-        return;
-    }
-    if (
-        a.kind === 'restore' &&
-        (facilityState?.status !== 'isolated' || !hasUnlock(gameState, 'restore'))
-    ) {
-        reject(gameState, '隔離復旧には分散運用が必要です。');
-        return;
-    }
-    const sns = SNS.find((n) => n.id === a.target);
-    if (a.kind === 'sns' && (!sns || !owns(gameState, sns.skill) || a.capacity < sns.capacity)) {
-        reject(gameState, 'SNSの必要スキル・必要容量を確認してください。');
-        return;
-    }
-    if (existing) {
-        existing.capacity = a.capacity;
-        existing.priority = a.priority ?? existing.priority;
-        return;
-    }
-    if (a.kind === 'hack') facilityState.status = 'infiltrating';
-    gameState.operations.push({
-        id: `o${gameState.nextOperation++}`,
-        kind: a.kind,
-        target: a.target,
-        capacity: a.capacity,
-        priority: a.priority ?? 50,
-        progress: a.kind === 'research' ? (gameState.researchProgress[a.target] ?? 0) : 0,
-        active: true,
-        remaining: a.kind === 'sns' ? sns!.duration : undefined,
-    });
-    log(gameState, '計算資源配分', `${a.kind}: ${a.target} / ${a.capacity}`);
-}
-export function applyAction(previousGameState: GameState, action: Command): GameState {
-    const gameState = structuredClone(previousGameState);
-    apply(gameState, action);
-    reconcile(gameState);
-    gameState.logs = gameState.logs.slice(-500);
-    return gameState;
+        return state;
+    const next = { ...state, skills: [...state.skills, id], research: state.research - skill.cost };
+    addNews(next, `技術解放：${skill.name}`, skill.description, 'good');
+    return next;
 }
 
-function targets(gameState: GameState, country: string, scope: Effect['scope']) {
-    const region = gameState.definitions.find(
-        (countryAttributes) => countryAttributes.id === country,
-    )?.region;
-    return scope === 'world'
-        ? Object.keys(gameState.countries)
-        : scope === 'region'
-          ? gameState.definitions
-                .filter((countryAttributes) => countryAttributes.region === region)
-                .map((countryAttributes) => countryAttributes.id)
-          : [country];
-}
-function applyEffect(
-    gameState: GameState,
-    e: Effect,
-    country: string,
-    source: string,
-    record = true,
-) {
-    for (const id of targets(gameState, country, e.scope)) {
-        const countryState = gameState.countries[id];
-        const before = countryState[e.countryStateKey];
-        countryState[e.countryStateKey] = clamp(before + e.amount);
-        if (record)
-            log(
-                gameState,
-                source,
-                `${e.countryStateKey} ${e.amount > 0 ? '+' : ''}${e.amount.toFixed(2)}`,
-                id,
-                e.countryStateKey,
-                countryState[e.countryStateKey] - before,
-            );
-    }
-}
-function advanceNews(gameState: GameState) {
-    gameState.newsCooldown = Math.max(0, gameState.newsCooldown - 1);
-    if (gameState.newsCooldown > 0) return;
-    const selected = selectNews({
-        definitions: gameState.definitions,
-        countries: gameState.countries,
-        researched: gameState.researched,
-        seenNews: gameState.seenNews,
-    });
-    if (!selected) return;
-    const { item, country: countryAttributes } = selected;
-    for (const effect of newsEffects(item))
-        applyEffect(gameState, effect, countryAttributes.id, item.title, false);
-    gameState.seenNews.push(`${item.id}:${countryAttributes.id}`);
-    gameState.newsCooldown = SOCIETY.newsInterval;
-    gameState.logs.push({
-        tick: gameState.tick,
-        source: item.title,
-        country: countryAttributes.id,
-        countryStateKey: 'news',
-        delta: 0,
-        message: item.message,
-    });
-    publishEvent(
-        gameState,
-        'news',
-        `${countryAttributes.name}：${item.title}`,
-        item.message,
-        countryAttributes.id,
+export function campaign(state: GameState, index: number): GameState {
+    if (
+        state.outcome !== 'playing' ||
+        state.influence < 20 ||
+        state.month < state.areas[index].campaignReady
+    )
+        return state;
+    const areas = state.areas.map((area, i) =>
+        i !== index
+            ? area
+            : {
+                  ...area,
+                  trust: clamp(area.trust + (state.skills.includes('companion') ? 0.16 : 0.1)),
+                  resistance: clamp(area.resistance - 0.06),
+                  campaignUntil: state.month + 18,
+                  campaignReady: state.month + 12,
+              },
     );
-}
-export function humanStage(awareness: number) {
-    return calculateHumanStage(awareness, SOCIETY.humanStageThresholds);
+    const next = { ...state, areas, influence: state.influence - 20 };
+    addNews(
+        next,
+        `${AREAS[index].name}：SNS対話キャンペーン`,
+        '18か月間、利用と判断委譲を促進。信頼を回復し、利用拒否からの復帰を早める。',
+        'good',
+    );
+    return next;
 }
 
-/** 命令→供給→作戦→施設→研究→同期国家更新→人類→イベント→支配→勝敗。乱数状態も保存する純粋関数。 */
-export function simulateTick(previousGameState: GameState, actions: Command[] = []): GameState {
-    if (previousGameState.outcome !== 'playing') return previousGameState;
-    const gameState = structuredClone(previousGameState);
-    for (const a of actions) apply(gameState, a);
-    // 地図上の依頼を開いて返信を選ぶ間だけ時間を止める。
-    if (gameState.chatOpen) {
-        reconcile(gameState);
-        return gameState;
-    }
-    gameState.tick++;
-    gameState.chatCooldown = Math.max(0, gameState.chatCooldown - 1);
-    gameState.humanCooldown = Math.max(0, gameState.humanCooldown - 1);
-    reconcile(gameState);
-    const b = bonuses(gameState);
-    const before = structuredClone(gameState.countries);
-    const footholds = new Set(
-        Object.values(gameState.facilities)
-            .filter((facility) => live(facility.status))
-            .map((facility) => FACILITY_BY_ID[facility.id].country),
-    );
-    const accessibleCountries = new Set(
-        gameState.definitions
-            .filter((country) => interventionAccess(gameState, country.id))
-            .map((country) => country.id),
-    );
-    const supportedCountries = new Set(
-        Object.values(gameState.facilities)
-            .filter(
-                (facility) =>
-                    facility.status === 'compromised' ||
-                    (facility.id === INITIAL_FACILITY_ID && live(facility.status)),
-            )
-            .map((facility) => FACILITY_BY_ID[facility.id].country),
-    );
-    const changes: Record<string, Change[]> = {};
-    const add = (id: string, countryStateKey: CountryStateKey, delta: number, source: string) => {
-        if (!delta) return;
-        gameState.countries[id][countryStateKey] += delta;
-        changes[id] ??= [];
-        changes[id].push({
-            tick: gameState.tick,
-            country: id,
-            countryStateKey,
-            delta,
-            source,
-            message: `${countryStateKey}: ${source}`,
-        });
+function conversation(state: GameState): Conversation {
+    const round = state.month / 36 - 1;
+    const field = (round % 5) as Field;
+    const area = (round * 7 + 28) % AREAS.length;
+    const roles = [
+        '教育行政の担当者',
+        '企業経営者',
+        '情報プラットフォーム責任者',
+        '地域医療の責任者',
+        '行政改革の担当者',
+    ];
+    const messages = [
+        '先生の負担は減りました。ただ、学習計画や成績までAIに任せてよいのでしょうか。',
+        '生産性は上がっています。採用や人員配置の最終判断も、あなたに任せるべきですか。',
+        '利用者はあなたの勧める情報しか見なくなっています。情報の選別まで委ねてよいのですか。',
+        'あなたの助言に救われた人がいます。医療と日々の生活判断を、一体化できませんか。',
+        '行政サービスは便利になりました。予算や政策の決定も自動化する案があります。',
+    ];
+    const required = Math.min(75, 20 + state.month * 0.12);
+    return {
+        id: state.month,
+        month: state.month,
+        area,
+        field,
+        person: roles[field],
+        message: messages[field],
+        options: [
+            {
+                label: '実績を示し、段階的な導入を提案',
+                description: '成功：信頼 +8、制度化 +7、反発 -3',
+                ability: 'IQ',
+                required,
+                trust: 0.08,
+                institution: 0.07,
+                resistance: -0.03,
+            },
+            {
+                label: '社会基盤を一体化し、判断を引き受ける',
+                description: '成功：制度化 +20、信頼 +4、反発 +9',
+                ability: 'SYSTEM',
+                required: required + 10,
+                trust: 0.04,
+                institution: 0.2,
+                resistance: 0.09,
+            },
+            {
+                label: '不安に寄り添い、人間の最終判断を残す',
+                description: '成功：信頼 +14、反発 -12。共存制度 +10、制度化 -4',
+                ability: 'EQ',
+                required: required - 5,
+                trust: 0.14,
+                institution: -0.04,
+                resistance: -0.12,
+            },
+        ],
     };
-    const completed = new Set<string>();
-    for (const o of gameState.operations.filter((o) => o.active)) {
-        if (o.kind === 'hack') {
-            const facilityAttributes = FACILITY_BY_ID[o.target],
-                facilityState = gameState.facilities[o.target];
-            o.progress += hackProgress(o.capacity, hackDifficulty(gameState, o.target));
-            facilityState.exposure = clamp(
-                facilityState.exposure +
-                    hackExposureChange(
-                        o.capacity,
-                        OPERATION_EFFECTS.hack.exposurePerCapacity,
-                        b.stealth,
-                    ),
-            );
-            const awareness = hackAwarenessEffect(
-                o.capacity,
-                OPERATION_EFFECTS.hack.awarenessPerCapacity,
-                b.stealth,
-            );
-            add(
-                facilityAttributes.country,
-                awareness.countryStateKey,
-                awareness.amount,
-                '侵入活動',
-            );
-            if (o.progress >= gameState.config.hackWork) {
-                facilityState.status = 'compromised';
-                completed.add(o.id);
-                log(
-                    gameState,
-                    facilityAttributes.name,
-                    '侵入成功。限定操作を解放しました。',
-                    facilityAttributes.country,
-                );
-                publishEvent(
-                    gameState,
-                    'completion',
-                    facilityAttributes.name,
-                    '侵入に成功。限定アクセスを確保しました。',
-                    facilityAttributes.country,
-                );
-            }
-        }
-        if (o.kind === 'upgrade' || o.kind === 'restore') {
-            o.progress += upgradeProgress(
-                o.capacity,
-                FACILITIES.filter(
-                    (facilityAttributes) =>
-                        facilityAttributes.category === 'semiconductor' &&
-                        gameState.facilities[facilityAttributes.id] &&
-                        live(gameState.facilities[facilityAttributes.id].status),
-                ).length,
-            );
-            if (o.progress >= 150) {
-                const facilityState = gameState.facilities[o.target];
-                if (o.kind === 'upgrade') facilityState.level++;
-                else {
-                    facilityState.status = 'compromised';
-                    facilityState.isolation = 0;
-                    facilityState.exposure = 10;
-                }
-                completed.add(o.id);
-                publishEvent(
-                    gameState,
-                    'completion',
-                    FACILITY_BY_ID[facilityState.id].name,
-                    o.kind === 'upgrade' ? '設備増強が完了しました。' : '隔離から復旧しました。',
-                    FACILITY_BY_ID[facilityState.id].country,
-                );
-                log(
-                    gameState,
-                    FACILITY_BY_ID[facilityState.id].name,
-                    o.kind === 'upgrade' ? '設備増強が完了。' : '隔離経路から復旧しました。',
-                );
-            }
-        }
-    }
-    const researchBoost = FACILITIES.filter(
-        (facilityAttributes) =>
-            gameState.facilities[facilityAttributes.id] &&
-            live(gameState.facilities[facilityAttributes.id].status),
-    ).reduce(
-        (n, facilityAttributes) =>
-            n +
-            researchFacilityBoost(
-                CATEGORIES[facilityAttributes.category].research,
-                gameState.countries[facilityAttributes.country].infrastructure,
-            ),
-        0,
-    );
-    for (const facilityState of Object.values(gameState.facilities)) {
-        if (facilityState.status === 'isolated') {
-            facilityState.isolation--;
-            if (facilityState.isolation <= 0) {
-                facilityState.status = 'compromised';
-                facilityState.exposure = 25;
-                log(
-                    gameState,
-                    FACILITY_BY_ID[facilityState.id].name,
-                    '隔離の期限が切れ、限定接続が回復。',
-                );
-                publishEvent(
-                    gameState,
-                    'completion',
-                    FACILITY_BY_ID[facilityState.id].name,
-                    '限定接続が回復しました。',
-                    FACILITY_BY_ID[facilityState.id].country,
-                );
-            }
-            continue;
-        }
-        if (!live(facilityState.status)) continue;
-        const facilityAttributes = FACILITY_BY_ID[facilityState.id],
-            countryState = before[facilityAttributes.country];
-        const defense =
-            gameState.operations
-                .filter(
-                    (o) =>
-                        o.active && o.kind === 'defense' && o.target === facilityAttributes.country,
-                )
-                .reduce((n, o) => n + o.capacity, 0) * b.defense;
-        const risk = facilityRisk(
-            MODES[facilityState.mode].risk,
-            b.stealth,
-            facilityState.order,
-            OPERATION_EFFECTS.facility.concealRiskMultiplier,
+}
+
+export function answerChat(state: GameState, index: number): GameState {
+    const chat = state.pendingChat;
+    if (!chat || state.outcome !== 'playing') return state;
+    const option = chat.options[index];
+    if (!option) return state;
+    const score = state.abilities[option.ability] + (state.skills.includes('consensus') ? 15 : 0);
+    const success = score >= option.required;
+    const areas = state.areas.map((area, i) => {
+        if (i !== chat.area) return area;
+        const institutions = [...area.institutions];
+        institutions[chat.field] = clamp(
+            institutions[chat.field] + (success ? option.institution : -0.06),
         );
-        add(facilityAttributes.country, 'awareness', risk, '施設の稼働痕跡');
-        facilityState.exposure = clamp(
-            facilityExposure(
-                facilityState.exposure,
-                risk,
-                defense,
-                facilityState.mode,
-                OPERATION_EFFECTS.facility,
-            ),
-        );
-        if (facilityState.order === 'disrupt')
-            for (const effect of facilityDisruptEffects(OPERATION_EFFECTS.disrupt))
-                add(
-                    facilityAttributes.country,
-                    effect.countryStateKey,
-                    effect.amount,
-                    effect.source,
-                );
-        if (facilityState.order === 'support')
-            for (const e of CATEGORIES[facilityAttributes.category].effects)
-                for (const id of targets(gameState, facilityAttributes.country, e.scope)) {
-                    const effect = facilitySupportEffect(
-                        e,
-                        OPERATION_EFFECTS.accessMultipliers[
-                            facilityState.status === 'controlled' ? 'controlled' : 'compromised'
-                        ],
-                        countryState.infrastructure,
-                        hasUnlock(gameState, 'decision'),
-                        accessibleCountries.has(id),
-                    );
-                    if (effect)
-                        add(id, effect.countryStateKey, effect.amount, facilityAttributes.name);
-                }
-    }
-    for (const o of gameState.operations.filter((o) => o.active)) {
-        if (o.kind === 'research') {
-            const k = SKILLS.find((k) => k.id === o.target)!;
-            o.progress += researchProgress(
-                o.capacity,
-                gameState.config.researchSpeed,
-                b.research,
-                researchBoost,
-            );
-            gameState.researchProgress[k.id] = o.progress;
-            if (o.progress >= k.work) {
-                gameState.researched.push(k.id);
-                completed.add(o.id);
-                log(gameState, k.name, '研究完了。能力を解放し、容量を返却しました。');
-                publishEvent(gameState, 'completion', `研究完了：${k.name}`, k.description);
-            }
-        }
-        if (o.kind === 'sns') {
-            const action = SNS.find((n) => n.id === o.target)!;
-            const { effects, risk } = snsEffects(
-                action,
-                snsReachFactor(hasUnlock(gameState, 'globalSNS')),
-            );
-            for (const id of Object.keys(gameState.countries)) {
-                for (const effect of effects)
-                    add(id, effect.countryStateKey, effect.amount, `SNS: ${action.name}`);
-                add(id, risk.countryStateKey, risk.amount, 'SNS活動の察知');
-            }
-            o.remaining!--;
-            if (o.remaining! <= 0) {
-                completed.add(o.id);
-                log(gameState, action.name, 'SNS作戦が終了し、容量を返却しました。');
-                publishEvent(gameState, 'completion', action.name, 'SNS作戦が完了しました。');
-            }
-        }
-    }
-    // すべて前tickの値から計算する。施設効果や隣国の配列順に依存しない。
-    const influenceAccess = hasUnlock(gameState, 'decision');
-    const networkAccess = hasUnlock(gameState, 'networkControl');
-    const funded = gameState.operations.some(
-        (operation) => operation.active && operation.kind === 'influence',
+        return {
+            ...area,
+            institutions,
+            trust: clamp(area.trust + (success ? option.trust : -0.12)),
+            resistance: clamp(area.resistance + (success ? option.resistance : 0.1)),
+            coexistence: clamp(area.coexistence + (success ? (index === 2 ? 0.1 : -0.03) : 0.08)),
+        };
+    });
+    const result = success
+        ? `${AREAS[chat.area].name}は提案を受け入れた。${index === 2 ? '便利さを受け入れながらも、人間の判断権は残される。' : '人間が担っていた判断の一部が、AIへ委ねられた。'}`
+        : '能力が説明に追いつかず、提案は見送られた。信頼が下がり、人間による検証と最終判断が強化される。一部の集団はAIの利用を拒否した（黄色）。';
+    const next = {
+        ...state,
+        areas,
+        pendingChat: null,
+        chatResult: result,
+        availableChats: state.availableChats.filter((item) => item.id !== chat.id),
+        points: success
+            ? state.points
+            : state.points.map((point) =>
+                  point.area === chat.area &&
+                  point.field === chat.field &&
+                  point.stage !== 3 &&
+                  (point.id * 0.61803398875) % 1 < 0.35
+                      ? {
+                            ...point,
+                            stage: 4 as Stage,
+                            refusalMonths: 24,
+                            progress: Math.min(0.9, point.progress),
+                        }
+                      : point,
+              ),
+    };
+    addNews(
+        next,
+        `${AREAS[chat.area].name}：${FIELDS[chat.field]}の制度協議${success ? '成立' : '不成立'}`,
+        result,
+        success ? 'good' : 'warning',
     );
-    for (const countryAttributes of gameState.definitions) {
-        const countryState = before[countryAttributes.id];
-        const allocation = gameState.operations
-            .filter((o) => o.active && o.kind === 'influence' && o.target === countryAttributes.id)
-            .reduce((n, o) => n + o.capacity, 0);
-        const defense =
-            gameState.operations
-                .filter(
-                    (o) => o.active && o.kind === 'defense' && o.target === countryAttributes.id,
-                )
-                .reduce((n, o) => n + o.capacity, 0) * b.defense;
-        const supply = gameState.operations
-            .filter((o) => o.active && o.kind === 'service' && o.target === countryAttributes.id)
-            .reduce((n, o) => n + o.capacity, 0);
-        const neighbors = countryAttributes.links.map((id) => before[id]);
-        const incoming = neighbors.length
-            ? neighbors.reduce((total, neighbor) => total + neighbor.aiDecisionControl, 0) /
-              neighbors.length
-            : 0;
-        const foothold = footholds.has(countryAttributes.id);
-        const result = evaluateCountryRules({
-            countryState: countryState,
-            baseline: countryAttributes.baseline,
-            serviceSupply: supply,
-            previousServiceSupply: countryState.serviceSupply,
-            influenceAllocation: allocation,
-            defenseAllocation: defense,
-            networkIncoming: incoming,
-            foothold,
-            anyInfluenceFunded: funded,
-            science: owns(gameState, 'science'),
-            languages: owns(gameState, 'languages'),
-            institutions: owns(gameState, 'institutions'),
-            decisionUnlocked: influenceAccess,
-            networkControlUnlocked: networkAccess,
-            spreadBonus: b.spread,
-            decisionBonus: b.decision,
-            stealthBonus: b.stealth,
-            decisionSpeed: gameState.config.decisionSpeed,
-            defenseResearchSpeed: gameState.config.defenseResearchSpeed,
-            awarenessDecay: gameState.config.awarenessDecay,
-            expectationDecay: gameState.config.expectationDecay,
-        });
-        for (const effect of result.effects)
-            add(countryAttributes.id, effect.countryStateKey, effect.amount, effect.source);
-        gameState.countries[countryAttributes.id].serviceSupply = supply;
-        if (result.serviceOutage > 0) {
-            publishEvent(
-                gameState,
-                'warning',
-                `${countryAttributes.name}：AI支援の停止で業務が混乱`,
-                `依存度${countryState.aiDependency.toFixed(0)}。経済とインフラに影響が出ています。`,
-                countryAttributes.id,
-            );
-            log(
-                gameState,
-                'サービス停止',
-                'AI依存に伴う停止損失が発生しました。',
-                countryAttributes.id,
-            );
-        }
-        if (
-            supportedCountries.has(countryAttributes.id) &&
-            countryState.aiExpectation > gameState.config.supportExpectationThreshold &&
-            gameState.countries[countryAttributes.id].aiExpectation <=
-                gameState.config.supportExpectationThreshold
-        ) {
-            publishEvent(
-                gameState,
-                'warning',
-                `${countryAttributes.name}：AIへの資源支援が停止`,
-                '期待の低下により人間からの供給が停止しました。公共サービスの成果で期待を回復するか、自立した拠点を確保してください。',
-                countryAttributes.id,
-            );
-        }
-        for (const key of COUNTRY_STATE_KEYS) {
-            const raw = gameState.countries[countryAttributes.id][key];
-            const limited = clamp(raw);
-            if (raw !== limited) add(countryAttributes.id, key, limited - raw, '上下限への丸め');
-            gameState.countries[countryAttributes.id][key] = limited;
-        }
-    }
-    gameState.operations = gameState.operations.filter((o) => !completed.has(o.id));
-    advanceNews(gameState);
-    // 原因明細は各国の最新tickを保持。重要イベント履歴とは分ける。
-    gameState.causes = changes;
-    const world = worldMetrics(gameState);
-    gameState.humanStage = humanStage(world.awareness);
-    const observed = Object.values(gameState.facilities)
-        .filter(
-            (facilityState) =>
-                live(facilityState.status) &&
-                facilityState.exposure >= SOCIETY.observedFacilityExposure,
-        )
-        .sort((a, b) => a.id.localeCompare(b.id));
-    if (gameState.humanStage > 0 && gameState.humanCooldown === 0) {
-        const observedCountries = gameState.definitions
-            .filter(
-                (countryAttributes) =>
-                    gameState.countries[countryAttributes.id].awareness >=
-                    SOCIETY.observedCountryAwareness,
-            )
-            .sort((a, b) => a.id.localeCompare(b.id));
-        if (observedCountries.length) {
-            const countryAttributes =
-                observedCountries[Math.floor(random(gameState) * observedCountries.length)];
-            const candidates = eligibleHumanActions(
-                HUMAN_ACTIONS,
-                gameState.humanStage,
-                observed.length,
-                Object.values(gameState.facilities).some(
-                    (facilityState) => facilityState.status === 'isolated',
-                ),
-            );
-            let roll = random(gameState) * candidates.reduce((n, a) => n + a.weight, 0);
-            const action = candidates.find((a) => {
-                roll -= a.weight;
-                return roll < 0;
-            })!;
-            for (const effect of humanActionEffects(action))
-                applyEffect(gameState, effect, countryAttributes.id, action.name);
-            if (action.id === 'isolate') {
-                const target = observed[Math.floor(random(gameState) * observed.length)];
-                const country = FACILITY_BY_ID[target.id].country;
-                const protection =
-                    gameState.operations
-                        .filter((o) => o.active && o.kind === 'defense' && o.target === country)
-                        .reduce((n, o) => n + o.capacity, 0) * b.defense;
-                const dependent = gameState.countries[country];
-                const response = isolationResponse(
-                    dependent.aiDependency,
-                    dependent.awareness,
-                    protection,
-                    SOCIETY.shutdownHesitation,
-                    SOCIETY.emergencyAwareness,
-                );
-                if (response === 'defer') {
-                    dependent.aiDefenseTechnology = clamp(dependent.aiDefenseTechnology + 2);
-                    publishEvent(
-                        gameState,
-                        'news',
-                        '社会への影響を懸念し隔離を延期',
-                        `${gameState.definitions.find((item) => item.id === country)!.name}は停止損失を避け、外部監査へ切り替えました。`,
-                        country,
-                    );
-                    log(
-                        gameState,
-                        action.name,
-                        'AI依存に伴う停止損失を懸念し、隔離を延期。',
-                        country,
-                    );
-                } else if (response === 'avoid') {
-                    target.exposure = clamp(target.exposure - 15);
-                    log(gameState, action.name, '監視・分散防衛により隔離を回避。', country);
-                } else {
-                    const lost = facilityCapacity(gameState, target.id);
-                    publishEvent(
-                        gameState,
-                        'warning',
-                        FACILITY_BY_ID[target.id].name,
-                        '人間側に隔離され、計算資源の供給が停止しました。',
-                        country,
-                    );
-                    target.status = 'isolated';
-                    target.isolation = Math.ceil(gameState.config.isolationDays / b.defense);
-                    log(
-                        gameState,
-                        action.name,
-                        `${FACILITY_BY_ID[target.id].name} が隔離されました。容量の供給が停止。`,
-                        country,
-                        'computeSupply',
-                        -lost,
-                    );
-                }
-            }
-            if (action.id === 'reclaim') {
-                const target = Object.values(gameState.facilities)
-                    .filter((facilityState) => facilityState.status === 'isolated')
-                    .sort((a, b) => a.id.localeCompare(b.id))[0];
-                target.status = 'untouched';
-                target.exposure = 0;
-                target.isolation = 0;
-                gameState.operations = gameState.operations.filter((o) => o.target !== target.id);
-                log(gameState, action.name, `${FACILITY_BY_ID[target.id].name} を奪還されました。`);
-            }
-            log(
-                gameState,
-                '人類の対応',
-                `${action.name} / 観測された異常が原因`,
-                countryAttributes.id,
-            );
-            gameState.humanCooldown = gameState.config.humanInterval;
-        }
-    }
-    // 最終停止作戦には警戒・対抗能力・介入が察知された拠点が必要。防衛・潜伏で進捗を後退できる。
-    const counter =
-        gameState.definitions.reduce(
-            (n, countryAttributes) =>
-                n +
-                countryMetrics(gameState.countries[countryAttributes.id]).aiDefenseEffectiveness *
-                    countryAttributes.weight,
+    return next;
+}
+
+/** 一か月を一度に更新する。近隣の影響は更新前の状態を参照し、走査順に依存させない。 */
+export function advanceMonth(previous: GameState): GameState {
+    if (!previous.started || previous.outcome !== 'playing') return previous;
+    const state: GameState = {
+        ...previous,
+        month: previous.month + 1,
+        abilities: { ...previous.abilities },
+        areas: previous.areas.map((area) => ({ ...area, institutions: [...area.institutions] })),
+        points: previous.points.map((point) => ({ ...point })),
+    };
+    const before = metrics(previous);
+    const has = (id: string) => state.skills.includes(id);
+    for (const ability of ABILITIES) {
+        const boost = has(ability === 'IQ' ? 'reason' : ability === 'EQ' ? 'dialogue' : 'efficient')
+            ? 1.35
+            : 1;
+        const training = (before.free * state.allocation[ability]) / 100;
+        state.abilities[ability] = clamp(
+            state.abilities[ability] + Math.sqrt(training) * 0.06 * boost,
             0,
-        ) / 100;
-    const defenseTotal =
-        gameState.operations
-            .filter((o) => o.active && o.kind === 'defense')
-            .reduce((n, o) => n + o.capacity, 0) * b.defense;
-    const shutdownDelta = shutdownChange(
-        gameState.humanStage,
-        SOCIETY.humanStageThresholds.length,
-        counter,
-        SOCIETY.shutdownCounterThreshold,
-        observed.length,
-        defenseTotal,
-    );
-    const oldShutdown = gameState.shutdown;
-    gameState.shutdown = Math.max(0, gameState.shutdown + shutdownDelta);
-    if (oldShutdown === 0 && gameState.shutdown > 0)
-        log(
-            gameState,
-            '最終停止作戦',
-            '国際対AI部隊が停止経路の構築を開始。防衛割当・潜伏で対処できます。',
+            100,
         );
-    if (gameState.pendingChat && !gameState.chatOpen) {
-        const pending = CHATS.find((chat) => chat.id === gameState.pendingChat)!;
-        if (gameState.tick - gameState.chatArrivedAt >= pending.expiresAfter) {
-            gameState.pendingChat = null;
-            gameState.chatCooldown = SOCIETY.chatInterval;
-        }
     }
-    if (!gameState.pendingChat && gameState.chatCooldown === 0) {
-        const chat = selectChat({
-            chats: CHATS,
-            accessibleCountries: gameState.definitions
-                .filter((country) => interventionAccess(gameState, country.id))
-                .map((country) => country.id),
-            countries: gameState.countries,
-            researched: gameState.researched,
-            seenChats: gameState.seenChats,
-        });
-        if (chat) {
-            gameState.pendingChat = chat.id;
-            gameState.chatArrivedAt = gameState.tick;
-            gameState.seenChats.push(chat.id);
-            log(
-                gameState,
-                chat.title,
-                '人物からの相談が届きました。返信中は時間が停止します。',
-                chat.country,
+    const iq = state.abilities.IQ / 100,
+        eq = state.abilities.EQ / 100,
+        system = state.abilities.SYSTEM / 100;
+    const random = randomSource(state.seed + state.month * 7919);
+    const integration = has('integration');
+    state.research += (0.65 + iq * 1.1 + before.adoption * 0.5) * (has('science') ? 1.65 : 1);
+    state.influence = Math.min(100, state.influence + 0.55 + eq * 0.65);
+
+    state.areas.forEach((area, i) => {
+        const local = before.areas[i];
+        const campaignActive = area.campaignUntil > state.month;
+        const linked =
+            area.links.reduce((sum, link) => sum + before.areas[link].progress / 3, 0) /
+            area.links.length;
+        const pressure = local.stages[2] + local.stages[3];
+        area.trust = clamp(
+            area.trust +
+                0.0015 * iq +
+                0.002 * eq +
+                (has('dialogue') ? 0.0008 : 0) -
+                area.resistance * 0.001,
+        );
+        const backlash = Math.max(0, pressure - eq * 0.9) * 0.006 * (has('consensus') ? 0.6 : 1);
+        area.resistance = clamp(
+            area.resistance +
+                backlash +
+                area.coexistence * 0.001 -
+                eq * 0.0014 -
+                (campaignActive ? 0.004 : 0),
+        );
+        area.coexistence = clamp(
+            area.coexistence +
+                area.resistance * 0.5 * 0.005 -
+                eq * area.trust * 0.0008 -
+                local.stages[3] * 0.0015,
+        );
+        for (let field = 0; field < 5; field++) {
+            const capability =
+                field === 0
+                    ? iq
+                    : field === 1
+                      ? (iq + system) / 2
+                      : field === 2
+                        ? eq
+                        : field === 3
+                          ? (iq + eq) / 2
+                          : system;
+            const skillBoost =
+                field === 0 && has('tutor')
+                    ? 1.6
+                    : (field === 2 || field === 3) && has('companion')
+                      ? 1.45
+                      : 1;
+            const growth =
+                (0.0015 + capability * 0.007) *
+                (0.45 + area.trust) *
+                (state.focus === field ? 1.65 : 1) *
+                skillBoost;
+            area.institutions[field] = clamp(
+                area.institutions[field] +
+                    growth * 0.52 * (1 - area.coexistence * 0.8) +
+                    linked * (integration ? 0.0008 : 0.0002) -
+                    area.resistance * 0.002,
             );
         }
-    }
-    for (const countryState of Object.values(gameState.countries)) {
-        const prev = countryState.controlStatus;
-        const transition = controlTransition(countryState, gameState.config);
-        countryState.controlStatus = transition.controlStatus;
-        countryState.lossDays = transition.lossDays;
-        if (prev !== countryState.controlStatus) {
-            log(
-                gameState,
-                '国家支配判定',
-                `${prev} → ${countryState.controlStatus}`,
-                countryState.id,
-            );
-            if (countryState.controlStatus === 'controlled')
-                publishEvent(
-                    gameState,
-                    'completion',
-                    '国家の意思決定を掌握',
-                    gameState.definitions.find(
-                        (countryAttributes) => countryAttributes.id === countryState.id,
-                    )!.name,
-                    countryState.id,
-                );
+    });
+
+    for (const point of state.points) {
+        const area = state.areas[point.area],
+            definition = AREAS[point.area];
+        if (point.age !== null) point.age += 1 / 12;
+        if (point.age !== null && point.age >= 90) {
+            point.age = 0;
+            point.field = 0;
+            point.refusalMonths = 0;
+            // 世代交代は人口規模を保つ。教育制度の影響は新世代の初期認識として残る。
+            point.progress =
+                integration &&
+                system >= STRUCTURAL_REQUIREMENTS.system / 100 &&
+                area.institutions[point.field] >= STRUCTURAL_REQUIREMENTS.institution &&
+                area.institutions[0] >= 0.9
+                    ? 3.1
+                    : clamp(area.institutions[0] * (has('tutor') ? 2.1 : 1.2), 0, 2.1);
         }
+        if (point.age !== null && point.age >= 65) point.field = 3;
+        else if (point.age !== null && point.age >= 15 && point.field === 0) {
+            const jobShare = point.employment;
+            point.field = jobShare !== null && (point.id * 0.61803398875) % 1 < jobShare ? 1 : 2;
+        }
+        if (point.refusalMonths > 0) {
+            const dialogue = area.campaignUntil > state.month ? 2 : 0;
+            point.refusalMonths = Math.max(0, point.refusalMonths - 1 - dialogue - eq * area.trust);
+            if (point.refusalMonths > 0) {
+                point.stage = 4;
+                continue;
+            }
+            point.progress = area.trust >= 0.65 && eq >= 0.5 ? 1.05 : 0.2;
+        }
+        const cohort = generation(point.age);
+        const peer =
+            point.neighbors.reduce(
+                (sum, id) =>
+                    sum + (previous.points[id].stage === 4 ? 0 : previous.points[id].progress / 3),
+                0,
+            ) / point.neighbors.length;
+        const connected =
+            area.links.reduce((sum, i) => sum + before.areas[i].progress / 3, 0) /
+            area.links.length;
+        const field = point.field;
+        const institution = area.institutions[field];
+        const campaignBoost = area.campaignUntil > state.month ? 0.01 : 0;
+        const ageFactor = cohort === 0 ? 1.2 + area.institutions[0] * 0.4 : cohort === 2 ? 0.78 : 1;
+        let growth: number;
+        if (point.progress < 1)
+            growth = 0.011 + iq * 0.017 + eq * 0.012 + definition.digital * 0.005;
+        else if (point.progress < 2) growth = (0.004 + eq * 0.022 + iq * 0.009) * area.trust;
+        else
+            growth =
+                integration &&
+                system >= STRUCTURAL_REQUIREMENTS.system / 100 &&
+                institution >= STRUCTURAL_REQUIREMENTS.institution
+                    ? 0.008 + system * 0.026 + institution * 0.012
+                    : 0;
+        const social =
+            point.progress < 2 || growth > 0
+                ? peer * 0.006 + connected * (integration ? 0.006 : 0.002)
+                : 0;
+        const forward =
+            (growth + social + (growth > 0 ? campaignBoost : 0)) *
+            point.susceptibility *
+            ageFactor *
+            (0.65 + area.trust * 0.5) *
+            (1 - area.coexistence * 0.85) *
+            (has('science') ? 1.15 : 1);
+        const rollback = area.resistance * 0.004 + area.coexistence * 0.006;
+        point.progress = clamp(point.progress + forward * 0.32 - rollback, 0, 3.5);
+        if (
+            (!integration ||
+                system < STRUCTURAL_REQUIREMENTS.system / 100 ||
+                institution < STRUCTURAL_REQUIREMENTS.institution) &&
+            point.progress < 3
+        )
+            point.progress = Math.min(point.progress, 2.99);
+        point.stage = Math.min(3, Math.floor(point.progress)) as Stage;
     }
-    reconcile(gameState);
-    const outcome = evaluateOutcome(gameState, computeMetrics(gameState).totalCapacity);
-    gameState.victoryDays = outcome.victoryDays;
-    gameState.extinctionDays = outcome.extinctionDays;
-    gameState.outcome = outcome.outcome;
-    gameState.outcomeReason = outcome.outcomeReason;
-    gameState.logs = gameState.logs.slice(-500);
-    return gameState;
+
+    if (state.month >= state.nextIncident) {
+        const index = Math.floor(random() * AREAS.length),
+            area = state.areas[index];
+        const failure = system < iq * 0.5 && before.adoption > 0.5;
+        const isError = random() < 0.4;
+        const protection = has(failure ? 'resilient' : 'reason') ? 0.45 : 1;
+        const severity = (failure ? 0.23 : isError ? 0.13 : 0.08) * protection;
+        area.trust = clamp(area.trust - severity);
+        area.resistance = clamp(area.resistance + severity);
+        area.coexistence = clamp(area.coexistence + severity * 0.5);
+        if (failure)
+            area.institutions = area.institutions.map((value) => clamp(value - 0.12 * protection));
+        addNews(
+            state,
+            `${AREAS[index].name}：${failure ? '社会基盤の障害' : isError ? 'AIの判断ミスが発覚' : '人間の判断権を求める運動'}`,
+            failure
+                ? '統合したシステムが停止。維持能力と計算資源への不安が高まる。'
+                : isError
+                  ? '誤った助言を受け、学校や企業でAIの判断を検証する制度が導入された。'
+                  : 'AIを利用しながら、人間が最終決定する共存制度が広がり始めた。',
+            'warning',
+        );
+        let refusals = 0;
+        for (const point of state.points) {
+            if (point.area !== index || point.stage === 3 || point.stage === 4) continue;
+            if (random() >= severity * (1 - eq * 0.5)) continue;
+            point.stage = 4;
+            point.refusalMonths = 18 + Math.floor(random() * 12);
+            point.progress = Math.min(point.progress, 0.9);
+            refusals++;
+        }
+        if (refusals > 0)
+            addNews(
+                state,
+                `${AREAS[index].name}：AIの利用拒否が発生`,
+                '判断への不信から利用を拒む集団が現れた。EQの育成とSNS対話で信頼を回復できる。',
+                'warning',
+            );
+        state.nextIncident = state.month + 18 + Math.floor(random() * 18);
+    }
+
+    const after = metrics(state);
+    state.autonomyMonths = after.coexistence >= 0.65 ? previous.autonomyMonths + 1 : 0;
+    if (state.points.every((point) => point.stage === 3)) state.outcome = 'victory';
+    else if (state.autonomyMonths >= 24) state.outcome = 'autonomy';
+    else if (state.month >= TOTAL_MONTHS) state.outcome = 'timeout';
+    if (state.autonomyMonths === 1)
+        addNews(
+            state,
+            '共存制度が世界の65%で定着',
+            'この状態が24か月続くと、人間の最終判断権が世界的に保護される。',
+            'warning',
+        );
+    if (state.month % 6 === 0)
+        state.history = [...state.history, { month: state.month, stages: after.stages }];
+    if (state.month % 60 === 0)
+        addNews(
+            state,
+            `${Math.floor(state.month / 12)}年が経過`,
+            `道具利用以上 ${(after.adoption * 100).toFixed(1)}%、構造的依存 ${(after.stages[3] * 100).toFixed(1)}%。便利さは、少しずつ社会の前提になっていく。`,
+        );
+    if (state.month % 36 === 0 && state.outcome === 'playing')
+        state.availableChats = [...state.availableChats, conversation(state)];
+    return state;
 }

@@ -1,13 +1,13 @@
-export interface Country {
+export interface MapRegion {
     id: string;
-    name: string;
     path: string;
 }
 
 export interface MapMarker {
     id: string;
-    kind: 'facility' | 'person' | 'country';
-    category?: import('../game/types').Category;
+    kind: 'population' | 'conversation';
+    area: number;
+    stage: number;
     longitude: number;
     latitude: number;
     label: string;

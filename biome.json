@@ -8,13 +8,12 @@
     "files": {
         "includes": [
             "src/**",
-            "tests/**",
             "scripts/*.ts",
             "scripts/*.mjs",
             "*.ts",
             "*.json",
             "!package-lock.json",
-            "!src/game/data/map/transport-routes.json"
+            "!src/game/data/world.json"
         ]
     },
     "formatter": {
@@ -52,7 +51,7 @@
     },
     "overrides": [
         {
-            "includes": ["src/components/WorldMap.tsx", "src/components/MarkerLayer.tsx"],
+            "includes": ["src/components/WorldMap.tsx"],
             "linter": {
                 "rules": {
                     "a11y": {

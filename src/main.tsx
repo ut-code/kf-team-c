@@ -1,26 +1,26 @@
-import './components/ui/theme.css';
+import './components/game.css';
 import './map/tone.css';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { GameApp } from './components/GameApp';
-import { detailedCountriesUrl, mapConfig } from './map/config';
-import { loadCountries } from './map/loadCountries';
+import { mapScene } from './map/config';
+import { loadRegions } from './map/loadRegions';
 import { useGameStore } from './state/gameStore';
 
 const root = createRoot(document.getElementById('root')!);
-Promise.all([loadCountries(mapConfig.countriesUrl), loadCountries(detailedCountriesUrl)])
-    .then(([countries, detailedCountries]) => {
-        useGameStore.getState().initialize(countries);
+loadRegions(mapScene.regionsUrl)
+    .then((regions) => {
+        useGameStore.getState().initialize();
         root.render(
             <StrictMode>
-                <GameApp countries={countries} detailedCountries={detailedCountries} />
+                <GameApp regions={regions} />
             </StrictMode>,
         );
     })
     .catch((error: unknown) => {
         root.render(
-            <p role="alert" style={{ color: '#f7b6a8', padding: 24 }}>
-                地図の起動に失敗しました。{error instanceof Error ? error.message : String(error)}
+            <p role="alert" className="startup-error">
+                起動に失敗しました。{error instanceof Error ? error.message : String(error)}
             </p>,
         );
     });

@@ -1,0 +1,11 @@
+{
+  "TWN": {
+    "name": "Taiwan",
+    "young": 12.61,
+    "working": 71.53,
+    "older": 15.86,
+    "ageReferenceDate": "2020-09-30",
+    "ageSource": "https://www.ris.gov.tw/info-liferay/app/channel/newsEnglishDetail/20282028",
+    "note": "世界銀行に収録されていないため、台湾内政部の2020年9月末の公表値を明示的に収録。インターネット・就業率の欠測は補完しない。"
+  }
+}

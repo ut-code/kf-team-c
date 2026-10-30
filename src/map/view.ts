@@ -1,5 +1,5 @@
 import { WORLD_HEIGHT, WORLD_WIDTH } from './geometry.ts';
-import type { Country, MapMarker } from './types.ts';
+import type { MapMarker, MapRegion } from './types.ts';
 
 export interface MapView {
     width: number;
@@ -18,8 +18,8 @@ export interface Ring {
     points: Float32Array;
     bounds: Bounds;
 }
-export interface CountryShape {
-    country: Country;
+export interface RegionShape {
+    region: MapRegion;
     rings: Ring[];
 }
 export interface VisibleMarker {
@@ -77,10 +77,10 @@ export function visibleBounds(bounds: Bounds, view: MapView, margin = 0) {
     return false;
 }
 
-export function parseCountries(countries: Country[]): CountryShape[] {
-    return countries.map((country) => ({
-        country,
-        rings: [...country.path.matchAll(/M([^Z]+)Z/g)].map((match) => {
+export function parseRegions(regions: MapRegion[]): RegionShape[] {
+    return regions.map((region) => ({
+        region,
+        rings: [...region.path.matchAll(/M([^Z]+)Z/g)].map((match) => {
             const numbers = match[1].match(/-?\d+(?:\.\d+)?/g)!.map(Number);
             const bounds = { left: Infinity, top: Infinity, right: -Infinity, bottom: -Infinity };
             for (let i = 0; i < numbers.length; i += 2) {
@@ -95,7 +95,7 @@ export function parseCountries(countries: Country[]): CountryShape[] {
 }
 
 /** 穴を含む既存SVGと同じ偶奇規則。地形の解析は読み込み時に一度だけ行う。 */
-export function countryAtPoint(shapes: CountryShape[], x: number, y: number): string | null {
+export function regionAtPoint(shapes: RegionShape[], x: number, y: number): string | null {
     for (let c = shapes.length - 1; c >= 0; c--) {
         let inside = false;
         for (const { points: p, bounds: b } of shapes[c].rings) {
@@ -108,7 +108,7 @@ export function countryAtPoint(shapes: CountryShape[], x: number, y: number): st
                     inside = !inside;
             }
         }
-        if (inside) return shapes[c].country.id;
+        if (inside) return shapes[c].region.id;
     }
     return null;
 }

@@ -1,16 +1,8 @@
-import { loadImage } from './gl';
+import { STAGE_COLORS } from '../game/data';
 
-export const facilityCategories = [
-    'compute',
-    'semiconductor',
-    'energy',
-    'communication',
-    'finance',
-    'government',
-    'intelligence',
-    'satellite',
-    'industry',
-] as const;
+/** 人口点の描画サイズはズームによらずCSSピクセルで固定する。 */
+export const POPULATION_SPRITE_SIZE = 5.5;
+
 export interface Sprite {
     u0: number;
     v0: number;
@@ -24,122 +16,53 @@ export interface Atlas {
     sprites: Record<string, Sprite>;
 }
 
-/** 施設画像の暗色輪郭を透過させ、円背景に色面だけを載せる。読み込み時に一度だけ処理する。 */
-function facilityColorLayer(image: HTMLImageElement): HTMLCanvasElement {
+/** 人口点を一枚のアトラスにまとめ、既存のWebGLスプライトで一括描画する。 */
+export async function loadAtlas(): Promise<Atlas> {
     const canvas = document.createElement('canvas');
-    canvas.width = image.naturalWidth;
-    canvas.height = image.naturalHeight;
-    const context = canvas.getContext('2d')!;
-    context.drawImage(image, 0, 0);
-    const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
-    for (let index = 0; index < pixels.data.length; index += 4) {
-        const brightness = Math.max(
-            pixels.data[index],
-            pixels.data[index + 1],
-            pixels.data[index + 2],
-        );
-        // 境界の混色部分もなだらかに抜き、縮小後の黒い縁を抑える。
-        const opacity = Math.max(0, Math.min(1, (brightness - 50) / 70));
-        pixels.data[index + 3] *= opacity;
-    }
-    context.putImageData(pixels, 0, 0);
-    return canvas;
-}
-
-/** 画像は読み込み時に一枚へまとめ、描画中の画像切り替えやCanvas合成をなくす。 */
-export async function loadAtlas(base: string): Promise<Atlas> {
-    const names = [...facilityCategories, 'plane', 'ship', 'mail', 'map-pin'];
-    const images = await Promise.all(
-        names.map((name) =>
-            loadImage(
-                `${base}ui/${facilityCategories.includes(name as (typeof facilityCategories)[number]) ? 'facilities' : name === 'plane' || name === 'ship' ? 'traffic' : 'map'}/${name}.${name === 'plane' || name === 'ship' || name === 'mail' || name === 'map-pin' ? 'svg' : 'png'}`,
-            ),
-        ),
-    );
-    const canvas = document.createElement('canvas');
-    canvas.width = 512;
-    canvas.height = 256;
+    canvas.width = 224;
+    canvas.height = 32;
     const context = canvas.getContext('2d')!;
     const sprites: Record<string, Sprite> = {};
-    let slot = 0;
-    const place = (
-        name: string,
-        width: number,
-        height: number,
-        draw: (x: number, y: number) => void,
-    ) => {
-        const x = (slot % 8) * 64 + 32,
-            y = Math.floor(slot / 8) * 64 + 32;
-        slot++;
-        draw(x, y);
-        sprites[name] = {
-            u0: (x - width / 2) / 512,
-            v0: (y - height / 2) / 256,
-            u1: (x + width / 2) / 512,
-            v1: (y + height / 2) / 256,
-            width,
-            height,
-        };
-    };
-    names.forEach((name, index) => {
-        const isFacility = facilityCategories.includes(name as (typeof facilityCategories)[number]);
-        const width = name === 'ship' ? 7 : name === 'plane' ? 14 : isFacility ? 26 : 28;
-        const height = name === 'ship' ? 20 : width;
-        place(name, width, height, (x, y) => {
-            if (name === 'mail' || name === 'map-pin') {
-                context.fillStyle = '#282828';
-                context.strokeStyle = '#56534f';
-                context.lineWidth = 1;
-                context.beginPath();
-                context.roundRect(x - 14, y - 14, 28, 28, 3);
-                context.fill();
-                context.stroke();
-                context.drawImage(images[index], x - 9, y - 9, 18, 18);
-            } else if (isFacility) {
-                // 小さな半透明の円へ施設記号を収め、地形を隠しすぎない。
-                context.fillStyle = 'rgba(0, 0, 0, 0.65)';
-                context.beginPath();
-                context.arc(x, y, 13, 0, Math.PI * 2);
-                context.fill();
-                context.drawImage(facilityColorLayer(images[index]), x - 13, y - 13, 26, 26);
-            } else context.drawImage(images[index], x - width / 2, y - height / 2, width, height);
-        });
-    });
-    place('facility-outline', 30, 30, (x, y) => {
-        context.strokeStyle = '#b7a17b';
-        context.lineWidth = 1;
+    [...STAGE_COLORS, '#ffffff'].forEach((color, i) => {
+        const x = i * 32 + 16;
         context.beginPath();
-        context.arc(x, y, 14, 0, Math.PI * 2);
-        context.stroke();
-    });
-    place('outline', 44, 44, (x, y) => {
-        context.strokeStyle = '#b7a17b';
-        context.lineWidth = 1;
-        context.beginPath();
-        context.roundRect(x - 21, y - 21, 42, 42, 4);
-        context.stroke();
-    });
-    for (const [name, color] of [
-        ['neutral', '#929298'],
-        ['active', '#b7a17b'],
-        ['isolated', '#b97564'],
-        ['unread', '#d68a45'],
-        ['white', '#ffffff'],
-    ]) {
-        place(name, 8, 8, (x, y) => {
+        context.arc(x, 16, i === STAGE_COLORS.length ? 12 : 10, 0, Math.PI * 2);
+        if (i === STAGE_COLORS.length) {
+            context.strokeStyle = color;
+            context.lineWidth = 2;
+            context.stroke();
+        } else {
             context.fillStyle = color;
-            context.strokeStyle = '#282828';
-            context.lineWidth = 1;
-            context.beginPath();
-            context.arc(x, y, 3, 0, Math.PI * 2);
             context.fill();
-            if (name !== 'white') context.stroke();
-        });
-    }
-    place('trail', 22, 2, (x, y) => {
-        context.fillStyle = 'white';
-        context.fillRect(x - 11, y - 1, 22, 2);
+        }
+        sprites[i === STAGE_COLORS.length ? 'ring' : `stage-${i}`] = {
+            u0: i / 7,
+            v0: 0,
+            u1: (i + 1) / 7,
+            v1: 1,
+            width: 8,
+            height: 8,
+        };
     });
+    context.fillStyle = '#d8c4ff';
+    context.strokeStyle = '#261b3d';
+    context.lineWidth = 2;
+    context.beginPath();
+    context.roundRect(196, 4, 24, 19, 5);
+    context.fill();
+    context.stroke();
+    context.beginPath();
+    context.moveTo(202, 22);
+    context.lineTo(201, 29);
+    context.lineTo(210, 22);
+    context.fill();
+    context.fillStyle = '#352550';
+    for (const x of [202, 208, 214]) {
+        context.beginPath();
+        context.arc(x, 13, 1.5, 0, Math.PI * 2);
+        context.fill();
+    }
+    sprites.conversation = { u0: 6 / 7, v0: 0, u1: 1, v1: 1, width: 34, height: 34 };
     return { canvas, sprites };
 }
 

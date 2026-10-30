@@ -1,49 +1,45 @@
-import { countryParameterColor } from '../game/countryParameters';
+import { AREAS } from '../game/data';
 import oceanSettings from '../game/data/map/ocean-surface.json';
-import type { CountryState, FacilityState } from '../game/types';
+import { declutterMarkers } from './declutter';
 import { project, WORLD_WIDTH } from './geometry';
 import { createTexture, GLProgram, loadImage, quadVertex } from './gl';
 import { fragmentShader as waveFragment, vertexShader as waveVertex } from './oceanShader';
-import { type Atlas, loadAtlas, SpriteBatch } from './sprites';
+import { type Atlas, loadAtlas, POPULATION_SPRITE_SIZE, SpriteBatch } from './sprites';
 import { ColorReader, type MapTone, readMapTone } from './tone';
-import { TRAFFIC_ROUTES, trafficActivity, trafficPosition } from './traffic';
-import type { Country, MapMarker } from './types';
+import type { MapMarker, MapRegion } from './types';
 import {
-    type CountryShape,
-    countryAtPoint,
     cullMarkers,
     type MapView,
-    parseCountries,
+    parseRegions,
+    type RegionShape,
+    regionAtPoint,
     renderSize,
-    screenPoint,
     type VisibleMarker,
     viewTransform,
-    visibleBounds,
     worldPoint,
 } from './view';
 import { createWaveNoise } from './waveNoise';
 import { compositeFragment, spriteFragment, spriteVertex, staticFragment } from './worldShaders';
 
 export interface MapScene {
-    countries: Country[];
+    regions: MapRegion[];
     backgroundUrl: string;
     waterMaskUrl: string;
     surfaceMaskUrl: string;
     countryIndexUrl: string;
+    areaIndexUrl: string;
 }
 export interface MapData {
-    countries: Country[];
-    countryStates: Record<string, CountryState>;
-    facilityStates?: Record<string, FacilityState>;
+    regions: MapRegion[];
     markers: MapMarker[];
-    selectedCountry: string | null;
+    selectedArea: number | null;
     selectedMarker: string | null;
-    parameterValues?: Record<string, number>;
     speed: number;
     tick: number;
 }
 export interface MapTarget {
-    kind: 'country' | 'marker';
+    kind: 'area' | 'marker';
+    area: number;
     id: string;
     label: string;
 }
@@ -66,7 +62,7 @@ export class WorldRenderer {
     private quad: WebGLBuffer;
     private spriteBuffer: WebGLBuffer;
     private textures: Record<
-        'photo' | 'water' | 'surface' | 'countries' | 'palette' | 'atlas' | 'noise',
+        'photo' | 'water' | 'surface' | 'countries' | 'areas' | 'palette' | 'atlas' | 'noise',
         WebGLTexture
     >;
     private baseTarget: TargetBuffer;
@@ -76,9 +72,8 @@ export class WorldRenderer {
     private atlas: Atlas | null = null;
     private atlasPromise: Promise<Atlas>;
     private batch = new SpriteBatch();
-    private shapes: CountryShape[] = [];
-    private shapeCache = new WeakMap<Country[], CountryShape[]>();
-    private indices = new Map<string, number>();
+    private shapes: RegionShape[] = [];
+    private shapeCache = new WeakMap<MapRegion[], RegionShape[]>();
     private data: MapData | null = null;
     private view: MapView = { width: 0, height: 0, zoom: 1, x: 0, y: 0 };
     private projected: { marker: MapMarker; x: number; y: number }[] = [];
@@ -87,7 +82,7 @@ export class WorldRenderer {
     private hover: MapTarget | null = null;
     private requested = '';
     private loaded = '';
-    private resourceUrls = { photo: '', water: '', surface: '', countries: '' };
+    private resourceUrls = { photo: '', water: '', surface: '', countries: '', areas: '' };
     private sequence = 0;
     private alive = true;
     private ready = false;
@@ -159,6 +154,7 @@ export class WorldRenderer {
             water: createTexture(gl),
             surface: createTexture(gl),
             countries: createTexture(gl, true),
+            areas: createTexture(gl, true),
             palette: createTexture(gl, true),
             atlas: createTexture(gl),
             noise: createTexture(gl, true),
@@ -178,7 +174,7 @@ export class WorldRenderer {
         );
         this.waveTarget = this.createTarget();
         this.tone = readMapTone(canvas, this.colors);
-        this.atlasPromise = loadAtlas(import.meta.env.BASE_URL);
+        this.atlasPromise = loadAtlas();
         this.observer = new MutationObserver(() => {
             this.styleDirty = true;
             this.invalidate(true);
@@ -286,6 +282,7 @@ export class WorldRenderer {
             scene.waterMaskUrl,
             scene.surfaceMaskUrl,
             scene.countryIndexUrl,
+            scene.areaIndexUrl,
         ].join('\n');
         if (this.requested === key) return;
         this.requested = key;
@@ -297,6 +294,7 @@ export class WorldRenderer {
             water: scene.waterMaskUrl,
             surface: scene.surfaceMaskUrl,
             countries: scene.countryIndexUrl,
+            areas: scene.areaIndexUrl,
         };
         const image = (name: keyof typeof urls) =>
             this.resourceUrls[name] === urls[name] ? Promise.resolve(null) : loadImage(urls[name]);
@@ -305,31 +303,30 @@ export class WorldRenderer {
             image('water'),
             image('surface'),
             image('countries'),
+            image('areas'),
             this.atlasPromise,
         ])
-            .then(([photo, water, surface, countries, atlas]) => {
+            .then(([photo, water, surface, countries, areas, atlas]) => {
                 if (!this.alive || sequence !== this.sequence) return;
-                let shapes = this.shapeCache.get(scene.countries);
+                let shapes = this.shapeCache.get(scene.regions);
                 if (!shapes) {
-                    shapes = parseCountries(scene.countries);
-                    this.shapeCache.set(scene.countries, shapes);
+                    shapes = parseRegions(scene.regions);
+                    this.shapeCache.set(scene.regions, shapes);
                     this.stats.geometryCompiles++;
                 }
                 this.shapes = shapes;
-                this.indices = new Map(
-                    scene.countries.map((country, index) => [country.id, index + 1]),
-                );
                 for (const [name, source] of [
                     ['photo', photo],
                     ['water', water],
                     ['surface', surface],
                     ['countries', countries],
+                    ['areas', areas],
                 ] as const) {
                     if (source) {
                         this.upload(
                             this.textures[name],
                             source,
-                            name === 'surface' || name === 'countries'
+                            name === 'surface' || name === 'countries' || name === 'areas'
                                 ? this.gl.LUMINANCE
                                 : this.gl.RGBA,
                         );
@@ -354,24 +351,28 @@ export class WorldRenderer {
 
     setData(data: MapData) {
         const old = this.data;
-        if (
-            !old ||
-            old.countryStates !== data.countryStates ||
-            old.parameterValues !== data.parameterValues
-        ) {
-            this.paletteDirty = true;
-            this.staticDirty = true;
-        }
-        if (!old || old.selectedCountry !== data.selectedCountry) this.staticDirty = true;
+        if (!old || old.selectedArea !== data.selectedArea) this.staticDirty = true;
         if (!old || old.markers !== data.markers) {
-            this.projected = data.markers
+            const projected = data.markers
                 .filter((marker) => marker.latitude >= -60 && marker.latitude <= 75)
                 .map((marker) => ({ marker, ...project(marker.longitude, marker.latitude) }));
-            this.targetsDirty = true;
-        }
-        if (!old || Boolean(old.parameterValues) !== Boolean(data.parameterValues)) {
-            this.staticDirty = true;
-            this.waveDirty = true;
+            // 月次の色変更では分散をやり直さず、表示位置を維持する。
+            const samePositions =
+                projected.length === this.projected.length &&
+                projected.every((item, index) => {
+                    const previous = this.projected[index].marker;
+                    return (
+                        item.marker.id === previous.id &&
+                        item.marker.longitude === previous.longitude &&
+                        item.marker.latitude === previous.latitude
+                    );
+                });
+            this.projected = samePositions
+                ? this.projected.map((position, index) => ({
+                      ...position,
+                      marker: projected[index].marker,
+                  }))
+                : declutterMarkers(projected);
             this.targetsDirty = true;
         }
         if (old && data.tick < old.tick) {
@@ -397,9 +398,9 @@ export class WorldRenderer {
     }
     setHover(target: MapTarget | null) {
         if (this.hover?.id === target?.id && this.hover?.kind === target?.kind) return;
-        const countryChanged = this.hover?.kind === 'country' || target?.kind === 'country';
+        const areaChanged = this.hover?.area !== target?.area;
         this.hover = target;
-        this.invalidate(countryChanged);
+        this.invalidate(areaChanged);
     }
     private invalidate(staticPart = false) {
         this.dirty = true;
@@ -410,15 +411,20 @@ export class WorldRenderer {
 
     private updateTargets() {
         this.visible = cullMarkers(this.projected, this.view);
-        const targets: MapTarget[] = this.shapes
-            .filter((shape) => shape.rings.some((ring) => visibleBounds(ring.bounds, this.view)))
-            .map((shape) => ({ kind: 'country', id: shape.country.id, label: shape.country.name }));
+        const targets: MapTarget[] = [];
+        const areas = new Set<number>();
         for (const { marker } of this.visible) {
-            if (this.data!.parameterValues && marker.kind !== 'country') continue;
+            // キーボード操作は小地域ごとにまとめ、4,000点の連続移動を避ける。
+            if (marker.kind === 'population' && areas.has(marker.area)) continue;
+            areas.add(marker.area);
             targets.push({
-                kind: this.data!.parameterValues ? 'country' : 'marker',
-                id: this.data!.parameterValues ? marker.id.slice(8) : marker.id,
-                label: marker.label,
+                kind: 'marker',
+                id: marker.id,
+                area: marker.area,
+                label:
+                    marker.kind === 'conversation'
+                        ? marker.label
+                        : `${AREAS[marker.area].name}の小地域を調査`,
             });
         }
         const unique = [
@@ -437,50 +443,50 @@ export class WorldRenderer {
         if (!this.ready) return null;
         const point = worldPoint(this.view, x, y);
         if (!point) return null;
+        let closest: VisibleMarker | null = null;
+        let distance = Math.max(3, (POPULATION_SPRITE_SIZE * 10) / 32);
         for (let index = this.visible.length - 1; index >= 0; index--) {
             const item = this.visible[index];
-            if (this.data!.parameterValues && item.marker.kind !== 'country') continue;
-            const radius = this.data!.parameterValues
-                ? 7
-                : item.marker.kind === 'facility'
-                  ? 13
-                  : 14;
-            if (Math.abs(x - item.x) <= radius && Math.abs(y - item.y) <= radius)
+            const separation = Math.hypot(x - item.x, y - item.y);
+            if (item.marker.kind === 'conversation') {
+                if (Math.abs(x - item.x) > 22 || Math.abs(y - item.y) > 22) continue;
                 return {
-                    kind: this.data!.parameterValues ? 'country' : 'marker',
-                    id: this.data!.parameterValues ? item.marker.id.slice(8) : item.marker.id,
+                    kind: 'marker',
+                    id: item.marker.id,
+                    area: item.marker.area,
                     label: item.marker.label,
                 };
+            }
+            if (separation < distance) {
+                closest = item;
+                distance = separation;
+            }
         }
-        const id = countryAtPoint(this.shapes, point.x, point.y);
-        return id
-            ? { kind: 'country', id, label: this.shapes[this.indices.get(id)! - 1].country.name }
-            : null;
+        if (closest)
+            return {
+                kind: 'marker',
+                id: closest.marker.id,
+                area: closest.marker.area,
+                label: closest.marker.label,
+            };
+        const id = regionAtPoint(this.shapes, point.x, point.y);
+        return id ? { kind: 'area', id, area: Number(id), label: AREAS[Number(id)].name } : null;
     }
 
     private updatePalette() {
         const bytes = new Uint8Array(256 * 4);
-        this.data!.countries.forEach((country) => {
-            const index = this.indices.get(country.id);
-            if (!index) return;
-            const value = this.data!.parameterValues?.[country.id];
-            if (value !== undefined) {
-                const color = this.colors.read(countryParameterColor(value));
-                for (let c = 0; c < 4; c++) bytes[index * 4 + c] = Math.round(color[c] * 255);
-            } else {
-                const state = this.data!.countryStates[country.id];
-                if (state)
-                    bytes[index * 4 + 3] = Math.round(
-                        (state.controlStatus === 'controlled'
-                            ? 0.52
-                            : (state.aiDecisionControl / 100) * 0.25) * 255,
-                    );
-            }
-        });
         const gl = this.gl;
         gl.bindTexture(gl.TEXTURE_2D, this.textures.palette);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 256, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, bytes);
         this.paletteDirty = false;
+    }
+
+    private selection(program: GLProgram) {
+        this.gl.uniform1f(
+            program.location('selected'),
+            this.data!.selectedArea === null ? -1 : this.data!.selectedArea + 1,
+        );
+        this.gl.uniform1f(program.location('hovered'), this.hover ? this.hover.area + 1 : -1);
     }
 
     private drawStatic() {
@@ -495,12 +501,9 @@ export class WorldRenderer {
         this.bind(p, 'water', this.textures.water, 1);
         this.bind(p, 'countryIds', this.textures.countries, 2);
         this.bind(p, 'palette', this.textures.palette, 3);
-        gl.uniform1f(p.location('dataMode'), this.data!.parameterValues ? 1 : 0);
-        gl.uniform1f(p.location('selected'), this.indices.get(this.data!.selectedCountry!) ?? -1);
-        gl.uniform1f(
-            p.location('hovered'),
-            this.hover?.kind === 'country' ? (this.indices.get(this.hover.id) ?? -1) : -1,
-        );
+        this.bind(p, 'areaIds', this.textures.areas, 4);
+        gl.uniform1f(p.location('dataMode'), 0);
+        this.selection(p);
         for (const name of ['land', 'ocean', 'global'] as const) {
             gl.uniform4fv(p.location(`${name}Tone`), this.tone[name].values);
             if (name !== 'global') gl.uniform4fv(p.location(`${name}Tint`), this.tone[name].tint);
@@ -546,53 +549,11 @@ export class WorldRenderer {
     private drawSprites() {
         const data = this.data!,
             atlas = this.atlas!,
-            batch = this.batch,
-            view = this.view,
-            t = viewTransform(view);
+            batch = this.batch;
         batch.reset();
-        if (!data.parameterValues) {
-            for (const route of TRAFFIC_ROUTES) {
-                const activity = trafficActivity(route, data.countryStates);
-                if (route.phase > activity) continue;
-                const position = trafficPosition(route, this.elapsed);
-                if (!position) continue;
-                const p = screenPoint(view, position.x, position.y);
-                if (p.y < -24 || p.y > view.height + 24) continue;
-                const ship = route.kind === 'ship',
-                    alpha = position.opacity * (ship ? 0.67 : 0.76) * Math.min(1, activity + 0.3);
-                for (const dx of [-t.period, 0, t.period]) {
-                    const x = p.x + dx;
-                    if (x < t.left - 24 || x > t.left + t.width + 24) continue;
-                    batch.add(
-                        atlas.sprites.trail,
-                        x - Math.cos(position.heading) * 14,
-                        p.y - Math.sin(position.heading) * 14,
-                        position.heading,
-                        alpha * 0.32,
-                        ship,
-                        [0.75, 0.82, 0.83],
-                        ship ? 13 : 22,
-                        ship ? 1.3 : 0.8,
-                    );
-                    batch.add(
-                        atlas.sprites[route.kind],
-                        x,
-                        p.y,
-                        position.heading + (ship ? Math.PI / 2 : Math.PI / 4),
-                        alpha,
-                        ship,
-                    );
-                }
-            }
-        }
         for (const { marker, x, y } of this.visible) {
-            if (data.parameterValues) {
-                if (marker.kind === 'country') {
-                    const color = this.colors.read(
-                        countryParameterColor(data.parameterValues[marker.id.slice(8)]),
-                    );
-                    batch.add(atlas.sprites.white, x, y, 0, 1, false, color, 12, 12);
-                }
+            if (marker.kind === 'conversation') {
+                batch.add(atlas.sprites.conversation, x, y);
                 continue;
             }
             const selected =
@@ -600,37 +561,26 @@ export class WorldRenderer {
                 (this.hover?.kind === 'marker' && this.hover.id === marker.id);
             if (selected)
                 batch.add(
-                    atlas.sprites[marker.kind === 'facility' ? 'facility-outline' : 'outline'],
+                    atlas.sprites.ring,
                     x,
                     y,
+                    0,
+                    1,
+                    false,
+                    undefined,
+                    POPULATION_SPRITE_SIZE * 1.4,
+                    POPULATION_SPRITE_SIZE * 1.4,
                 );
             batch.add(
-                atlas.sprites[
-                    marker.kind === 'facility'
-                        ? marker.category!
-                        : marker.kind === 'person'
-                          ? 'mail'
-                          : 'map-pin'
-                ],
+                atlas.sprites[`stage-${marker.stage}`],
                 x,
                 y,
-            );
-            if (marker.kind === 'facility') continue;
-            const status = data.facilityStates?.[marker.id]?.status;
-            batch.add(
-                atlas.sprites[
-                    marker.kind === 'person'
-                        ? 'unread'
-                        : status === 'isolated'
-                          ? 'isolated'
-                          : status === 'controlled' ||
-                              status === 'compromised' ||
-                              status === 'infiltrating'
-                            ? 'active'
-                            : 'neutral'
-                ],
-                x + 10,
-                y + (marker.kind === 'person' ? -10 : 10),
+                0,
+                1,
+                false,
+                undefined,
+                POPULATION_SPRITE_SIZE,
+                POPULATION_SPRITE_SIZE,
             );
         }
         this.stats.sprites = batch.length / 54;
@@ -678,7 +628,7 @@ export class WorldRenderer {
         this.elapsed += dt * this.data.speed;
         this.waveElapsed +=
             dt * Math.min(this.data.speed, oceanSettings.maximumSpeed) * oceanSettings.timeScale;
-        const animated = !this.data.parameterValues && this.data.speed > 0;
+        const animated = this.data.speed > 0;
         if (!this.dirty && now - this.rendered < 1000 / oceanSettings.framesPerSecond) {
             if (animated) this.frame = requestAnimationFrame(this.draw);
             return;
@@ -706,7 +656,7 @@ export class WorldRenderer {
         if (this.paletteDirty) this.updatePalette();
         if (this.targetsDirty) this.updateTargets();
         if (this.staticDirty) this.drawStatic();
-        if (!this.data.parameterValues && (animated || this.waveDirty)) {
+        if (animated || this.waveDirty) {
             this.drawWaves();
             this.waveDirty = false;
         }
@@ -717,7 +667,11 @@ export class WorldRenderer {
         this.quadDraw(composite);
         this.bind(composite, 'base', this.baseTarget.texture, 0);
         this.bind(composite, 'waves', this.waveTarget.texture, 1);
-        gl.uniform1f(composite.location('animated'), this.data.parameterValues ? 0 : 1);
+        this.bind(composite, 'areaIds', this.textures.areas, 2);
+        this.bind(composite, 'countryIds', this.textures.countries, 3);
+        this.camera(composite);
+        this.selection(composite);
+        gl.uniform1f(composite.location('animated'), 1);
         gl.drawArrays(gl.TRIANGLES, 0, 6);
         this.drawSprites();
         this.rendered = now;

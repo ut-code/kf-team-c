@@ -1,6 +1,5 @@
 import type { KeyboardEvent, PointerEvent } from 'react';
 import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import type { CountryState, FacilityState } from '../game/types';
 import {
     centerCamera,
     constrainCamera,
@@ -8,8 +7,10 @@ import {
     project,
     resizeCamera,
     visibleWidth,
+    WORLD_HEIGHT,
+    WORLD_WIDTH,
 } from '../map/geometry';
-import type { Country } from '../map/types';
+import type { MapRegion } from '../map/types';
 import type { MapView } from '../map/view';
 import { type MapTarget, WorldRenderer } from '../map/WorldRenderer';
 import { useMapStore } from '../state/mapStore';
@@ -27,35 +28,31 @@ interface Gesture {
 
 /** Reactは操作と読み上げを担当し、地図の全画像は一つのWebGL描画へ渡す。 */
 export const WorldMap = memo(function WorldMap({
-    countries,
+    regions,
+    selectedArea,
     backgroundUrl,
     waterMaskUrl,
     surfaceMaskUrl,
     countryIndexUrl,
-    countryStates,
-    facilityStates,
-    onCountrySelect,
+    areaIndexUrl,
+    onAreaSelect,
     initialLongitude,
     trafficSpeed,
     trafficTick,
-    parameterValues,
-    parameterLabel,
-    onCountryInspect,
+    onAreaInspect,
 }: {
-    countries: Country[];
+    regions: MapRegion[];
+    selectedArea: number | null;
     backgroundUrl: string;
     waterMaskUrl: string;
     surfaceMaskUrl: string;
     countryIndexUrl: string;
-    countryStates: Record<string, CountryState>;
-    facilityStates?: Record<string, FacilityState>;
-    onCountrySelect?: (id: string | null) => void;
+    areaIndexUrl: string;
+    onAreaSelect?: (id: number | null) => void;
     initialLongitude?: number;
     trafficSpeed: number;
     trafficTick: number;
-    parameterValues?: Record<string, number>;
-    parameterLabel?: string;
-    onCountryInspect?: (id: string | null) => void;
+    onAreaInspect?: (id: number | null) => void;
 }) {
     const viewport = useRef<HTMLDivElement>(null),
         canvas = useRef<HTMLCanvasElement>(null);
@@ -67,7 +64,7 @@ export const WorldMap = memo(function WorldMap({
         [ready, setReady] = useState(false);
     const [targets, setTargets] = useState<MapTarget[]>([]);
     const camera = useMapStore((state) => state.camera);
-    const selected = useMapStore((state) => state.selectedCountryId);
+    const selected = useMapStore((state) => state.selectedAreaId);
     const selectedMarker = useMapStore((state) => state.selectedMarkerId);
     const markers = useMapStore((state) => state.markers);
 
@@ -94,40 +91,28 @@ export const WorldMap = memo(function WorldMap({
 
     useLayoutEffect(() => {
         renderer.current?.setData({
-            countries,
-            countryStates,
-            facilityStates,
+            regions,
             markers,
-            selectedCountry: selected,
+            selectedArea,
             selectedMarker,
-            parameterValues,
             speed: trafficSpeed,
             tick: trafficTick,
         });
-    }, [
-        countries,
-        countryStates,
-        facilityStates,
-        markers,
-        selected,
-        selectedMarker,
-        parameterValues,
-        trafficSpeed,
-        trafficTick,
-    ]);
+    }, [regions, markers, selectedArea, selectedMarker, trafficSpeed, trafficTick]);
 
     useEffect(() => {
         if (!renderer.current) return;
         setReady(false);
         setError(null);
         renderer.current?.setScene({
-            countries,
+            regions,
             backgroundUrl,
             waterMaskUrl,
             surfaceMaskUrl,
             countryIndexUrl,
+            areaIndexUrl,
         });
-    }, [countries, backgroundUrl, waterMaskUrl, surfaceMaskUrl, countryIndexUrl]);
+    }, [regions, backgroundUrl, waterMaskUrl, surfaceMaskUrl, countryIndexUrl, areaIndexUrl]);
 
     useLayoutEffect(() => {
         if (gesture.current) return;
@@ -146,6 +131,9 @@ export const WorldMap = memo(function WorldMap({
         const observer = new ResizeObserver(([entry]) => {
             const current = view.current;
             const previous = { width: current.width, height: current.height * current.zoom };
+            const minimumZoom =
+                (entry.contentRect.width * WORLD_HEIGHT) / (entry.contentRect.height * WORLD_WIDTH);
+            current.zoom = Math.max(current.zoom, minimumZoom);
             const next = {
                 width: entry.contentRect.width,
                 height: entry.contentRect.height * current.zoom,
@@ -153,7 +141,11 @@ export const WorldMap = memo(function WorldMap({
             const nextCamera =
                 previous.height === 0 && initialLongitude !== undefined
                     ? constrainCamera(
-                          { x: next.width / 2 - project(initialLongitude, 0).x * fitScale(next) },
+                          {
+                              x:
+                                  visibleWidth(next) / 2 -
+                                  project(initialLongitude, 0).x * fitScale(next),
+                          },
                           next,
                       )
                     : resizeCamera({ x: current.x }, previous, next);
@@ -172,9 +164,13 @@ export const WorldMap = memo(function WorldMap({
             if (gesture.current) return;
             const current = view.current;
             const factor = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? current.height : 1;
-            const zoom = Math.max(
+            const minimumZoom = Math.max(
                 1,
-                Math.min(3, current.zoom * Math.exp(-event.deltaY * factor * 0.001)),
+                (current.width * WORLD_HEIGHT) / (current.height * WORLD_WIDTH),
+            );
+            const zoom = Math.max(
+                minimumZoom,
+                Math.min(minimumZoom * 3, current.zoom * Math.exp(-event.deltaY * factor * 0.001)),
             );
             if (zoom === current.zoom) return;
             const bounds = element.getBoundingClientRect(),
@@ -207,8 +203,8 @@ export const WorldMap = memo(function WorldMap({
     const select = (target: MapTarget | null) => {
         if (target?.kind === 'marker') useMapStore.getState().selectMarker(target.id);
         else {
-            useMapStore.getState().selectCountry(target?.id ?? null);
-            if (target) onCountrySelect?.(target.id);
+            useMapStore.getState().selectArea(target?.area ?? null);
+            if (target) onAreaSelect?.(target.area);
         }
     };
     const point = (event: PointerEvent<HTMLDivElement>) => {
@@ -217,7 +213,8 @@ export const WorldMap = memo(function WorldMap({
     };
     const hover = (target: MapTarget | null) => {
         renderer.current?.setHover(target);
-        onCountryInspect?.(target?.kind === 'country' ? target.id : null);
+        if (target) useMapStore.getState().selectArea(target.area);
+        onAreaInspect?.(target?.area ?? null);
         if (canvas.current) canvas.current.title = target?.label ?? '';
     };
     function pointerDown(event: PointerEvent<HTMLDivElement>) {
@@ -307,7 +304,7 @@ export const WorldMap = memo(function WorldMap({
             current.x = centerCamera(size).x;
             current.y = (current.height - size.height) / 2;
         } else if (event.key === 'Escape') {
-            useMapStore.getState().selectCountry(null);
+            useMapStore.getState().selectArea(null);
             return;
         } else return;
         event.preventDefault();
@@ -321,7 +318,7 @@ export const WorldMap = memo(function WorldMap({
             className={`${styles.viewport} ${dragging ? styles.dragging : ''}`}
             tabIndex={0}
             role="region"
-            aria-label="世界地図。ドラッグと矢印キーで移動。ホイールで拡大縮小、Homeで中央へ、Escapeで国の選択解除。"
+            aria-label="世界地図。ドラッグと矢印キーで移動。ホイールで拡大縮小、Homeで中央へ、Escapeで小地域の選択解除。"
             aria-busy={!ready}
             onPointerDown={pointerDown}
             onPointerMove={pointerMove}
@@ -340,14 +337,14 @@ export const WorldMap = memo(function WorldMap({
                 aria-hidden="true"
                 data-world-renderer="webgl"
             />
-            <div className={styles.screenReaderOnly} role="group" aria-label="画面内の国と施設">
+            <div className={styles.screenReaderOnly} role="group" aria-label="画面内の小地域">
                 {targets.map((target) => (
                     <button
                         type="button"
                         key={`${target.kind}:${target.id}`}
                         aria-pressed={
-                            target.kind === 'country'
-                                ? selected === target.id
+                            target.kind === 'area'
+                                ? selected === target.area
                                 : selectedMarker === target.id
                         }
                         onFocus={() => hover(target)}
@@ -355,16 +352,11 @@ export const WorldMap = memo(function WorldMap({
                         onClick={() => select(target)}
                     >
                         {target.label}
-                        {target.kind === 'country' && parameterValues?.[target.id] !== undefined
-                            ? `：${parameterLabel} ${parameterValues[target.id].toFixed(1)}`
-                            : ''}
                     </button>
                 ))}
             </div>
             <span className={styles.screenReaderOnly} aria-live="polite">
-                {selected
-                    ? `${countries.find((country) => country.id === selected)?.name ?? selected}を選択中`
-                    : '国は選択されていません'}
+                {selected !== null ? '小地域を選択中' : '小地域は選択されていません'}
             </span>
             {error && (
                 <p className={styles.error} role="alert">

@@ -1,1 +1,0 @@
-地図上のMailとMapPinは、プロジェクトに含まれるlucide-reactの同名アイコンからSVGとして出力したもの。ライセンスはLucide-LICENSE.txt。施設・交通の画像と一緒に、起動時に描画用画像へまとめる。
