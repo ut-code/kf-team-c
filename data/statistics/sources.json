@@ -1,0 +1,93 @@
+{
+  "referenceYear": 2020,
+  "retrieved": "2026-10-30",
+  "worldbank": [
+    {
+      "indicator": "SP.POP.TOTL",
+      "url": "https://api.worldbank.org/v2/country/all/indicator/SP.POP.TOTL?format=json&date=2020&per_page=1000",
+      "year": 2020,
+      "sha256": "340c408a42f90d22331b47fd26219c577e07c44b809de21a2646bda2682a076f",
+      "lastUpdated": "2026-10-08"
+    },
+    {
+      "indicator": "SP.POP.0014.TO.ZS",
+      "url": "https://api.worldbank.org/v2/country/all/indicator/SP.POP.0014.TO.ZS?format=json&date=2020&per_page=1000",
+      "year": 2020,
+      "sha256": "2138d586dc4aa92f845e615f5f638a534a9b11bc86495006f61c11dd82481d99",
+      "lastUpdated": "2026-10-08"
+    },
+    {
+      "indicator": "SP.POP.1564.TO.ZS",
+      "url": "https://api.worldbank.org/v2/country/all/indicator/SP.POP.1564.TO.ZS?format=json&date=2020&per_page=1000",
+      "year": 2020,
+      "sha256": "4e12f1d7db60c727f7e3fb20e3a36ada20d813d06a04917cf68dd04a8a336bef",
+      "lastUpdated": "2026-10-08"
+    },
+    {
+      "indicator": "SP.POP.65UP.TO.ZS",
+      "url": "https://api.worldbank.org/v2/country/all/indicator/SP.POP.65UP.TO.ZS?format=json&date=2020&per_page=1000",
+      "year": 2020,
+      "sha256": "323819570fb9d7b65b9b530678eddd4884a3af84065b5583d03cde5648a72bb3",
+      "lastUpdated": "2026-10-08"
+    },
+    {
+      "indicator": "IT.NET.USER.ZS",
+      "url": "https://api.worldbank.org/v2/country/all/indicator/IT.NET.USER.ZS?format=json&date=2020&per_page=1000",
+      "year": 2020,
+      "sha256": "572f79190afe818664c1fdb8d10f761ba6800e7ee99a53f40ba3a068e32a5ab5",
+      "lastUpdated": "2026-10-08"
+    },
+    {
+      "indicator": "SP.URB.TOTL.IN.ZS",
+      "url": "https://api.worldbank.org/v2/country/all/indicator/SP.URB.TOTL.IN.ZS?format=json&date=2020&per_page=1000",
+      "year": 2020,
+      "sha256": "54df44d352cd337395b088cd0170eb40fc57d9196bcb3b43450bd9a0f0cc702f",
+      "lastUpdated": "2026-10-08"
+    },
+    {
+      "indicator": "SL.EMP.TOTL.SP.ZS",
+      "url": "https://api.worldbank.org/v2/country/all/indicator/SL.EMP.TOTL.SP.ZS?format=json&date=2020&per_page=1000",
+      "year": 2020,
+      "sha256": "a5693f8daaf5cececd5e24bf1072709efd0fe7b2d6a0cb75deb320154c2e343a",
+      "lastUpdated": "2026-10-08"
+    },
+    {
+      "indicator": "SL.SRV.EMPL.ZS",
+      "url": "https://api.worldbank.org/v2/country/all/indicator/SL.SRV.EMPL.ZS?format=json&date=2020&per_page=1000",
+      "year": 2020,
+      "sha256": "c61b9e3bfb446789a5b15139fb2360f3c30a2e7ab38339d5689b4b4eead9a388",
+      "lastUpdated": "2026-10-08"
+    },
+    {
+      "indicator": "SL.IND.EMPL.ZS",
+      "url": "https://api.worldbank.org/v2/country/all/indicator/SL.IND.EMPL.ZS?format=json&date=2020&per_page=1000",
+      "year": 2020,
+      "sha256": "d1c9daa8b4baa70b1bec92a843d7192a114b0ba2a88ac3975cf94988b2d0f950",
+      "lastUpdated": "2026-10-08"
+    },
+    {
+      "indicator": "SL.AGR.EMPL.ZS",
+      "url": "https://api.worldbank.org/v2/country/all/indicator/SL.AGR.EMPL.ZS?format=json&date=2020&per_page=1000",
+      "year": 2020,
+      "sha256": "0582cbbc4727878683c0c9831af8e1889dfeb87fe8909bd4752854d24bbdcbd1",
+      "lastUpdated": "2026-10-08"
+    }
+  ],
+  "ghsl": {
+    "url": "https://jeodpp.jrc.ec.europa.eu/ftp/jrc-opendata/GHSL/GHS_POP_GLOBE_R2023A/GHS_POP_E2020_GLOBE_R2023A_4326_30ss/V1-0/GHS_POP_E2020_GLOBE_R2023A_4326_30ss_V1_0.zip",
+    "sha256": "579fb7477b33d9be61e9562b170ea108a670b85ef6fe23b61a22d17200929636"
+  },
+  "boundaries": {
+    "url": "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_admin_0_countries.geojson",
+    "sha256": "239eec57ac17f100a11e2536cffc56752c318b50ae765b0918ff7aab4ce8f255"
+  },
+  "supplemental": {
+    "file": "supplemental-observations.json",
+    "sha256": "794d9c2d8e46f143f8923c0895cbd97a3c20dda8cd6f2b585a5dafcb345e4919"
+  },
+  "subdivisions": {
+    "url": "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_admin_1_states_provinces.geojson",
+    "sha256": "22d0e3ad85eb3e27f17cabf8ba2d50e554fbc27a87796ff891d958185da62fb5",
+    "retrieved": "2026-10-30"
+  }
+}

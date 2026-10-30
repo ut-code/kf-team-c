@@ -1,0 +1,830 @@
+{
+  "USA": {
+    "US-WA": {
+      "name": "Washington",
+      "area": 0
+    },
+    "US-ID": {
+      "name": "Idaho",
+      "area": 0
+    },
+    "US-MT": {
+      "name": "Montana",
+      "area": 0
+    },
+    "US-ND": {
+      "name": "North Dakota",
+      "area": 1
+    },
+    "US-MN": {
+      "name": "Minnesota",
+      "area": 1
+    },
+    "US-MI": {
+      "name": "Michigan",
+      "area": 1
+    },
+    "US-OH": {
+      "name": "Ohio",
+      "area": 1
+    },
+    "US-PA": {
+      "name": "Pennsylvania",
+      "area": 1
+    },
+    "US-NY": {
+      "name": "New York",
+      "area": 1
+    },
+    "US-VT": {
+      "name": "Vermont",
+      "area": 1
+    },
+    "US-NH": {
+      "name": "New Hampshire",
+      "area": 1
+    },
+    "US-ME": {
+      "name": "Maine",
+      "area": 1
+    },
+    "US-AZ": {
+      "name": "Arizona",
+      "area": 0
+    },
+    "US-CA": {
+      "name": "California",
+      "area": 0
+    },
+    "US-NM": {
+      "name": "New Mexico",
+      "area": 0
+    },
+    "US-TX": {
+      "name": "Texas",
+      "area": 1
+    },
+    "US-AK": {
+      "name": "Alaska",
+      "area": 0
+    },
+    "US-LA": {
+      "name": "Louisiana",
+      "area": 1
+    },
+    "US-MS": {
+      "name": "Mississippi",
+      "area": 1
+    },
+    "US-AL": {
+      "name": "Alabama",
+      "area": 1
+    },
+    "US-FL": {
+      "name": "Florida",
+      "area": 1
+    },
+    "US-GA": {
+      "name": "Georgia",
+      "area": 1
+    },
+    "US-SC": {
+      "name": "South Carolina",
+      "area": 1
+    },
+    "US-NC": {
+      "name": "North Carolina",
+      "area": 1
+    },
+    "US-VA": {
+      "name": "Virginia",
+      "area": 1
+    },
+    "US-DC": {
+      "name": "District of Columbia",
+      "area": 1
+    },
+    "US-MD": {
+      "name": "Maryland",
+      "area": 1
+    },
+    "US-DE": {
+      "name": "Delaware",
+      "area": 1
+    },
+    "US-NJ": {
+      "name": "New Jersey",
+      "area": 1
+    },
+    "US-CT": {
+      "name": "Connecticut",
+      "area": 1
+    },
+    "US-RI": {
+      "name": "Rhode Island",
+      "area": 1
+    },
+    "US-MA": {
+      "name": "Massachusetts",
+      "area": 1
+    },
+    "US-OR": {
+      "name": "Oregon",
+      "area": 0
+    },
+    "US-HI": {
+      "name": "Hawaii",
+      "area": 0
+    },
+    "US-UT": {
+      "name": "Utah",
+      "area": 0
+    },
+    "US-WY": {
+      "name": "Wyoming",
+      "area": 0
+    },
+    "US-NV": {
+      "name": "Nevada",
+      "area": 0
+    },
+    "US-CO": {
+      "name": "Colorado",
+      "area": 0
+    },
+    "US-SD": {
+      "name": "South Dakota",
+      "area": 1
+    },
+    "US-NE": {
+      "name": "Nebraska",
+      "area": 1
+    },
+    "US-KS": {
+      "name": "Kansas",
+      "area": 1
+    },
+    "US-OK": {
+      "name": "Oklahoma",
+      "area": 1
+    },
+    "US-IA": {
+      "name": "Iowa",
+      "area": 1
+    },
+    "US-MO": {
+      "name": "Missouri",
+      "area": 1
+    },
+    "US-WI": {
+      "name": "Wisconsin",
+      "area": 1
+    },
+    "US-IL": {
+      "name": "Illinois",
+      "area": 1
+    },
+    "US-KY": {
+      "name": "Kentucky",
+      "area": 1
+    },
+    "US-AR": {
+      "name": "Arkansas",
+      "area": 1
+    },
+    "US-TN": {
+      "name": "Tennessee",
+      "area": 1
+    },
+    "US-WV": {
+      "name": "West Virginia",
+      "area": 1
+    },
+    "US-IN": {
+      "name": "Indiana",
+      "area": 1
+    }
+  },
+  "RUS": {
+    "RU-AL": {
+      "name": "Gorno-Altay",
+      "area": 14
+    },
+    "RU-PSK": {
+      "name": "Pskov",
+      "area": 12
+    },
+    "RU-KDA": {
+      "name": "Krasnodar",
+      "area": 12
+    },
+    "RU-KC": {
+      "name": "Karachay-Cherkess",
+      "area": 12
+    },
+    "RU-KB": {
+      "name": "Kabardin-Balkar",
+      "area": 12
+    },
+    "RU-SE": {
+      "name": "North Ossetia",
+      "area": 12
+    },
+    "RU-IN": {
+      "name": "Ingush",
+      "area": 12
+    },
+    "RU-CE": {
+      "name": "Chechnya",
+      "area": 12
+    },
+    "RU-DA": {
+      "name": "Dagestan",
+      "area": 12
+    },
+    "RU-MUR": {
+      "name": "Murmansk",
+      "area": 12
+    },
+    "RU-KR": {
+      "name": "Karelia",
+      "area": 12
+    },
+    "RU-LEN": {
+      "name": "Leningrad",
+      "area": 12
+    },
+    "RU-KGD": {
+      "name": "Kaliningrad",
+      "area": 12
+    },
+    "RU-SMO": {
+      "name": "Smolensk",
+      "area": 12
+    },
+    "RU-BRY": {
+      "name": "Bryansk",
+      "area": 12
+    },
+    "RU-KRS": {
+      "name": "Kursk",
+      "area": 12
+    },
+    "RU-BEL": {
+      "name": "Belgorod",
+      "area": 12
+    },
+    "RU-VOR": {
+      "name": "Voronezh",
+      "area": 12
+    },
+    "RU-ROS": {
+      "name": "Rostov",
+      "area": 12
+    },
+    "RU-BU": {
+      "name": "Buryat",
+      "area": 14
+    },
+    "RU-TY": {
+      "name": "Tuva",
+      "area": 14
+    },
+    "RU-ZAB": {
+      "name": "Chita",
+      "area": 14
+    },
+    "RU-AMU": {
+      "name": "Amur",
+      "area": 14
+    },
+    "RU-YEV": {
+      "name": "Yevrey",
+      "area": 14
+    },
+    "RU-KHA": {
+      "name": "Khabarovsk",
+      "area": 14
+    },
+    "RU-PRI": {
+      "name": "Primor'ye",
+      "area": 14
+    },
+    "RU-TYU": {
+      "name": "Tyumen'",
+      "area": 14
+    },
+    "RU-KGN": {
+      "name": "Kurgan",
+      "area": 14
+    },
+    "RU-OMS": {
+      "name": "Omsk",
+      "area": 14
+    },
+    "RU-NVS": {
+      "name": "Novosibirsk",
+      "area": 14
+    },
+    "RU-CHE": {
+      "name": "Chelyabinsk",
+      "area": 14
+    },
+    "RU-ALT": {
+      "name": "Altay",
+      "area": 14
+    },
+    "RU-ORE": {
+      "name": "Orenburg",
+      "area": 12
+    },
+    "RU-SAR": {
+      "name": "Saratov",
+      "area": 12
+    },
+    "RU-AST": {
+      "name": "Astrakhan'",
+      "area": 12
+    },
+    "RU-VGG": {
+      "name": "Volgograd",
+      "area": 12
+    },
+    "UA-43": {
+      "name": "Crimea",
+      "area": 12
+    },
+    "RU-MAG": {
+      "name": "Maga Buryatdan",
+      "area": 14
+    },
+    "RU-SAK": {
+      "name": "Sakhalin",
+      "area": 14
+    },
+    "UA-40": {
+      "name": "Sevastopol",
+      "area": 12
+    },
+    "RU-CHU": {
+      "name": "Chukchi Autonomous Okrug",
+      "area": 14
+    },
+    "RU-YAN": {
+      "name": "Yamal-Nenets",
+      "area": 14
+    },
+    "RU-NEN": {
+      "name": "Nenets",
+      "area": 12
+    },
+    "RU-SA": {
+      "name": "Sakha (Yakutia)",
+      "area": 14
+    },
+    "RU-SPE": {
+      "name": "City of St. Petersburg",
+      "area": 12
+    },
+    "RU-ARK": {
+      "name": "Arkhangel'sk",
+      "area": 12
+    },
+    "RU-KYA": {
+      "name": "Krasnoyarsk",
+      "area": 14
+    },
+    "RU-KL": {
+      "name": "Kalmyk",
+      "area": 12
+    },
+    "RU-KAM": {
+      "name": "Kamchatka",
+      "area": 14
+    },
+    "RU-X01~": {
+      "name": null,
+      "area": 14
+    },
+    "RU-BA": {
+      "name": "Bashkortostan",
+      "area": 12
+    },
+    "RU-SVE": {
+      "name": "Sverdlovsk",
+      "area": 14
+    },
+    "RU-KHM": {
+      "name": "Khanty-Mansiy",
+      "area": 14
+    },
+    "RU-LIP": {
+      "name": "Lipetsk",
+      "area": 12
+    },
+    "RU-TAM": {
+      "name": "Tambov",
+      "area": 12
+    },
+    "RU-TOM": {
+      "name": "Tomsk",
+      "area": 14
+    },
+    "RU-TA": {
+      "name": "Tatarstan",
+      "area": 12
+    },
+    "RU-ULY": {
+      "name": "Ul'yanovsk",
+      "area": 12
+    },
+    "RU-PNZ": {
+      "name": "Penza",
+      "area": 12
+    },
+    "RU-KEM": {
+      "name": "Kemerovo",
+      "area": 14
+    },
+    "RU-ORL": {
+      "name": "Orel",
+      "area": 12
+    },
+    "RU-IRK": {
+      "name": "Irkutsk",
+      "area": 14
+    },
+    "RU-KK": {
+      "name": "Khakass",
+      "area": 14
+    },
+    "RU-MO": {
+      "name": "Mordovia",
+      "area": 12
+    },
+    "RU-KLU": {
+      "name": "Kaluga",
+      "area": 12
+    },
+    "RU-KOS": {
+      "name": "Kostroma",
+      "area": 12
+    },
+    "RU-YAR": {
+      "name": "Yaroslavl'",
+      "area": 12
+    },
+    "RU-VLA": {
+      "name": "Vladimir",
+      "area": 12
+    },
+    "RU-RYA": {
+      "name": "Ryazan'",
+      "area": 12
+    },
+    "RU-IVA": {
+      "name": "Ivanovo",
+      "area": 12
+    },
+    "RU-NIZ": {
+      "name": "Nizhegorod",
+      "area": 12
+    },
+    "RU-TUL": {
+      "name": "Tula",
+      "area": 12
+    },
+    "RU-CU": {
+      "name": "Chuvash",
+      "area": 12
+    },
+    "RU-VLG": {
+      "name": "Vologda",
+      "area": 12
+    },
+    "RU-NGR": {
+      "name": "Novgorod",
+      "area": 12
+    },
+    "RU-TVE": {
+      "name": "Tver'",
+      "area": 12
+    },
+    "RU-MOW": {
+      "name": "Moskovskaya",
+      "area": 12
+    },
+    "RU-MOS": {
+      "name": "Moskva",
+      "area": 12
+    },
+    "RU-ME": {
+      "name": "Mariy-El",
+      "area": 12
+    },
+    "RU-KIR": {
+      "name": "Kirov",
+      "area": 12
+    },
+    "RU-UD": {
+      "name": "Udmurt",
+      "area": 12
+    },
+    "RU-KO": {
+      "name": "Komi",
+      "area": 12
+    },
+    "RU-PER": {
+      "name": "Perm'",
+      "area": 12
+    },
+    "RU-SAM": {
+      "name": "Samara",
+      "area": 12
+    },
+    "RU-STA": {
+      "name": "Stavropol'",
+      "area": 12
+    },
+    "RU-AD": {
+      "name": "Adygey",
+      "area": 12
+    }
+  },
+  "IND": {
+    "IN-LA": {
+      "name": "Ladakh",
+      "area": 23
+    },
+    "IN-AR": {
+      "name": "Arunachal Pradesh",
+      "area": 23
+    },
+    "IN-SK": {
+      "name": "Sikkim",
+      "area": 23
+    },
+    "IN-WB": {
+      "name": "West Bengal",
+      "area": 23
+    },
+    "IN-AS": {
+      "name": "Assam",
+      "area": 23
+    },
+    "IN-UT": {
+      "name": "Uttarakhand",
+      "area": 23
+    },
+    "IN-NL": {
+      "name": "Nagaland",
+      "area": 23
+    },
+    "IN-MN": {
+      "name": "Manipur",
+      "area": 23
+    },
+    "IN-MZ": {
+      "name": "Mizoram",
+      "area": 23
+    },
+    "IN-TR": {
+      "name": "Tripura",
+      "area": 23
+    },
+    "IN-ML": {
+      "name": "Meghalaya",
+      "area": 23
+    },
+    "IN-PB": {
+      "name": "Punjab",
+      "area": 23
+    },
+    "IN-RJ": {
+      "name": "Rajasthan",
+      "area": 23
+    },
+    "IN-GJ": {
+      "name": "Gujarat",
+      "area": 23
+    },
+    "IN-HP": {
+      "name": "Himachal Pradesh",
+      "area": 23
+    },
+    "IN-JK": {
+      "name": "Jammu and Kashmir",
+      "area": 23
+    },
+    "IN-BR": {
+      "name": "Bihar",
+      "area": 23
+    },
+    "IN-UP": {
+      "name": "Uttar Pradesh",
+      "area": 23
+    },
+    "IN-AP": {
+      "name": "Andhra Pradesh",
+      "area": 24
+    },
+    "IN-OR": {
+      "name": "Odisha",
+      "area": 23
+    },
+    "IN-DH": {
+      "name": "Dadra and Nagar Haveli and Daman and Diu",
+      "area": 24
+    },
+    "IN-MH": {
+      "name": "Maharashtra",
+      "area": 24
+    },
+    "IN-GA": {
+      "name": "Goa",
+      "area": 24
+    },
+    "IN-KA": {
+      "name": "Karnataka",
+      "area": 24
+    },
+    "IN-KL": {
+      "name": "Kerala",
+      "area": 24
+    },
+    "IN-PY": {
+      "name": "Puducherry",
+      "area": 24
+    },
+    "IN-TN": {
+      "name": "Tamil Nadu",
+      "area": 24
+    },
+    "IN-LD": {
+      "name": "Lakshadweep",
+      "area": 24
+    },
+    "IN-AN": {
+      "name": "Andaman and Nicobar",
+      "area": 24
+    },
+    "IN-JH": {
+      "name": "Jharkhand",
+      "area": 23
+    },
+    "IN-DL": {
+      "name": "Delhi",
+      "area": 23
+    },
+    "IN-CH": {
+      "name": "Chandigarh",
+      "area": 23
+    },
+    "IN-MP": {
+      "name": "Madhya Pradesh",
+      "area": 23
+    },
+    "IN-CT": {
+      "name": "Chhattisgarh",
+      "area": 23
+    },
+    "IN-HR": {
+      "name": "Haryana",
+      "area": 23
+    },
+    "IN-TG": {
+      "name": "Telangana",
+      "area": 24
+    }
+  },
+  "CHN": {
+    "CN-XJ": {
+      "name": "Xinjiang",
+      "area": 27
+    },
+    "CN-XZ": {
+      "name": "Xizang",
+      "area": 27
+    },
+    "CN-NM": {
+      "name": "Inner Mongol",
+      "area": 27
+    },
+    "CN-GS": {
+      "name": "Gansu",
+      "area": 27
+    },
+    "CN-YN": {
+      "name": "Yunnan",
+      "area": 27
+    },
+    "CN-HL": {
+      "name": "Heilongjiang",
+      "area": 26
+    },
+    "CN-JL": {
+      "name": "Jilin",
+      "area": 26
+    },
+    "CN-LN": {
+      "name": "Liaoning",
+      "area": 26
+    },
+    "CN-GX": {
+      "name": "Guangxi",
+      "area": 27
+    },
+    "CN-GD": {
+      "name": "Guangdong",
+      "area": 26
+    },
+    "CN-HI": {
+      "name": "Hainan",
+      "area": 26
+    },
+    "CN-FJ": {
+      "name": "Fujian",
+      "area": 26
+    },
+    "CN-ZJ": {
+      "name": "Zhejiang",
+      "area": 26
+    },
+    "CN-SH": {
+      "name": "Shanghai",
+      "area": 26
+    },
+    "CN-JS": {
+      "name": "Jiangsu",
+      "area": 26
+    },
+    "CN-SD": {
+      "name": "Shandong",
+      "area": 26
+    },
+    "CN-HE": {
+      "name": "Hebei",
+      "area": 26
+    },
+    "CN-TJ": {
+      "name": "Tianjin",
+      "area": 26
+    },
+    "CN-X01~": {
+      "name": "Paracel Islands",
+      "area": 26
+    },
+    "CN-BJ": {
+      "name": "Beijing",
+      "area": 26
+    },
+    "CN-SC": {
+      "name": "Sichuan",
+      "area": 27
+    },
+    "CN-CQ": {
+      "name": "Chongqing",
+      "area": 27
+    },
+    "CN-GZ": {
+      "name": "Guizhou",
+      "area": 27
+    },
+    "CN-HN": {
+      "name": "Hunan",
+      "area": 26
+    },
+    "CN-NX": {
+      "name": "Ningxia",
+      "area": 27
+    },
+    "CN-SN": {
+      "name": "Shaanxi",
+      "area": 27
+    },
+    "CN-QH": {
+      "name": "Qinghai",
+      "area": 27
+    },
+    "CN-SX": {
+      "name": "Shanxi",
+      "area": 26
+    },
+    "CN-JX": {
+      "name": "Jiangxi",
+      "area": 26
+    },
+    "CN-HA": {
+      "name": "Henan",
+      "area": 26
+    },
+    "CN-HB": {
+      "name": "Hubei",
+      "area": 26
+    },
+    "CN-AH": {
+      "name": "Anhui",
+      "area": 26
+    }
+  }
+}

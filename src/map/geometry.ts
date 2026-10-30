@@ -17,6 +17,22 @@ export interface Camera {
     x: number;
 }
 
+/** 日付変更線も考慮した二地点間の球面距離（km）。 */
+export function geographicDistance(
+    a: { longitude: number; latitude: number },
+    b: { longitude: number; latitude: number },
+) {
+    const radians = Math.PI / 180;
+    const latitude = (b.latitude - a.latitude) * radians;
+    const longitude = (b.longitude - a.longitude) * radians;
+    const angle =
+        Math.sin(latitude / 2) ** 2 +
+        Math.cos(a.latitude * radians) *
+            Math.cos(b.latitude * radians) *
+            Math.sin(longitude / 2) ** 2;
+    return 12_742 * Math.asin(Math.min(1, Math.sqrt(angle)));
+}
+
 /** 背景・国境・マーカーで共有するメルカトル。北緯75度〜南緯60度。 */
 export function project(longitude: number, latitude: number): Point {
     const y = Math.log(Math.tan(Math.PI / 4 + (latitude * Math.PI) / 360));
