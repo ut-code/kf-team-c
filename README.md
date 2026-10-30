@@ -14,3 +14,71 @@ npm test
 npm run build
 npm run simulate -- 2600 3
 ```
+
+## 世界地図の色調を変える
+
+`src/map/tone.css` で陸地と水域を別々に調整する。標準はNASA海底地形付き版の海洋調整済み画像。全候補で共通の設定を使い、海・黒海・カスピ海・湖は水域側へ含める。
+
+陸地は `--map-land-`、水域は `--map-ocean-` に以下の項目名を続ける。
+
+| 項目 | 初期値 | 効果・例 |
+| --- | --- | --- |
+| `brightness` | `1` | 明るさ。`1.1` で10%明るくする。 |
+| `contrast` | `1` | 明暗差。`0.9` で柔らかく、`1.1` で強める。 |
+| `saturation` | `1` | 彩度。`0.8` で落ち着いた色、`0` で白黒。 |
+| `sepia` | `0` | 暖色寄りの変換。`0.05`〜`0.15` 程度から試す。 |
+| `hue` | `0deg` | 色相の回転。小さな変更なら±5deg程度。 |
+| `tint` | `rgb(0 0 0 / 0%)` | 重ねる色と強さ。例: `rgb(180 150 100 / 8%)`。 |
+
+例えば、陸を少し明るくし、海の青さと明暗差を弱める場合は、同ファイル内の値を次のように変更する。
+
+```css
+--map-land-brightness: 1.1;
+--map-ocean-saturation: 0.85;
+--map-ocean-contrast: 0.9;
+```
+
+陸と水域の調整後に、全体用の `--map-brightness`・`--map-contrast`・`--map-saturation`・`--map-sepia`・`--map-hue` を適用する。各領域では色の重ね合わせ、明るさ、コントラスト、彩度、セピア、色相の順に適用する。
+
+開発中は保存すると反映される。配布用は `npm run build` を実行する。画像の再生成やゲーム内UIの操作は不要。国境・船舶・海面反射・各パネルと国別データの白地図には適用しない。
+
+NASA海底地形の元になる青の配色や陰影の読み取り方そのものを変更する場合は `scripts/map_studies/satellite-ocean-tone.json` を編集し、`python scripts/build_map_comparison.py` を実行する。
+
+- `deep_color`: 海の最暗部のRGB。黒ずみを抑えるため、完全な黒にはしない。
+- `shallow_color`: 海の最明部のRGB。`deep_color` との差を小さくすると海底の明暗差が弱くなる。
+- `source_luminance_range`: NASA原画像の明るさを読み取る範囲。標高や水深の値ではない。
+- `gamma`: 中間の海の明るさ。`1` より小さいと明るく、大きいと暗くなる。
+
+この設定は海洋調整版だけに適用する。段階的な二色塗りではなく、原画像の陰影に沿って連続的に補間する。海峡や地図端で分かれた海、カスピ海などの内陸水域にも同じ調整を適用する。調整用のゲーム内UIは追加しない。
+
+## 衛星画像の比較
+
+設定の「[デバッグ用]世界地図の切り替え」で選ぶ。標準は「NASA 海底地形（海洋調整・標準）」。加工前のNASA 2004年7月版も残し、冬季・地形陰影なし・海底地形付き・Sentinel-2 cloudless 2016・Black Marble夜間2016を比較できる。写真の色違いではなく、季節や合成方法、観測系統が異なる候補を使う。全候補に高精細な50m国境と `src/map/tone.css` の設定を適用する。
+
+再取得は `python scripts/acquire_map_comparison.py`、生成は `python scripts/build_map_comparison.py`、検証は `python scripts/map_studies/verify_comparison.py`。ゲーム実行中は配信元へ接続せず、生成済みの画像を使用する。
+
+## 地図の描画と負荷の確認
+
+世界地図は `src/map/WorldRenderer.ts` の単一WebGL描画へ集約する。背景・国境・施設・交通・海面は一つのCanvasで表示し、ReactはUI、操作の受け渡し、キーボード操作・読み上げ用の画面内対象を管理する。施設は集約せず、元の座標へ個別表示する。
+
+- 描画面は画面サイズに固定する。拡大はカメラ座標で行い、画面外の施設・交通は描かない。
+- 地図の色調・国の配色・国境をGPUの静的描画先へ保存する。カメラ・色調・国の値・選択状態が変わった場合だけ更新する。
+- 海面の波は画素数に上限を設けた描画先で生成する。周期的な乱数の四隅は事前計算し、各画素でのsin計算を省く。
+- 施設・船・航空機は一枚の画像へまとめ、同じ頂点列で一括描画する。国の配色変更は256色の小さなテクスチャで渡す。
+- 国境は元の50mデータから生成した8192×4361の国IDテクスチャを使用する。当たり判定は元の詳細なポリゴンを一度解析して再利用する。
+- 素材が揃うまで直前の完成画面を保持し、切り替え後は一式を同時に描く。通常表示と国別データ表示の切り替えで画像を読み込み直さない。背景候補の切り替えでは、共通の国境・水域マスクをGPUに保持する。
+- 停止中・国別データ表示中は常時の描画ループを止め、変更があるときだけ描く。タブ非表示中も描画を停止する。
+
+国境を再生成した場合は `python scripts/build_country_index.py` も実行する。`npm run assets` には含めてある。整合性は `python scripts/map_studies/verify_country_index.py` で確認する。
+
+`npm run test:renderer` で座標変換・画面外除外・国の当たり判定・描画サイズ上限・波の周期境界を検証する。`npm run benchmark:renderer` はCPU処理時間と旧構造との描画ターゲット容量比較を `reports/renderer-benchmark.json` へ出力する。容量の比較はFPS向上率や実GPUメモリーの計測ではない。
+
+GPU起動・色調の独立設定・表示切り替え・静的地図の再利用・停止時の描画停止・ゲームの選択操作を自動確認する場合は、ローカル開発サーバーを起動し、Windowsで次を実行する。
+
+```powershell
+node scripts/verify_renderer.mjs http://127.0.0.1:5180 "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe"
+```
+
+出力は `reports/world-renderer-smoke.json` と `reports/world-renderer.png`。テストページだけで色調の基準値を固定し、ユーザーの `tone.css` は変更しない。ブラウザの通常のプロファイルは使用しない。
+
+実行中の軽量な計測値は地図Canvasの `data-render-stats` に約1秒間隔で記録する。描画回数、静的再描画回数、表示施設数、画面サイズ、CPU側の描画呼び出し時間を含む。GPUの描画時間は含まない。WebGLと8192pxのテクスチャ対応が必要。

@@ -1,0 +1,39 @@
+/* 世界地図の色調を調整する。ゲーム内UIの色は変わらない。
+ * 開発中は保存すると即反映。本番向けは npm run build。地図画像の再生成は不要。
+ *
+ * brightness: 明るさ。1が原画像、1.1で10%明るく、0.9で10%暗くする。
+ * contrast:   コントラスト。1が標準。1.05で少し強く、0.95で少し柔らかくする。
+ * saturation: 彩度。1が標準。0.8で落ち着いた色、1.2で鮮やかな色、0で白黒。
+ * sepia:      暖色寄りの色合い。0で無効。0.05〜0.15程度から試す。
+ * hue:        色相の回転。0degで変更なし。小さく調整するなら±5deg程度。
+ * tint:       重ねる色と強さ。例: rgb(190 160 100 / 8%)で薄い暖色を重ねる。
+ *             透明度0%で無効。色を重ねてから各フィルターを順番に適用する。
+ *
+ * landは陸地、oceanは海・黒海・カスピ海・湖を含む水域全体。
+ * 陸と水域を別々に調整した後、mapの全体調整を適用する。
+ * 海面の揺らぎ・船舶・国境・選択表示には、この色調フィルターをかけない。
+ */
+:root {
+    /* 陸地。例: brightness 1.1、saturation 0.9で少し明るく落ち着いた色にする。 */
+    --map-land-brightness: 1;
+    --map-land-contrast: 1;
+    --map-land-saturation: 1;
+    --map-land-sepia: 0;
+    --map-land-hue: 0deg;
+    --map-land-tint: rgb(0 0 0 / 0%);
+
+    /* 海洋・内陸水域。例: brightness 1.1、contrast 0.9で海底の明暗差を和らげる。 */
+    --map-ocean-brightness: 0.6;
+    --map-ocean-contrast: 1;
+    --map-ocean-saturation: 1;
+    --map-ocean-sepia: 0;
+    --map-ocean-hue: 0deg;
+    --map-ocean-tint: rgb(0 0 0 / 0%);
+
+    /* 世界地図全体。陸と水域の調整後に適用する。 */
+    --map-brightness: 1;
+    --map-contrast: 1;
+    --map-saturation: 1;
+    --map-sepia: 0;
+    --map-hue: 0deg;
+}

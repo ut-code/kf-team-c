@@ -1,5 +1,5 @@
 import { BookOpen, Cpu, Mail, SlidersHorizontal } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { CountryParameterKey } from '../game/countryParameters';
 import { COUNTRY_PARAMETERS } from '../game/countryParameters';
 import {
@@ -69,7 +69,7 @@ export function GameApp({
     const selected = useMapStore((state) => state.selectedCountryId);
     const marker = useMapStore((state) => state.selectedMarkerId);
     const markerSelection = useMapStore((state) => state.markerSelection);
-    const [mapVariant, setMapVariant] = useState<MapVariant>('current');
+    const [mapVariant, setMapVariant] = useState<MapVariant>('satelliteOceanTuned');
     const activeMap = mapVariants[mapVariant];
     const [panel, setPanel] = useState<OpenPanel>(null);
     const [mapParameter, setMapParameter] = useState<CountryParameterKey | null>(null);
@@ -158,17 +158,26 @@ export function GameApp({
         dispatch({ type: 'chat-close' });
         setPanel(null);
     }
-    function selectCountry() {
+    const selectCountry = useCallback(() => {
         dispatch({ type: 'chat-close' });
         setPanel((current) => (current === 'sns' ? 'sns' : 'country'));
-    }
+    }, [dispatch]);
     return (
         <main className={styles.game}>
+            <a
+                className={styles.mapCredit}
+                href={activeMap.attributionUrl}
+                target="_blank"
+                rel="noreferrer"
+            >
+                {activeMap.attribution}
+            </a>
             <WorldMap
                 countries={activeMap.detailedBorders ? detailedCountries : countries}
                 backgroundUrl={activeMap.backgroundUrl}
                 waterMaskUrl={activeMap.waterMaskUrl}
                 surfaceMaskUrl={activeMap.surfaceMaskUrl}
+                countryIndexUrl={activeMap.countryIndexUrl}
                 countryStates={gameState.countries}
                 parameterValues={mapValues}
                 parameterLabel={mapParameter ? COUNTRY_PARAMETERS[mapParameter].name : undefined}

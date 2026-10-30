@@ -1,0 +1,83 @@
+{
+  "note": "画素数は描画ターゲットの容量比較。旧CSSフィルターの中間面・ブラウザ内部バッファは含まない。実GPUの速度倍率・メモリー使用量ではない。CPU計測はこの実行環境での値。",
+  "geometryCompileMs": 23.828000000000003,
+  "geometryCompilesPerScene": 1,
+  "geometryCompilesPerAnimationFrame": 0,
+  "countryHitCpuMs": 0.01144250000000001,
+  "oldSvgCountryPaths": 352,
+  "newSvgCountryPaths": 0,
+  "scenarios": [
+    {
+      "screen": {
+        "width": 1280,
+        "height": 720,
+        "dpr": 1
+      },
+      "zoom": 1,
+      "oldDynamicTargetPixels": 3686400,
+      "newTargetPixels": 2764800,
+      "reductionPercent": 25,
+      "visibleFacilities": 44,
+      "totalFacilities": 44,
+      "cullCpuMs": 0.007007499999999993,
+      "mainTarget": [
+        1280,
+        720
+      ]
+    },
+    {
+      "screen": {
+        "width": 1280,
+        "height": 720,
+        "dpr": 1
+      },
+      "zoom": 3,
+      "oldDynamicTargetPixels": 9329526,
+      "newTargetPixels": 2764800,
+      "reductionPercent": 70.4,
+      "visibleFacilities": 16,
+      "totalFacilities": 44,
+      "cullCpuMs": 0.0034183333333333366,
+      "mainTarget": [
+        1280,
+        720
+      ]
+    },
+    {
+      "screen": {
+        "width": 1920,
+        "height": 1080,
+        "dpr": 1.5
+      },
+      "zoom": 1,
+      "oldDynamicTargetPixels": 15032191,
+      "newTargetPixels": 9327001,
+      "reductionPercent": 38,
+      "visibleFacilities": 40,
+      "totalFacilities": 44,
+      "cullCpuMs": 0.004198666666666663,
+      "mainTarget": [
+        2715,
+        1527
+      ]
+    },
+    {
+      "screen": {
+        "width": 1920,
+        "height": 1080,
+        "dpr": 1.5
+      },
+      "zoom": 3,
+      "oldDynamicTargetPixels": 43025526,
+      "newTargetPixels": 9327001,
+      "reductionPercent": 78.3,
+      "visibleFacilities": 6,
+      "totalFacilities": 44,
+      "cullCpuMs": 0.0015649999999999883,
+      "mainTarget": [
+        2715,
+        1527
+      ]
+    }
+  ]
+}

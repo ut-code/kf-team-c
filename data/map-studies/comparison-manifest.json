@@ -12,6 +12,7 @@
   ],
   "border_scale": "50m",
   "countries": 176,
+  "satellite_images": 6,
   "natural_earth_color_scale": [
     0.8721608519554138,
     0.9907760620117188,
@@ -26,10 +27,6 @@
     {
       "file": "data/map-studies/raw/NE2_50M_SR.tif",
       "sha256": "8b8cd00b9c34076ee061a0aba0b4773f9cf0efd0656ab2799a600b1864cf1a2c"
-    },
-    {
-      "file": "data/map-studies/raw/blue-marble-july.jpg",
-      "sha256": "85a24885616097b5e06532b7d8e30fa5d749a782e70ea55971dd8539a0899206"
     },
     {
       "file": "data/map-studies/raw/ne_50m_admin_0_countries.geojson",
@@ -48,6 +45,34 @@
       "sha256": "b881500f34739b844658ecb00ce86d9352f9a2a45a1e88f26b914d496ea1b38e"
     },
     {
+      "file": "data/map-studies/raw/blue-marble-july.jpg",
+      "sha256": "85a24885616097b5e06532b7d8e30fa5d749a782e70ea55971dd8539a0899206"
+    },
+    {
+      "file": "data/map-studies/raw/blue-marble-january.jpg",
+      "sha256": "9743175942473681d78838ca1042553dab4779cf957fb6d8f22a81fb796f7797"
+    },
+    {
+      "file": "data/map-studies/raw/blue-marble-july-plain.jpg",
+      "sha256": "f55226d46d27e05511f2118dc6aa24f5dbf9b6b2cddc87cc6e0e7dd067c00b11"
+    },
+    {
+      "file": "data/map-studies/raw/blue-marble-july-bathymetry.jpg",
+      "sha256": "4f4240673a3a1b173d61b92ca4b07bac5fd17059ea5f725ba6da5a9c5386b7ba"
+    },
+    {
+      "file": "data/map-studies/raw/black-marble-2016.jpg",
+      "sha256": "230aac448ae68c358be433dd518888cccb3a85ccf66f7b44326441c324ad6725"
+    },
+    {
+      "file": "data/map-studies/raw/sentinel2-cloudless-2016.jpg",
+      "sha256": "5a11b4b097043f84a6e0f9155b89045102445894f9cde8a690553fb52479bc02"
+    },
+    {
+      "file": "data/map-studies/comparison-sources.json",
+      "sha256": "a5c6ce8f8132db9ca78fec2816f16f17490d1e3ba53f6a4754d1c128e0b5d31d"
+    },
+    {
       "file": "assets/generated/terrain/地形整理.png",
       "sha256": "b4bd8e1fd6ee2afb1b3a58b323807d9b88c27883e1d2520d6fad3c92d10da249"
     },
@@ -61,17 +86,21 @@
     },
     {
       "file": "scripts/build_map_comparison.py",
-      "sha256": "cc07c8b5b763d5d1b3bdd155c039d1de63eae955f0c9212be72818bfa59a0153"
+      "sha256": "aedd298775a92eec0caf792795fbc827cb4a7c7bebbaeb49ab12f8ed2a404f86"
+    },
+    {
+      "file": "scripts/map_studies/satellite-ocean-tone.json",
+      "sha256": "dfe2beb5ab1cb374ae88735cf3da7b2b4cef5c8c8e9c91251b0eb87c0bd95eb3"
+    },
+    {
+      "file": "scripts/map_studies/satellite_ocean.py",
+      "sha256": "c6cc828685841061634b4c761f6f434e7217a70b91765992526788c32f8a29f1"
     }
   ],
   "outputs": [
     {
       "file": "public/maps/comparison/natural-earth.webp",
       "sha256": "e304181b085b021c451218fd64959c0f525c47008f7fd3e8f5ba2161aeffcb39"
-    },
-    {
-      "file": "public/maps/comparison/satellite.webp",
-      "sha256": "c95b2d78207bae943301f4ce97550451460311490af578eefe46e70e5a963ef3"
     },
     {
       "file": "public/maps/comparison/countries.json",
@@ -84,6 +113,34 @@
     {
       "file": "public/maps/comparison/surface-mask.png",
       "sha256": "d5ae86c0b0b5ba0d8c0a8e0d9e642d43ece437630ddf39bdeba1b9821cf59be5"
+    },
+    {
+      "file": "public/maps/comparison/satellite-ocean-tuned.webp",
+      "sha256": "dd9f58eceee7477763f87d1820ff7c1fcb993c0460c3335b74145d91a529bc90"
+    },
+    {
+      "file": "public/maps/comparison/satellite.webp",
+      "sha256": "c95b2d78207bae943301f4ce97550451460311490af578eefe46e70e5a963ef3"
+    },
+    {
+      "file": "public/maps/comparison/satellite-winter.webp",
+      "sha256": "bc53d3522046f437883163e5421b3a483124cd56c02903bffcc9458a9f3308ab"
+    },
+    {
+      "file": "public/maps/comparison/satellite-plain.webp",
+      "sha256": "1bf9bd5e2d2566a0cb753cf72decbbdaf424c0612f9fe36338191da3183bbdde"
+    },
+    {
+      "file": "public/maps/comparison/satellite-bathymetry.webp",
+      "sha256": "d658a05da9e1b5014063a40059bbf2f9c4c1bca199ebc34b5d81e2d50f740df4"
+    },
+    {
+      "file": "public/maps/comparison/satellite-night.webp",
+      "sha256": "83af0ee157e2914171038f7bce6633b05f4176f75a3ac45275e3c28cd8f9da63"
+    },
+    {
+      "file": "public/maps/comparison/satellite-sentinel2.webp",
+      "sha256": "20d05c5d5dacd34f62dab3ffaf1943b51edc628a5f1935f4bdcabd35ff36324f"
     }
   ]
 }

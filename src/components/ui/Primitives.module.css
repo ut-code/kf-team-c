@@ -68,7 +68,7 @@
 :where(.surface) {
     position: relative;
     isolation: isolate;
-    background: rgb(var(--color-surface-rgb) / var(--surface-opacity));
+    background: rgb(var(--color-surface-rgb));
     border: 1px solid var(--color-border);
     border-radius: var(--panel-radius);
     color: var(--color-text);

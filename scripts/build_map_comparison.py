@@ -13,6 +13,7 @@ import build_generalized as generalized
 import build_map as game
 from build_oceans import curved_water_region
 from map_studies import build as terrain
+from map_studies.satellite_ocean import tone_ocean
 
 ROOT = game.ROOT
 RAW = terrain.RAW
@@ -104,16 +105,28 @@ def main():
     Image.composite(detailed, ocean_image(), land).save(OUT / 'natural-earth.webp', quality=95, method=6)
     del natural, base, pixels, detailed
 
-    print('NASA Blue Marbleの衛星写真を同じ投影へ変換', flush=True)
-    with Image.open(RAW / 'blue-marble-july.jpg') as source:
-        project_image(source.convert('RGB')).save(OUT / 'satellite.webp', quality=95, method=6)
-    files = ['natural-earth.webp', 'satellite.webp', 'countries.json', 'water-mask.png', 'surface-mask.png']
-    inputs = [RAW / name for name in ['NE2_50M_SR.tif', 'blue-marble-july.jpg', 'ne_50m_admin_0_countries.geojson',
+    # 比較用の原版は陸と海を一緒に投影し、元の色を保持する。
+    sources_path = ROOT / 'data/map-studies/comparison-sources.json'
+    photos = [record for record in json.loads(sources_path.read_text(encoding='utf-8')) if 'output' in record]
+    Image.MAX_IMAGE_PIXELS = 240_000_000
+    for record in photos:
+        print(f"衛星画像を投影: {record['file']}", flush=True)
+        with Image.open(RAW / record['file']) as source:
+            assert source.width == source.height*2, (record['file'], source.size)
+            projected = project_image(source.convert('RGB'))
+            projected.save(OUT / record['output'], quality=95, method=6)
+            if record['output'] == 'satellite-bathymetry.webp':
+                settings = json.loads((ROOT / 'scripts/map_studies/satellite-ocean-tone.json').read_text())
+                tone_ocean(projected, land, settings).save(OUT / 'satellite-ocean-tuned.webp', quality=95, method=6)
+    files = ['natural-earth.webp', 'countries.json', 'water-mask.png', 'surface-mask.png', 'satellite-ocean-tuned.webp'] + [record['output'] for record in photos]
+    inputs = [RAW / name for name in ['NE2_50M_SR.tif', 'ne_50m_admin_0_countries.geojson',
                                     'ne_50m_land.geojson', 'ne_110m_lakes.geojson', 'earth_relief_06m_p.grd']]
+    inputs += [RAW / record['file'] for record in photos] + [sources_path]
     inputs += [ROOT / 'assets/generated/terrain/地形整理.png', ROOT / 'public/maps/countries.json',
-               ROOT / 'scripts/map_studies/ocean-parameters.json', Path(__file__)]
+               ROOT / 'scripts/map_studies/ocean-parameters.json', Path(__file__),
+               ROOT / 'scripts/map_studies/satellite-ocean-tone.json', ROOT / 'scripts/map_studies/satellite_ocean.py']
     report = {'projection': 'EPSG:3857', 'extent': [-180, -60, 180, 75], 'size': list(SIZE),
-              'border_scale': '50m', 'countries': len(countries), 'natural_earth_color_scale': scale.tolist(),
+              'border_scale': '50m', 'countries': len(countries), 'satellite_images': len(photos), 'natural_earth_color_scale': scale.tolist(),
               'natural_earth_target_mean': target_mean.tolist(),
               'inputs': [{'file': p.relative_to(ROOT).as_posix(), 'sha256': hashlib.sha256(p.read_bytes()).hexdigest()} for p in inputs],
               'outputs': [{'file': f'public/maps/comparison/{name}', 'sha256': hashlib.sha256((OUT / name).read_bytes()).hexdigest()} for name in files]}

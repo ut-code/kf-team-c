@@ -13,7 +13,6 @@
     background: #080f13;
     font-family: sans-serif;
 }
-
 .viewport {
     width: 100%;
     height: 100%;
@@ -25,105 +24,16 @@
     user-select: none;
     outline: none;
 }
-
 .viewport:focus-visible {
     box-shadow: inset 0 0 0 1px #b7c6cc;
 }
-.map {
+.canvas {
     display: block;
-    position: relative;
+    width: 100%;
+    height: 100%;
 }
-.background {
-    position: absolute;
-    top: 0;
-    pointer-events: none;
-    background-repeat: repeat-x;
-    filter: brightness(var(--map-brightness));
-}
-.countries path {
-    fill: transparent;
-    stroke: #d4dfe2;
-    stroke-opacity: 0.32;
-    stroke-width: 0.7px;
-    stroke-linejoin: round;
-    cursor: pointer;
-    outline: none;
-}
-.countries path:hover,
-.countries path:focus-visible {
-    fill: rgb(219 234 239 / 8%);
-    stroke: #e2ecef;
-    stroke-opacity: 0.9;
-}
-.countries path.selected {
-    fill: rgb(207 230 238 / 14%);
-    stroke: #eef7fa;
-    stroke-opacity: 1;
-    stroke-width: 1.3px;
-}
-.selectedOutline {
-    fill: none;
-    stroke: #eef7fa;
-    stroke-opacity: 1;
-    stroke-width: 1.5px;
-    stroke-linejoin: round;
-    pointer-events: none;
-}
-.dragging,
-.dragging .countries path {
+.dragging {
     cursor: grabbing;
-}
-.markers {
-    pointer-events: none;
-}
-.markers [data-marker] {
-    pointer-events: auto;
-    cursor: pointer;
-    outline: none;
-}
-.markerGlyph {
-    fill: none;
-    stroke: var(--color-text);
-    stroke-width: 1.1;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-    pointer-events: none;
-}
-.markerOutline {
-    fill: none;
-    stroke: transparent;
-    stroke-width: 1;
-}
-:where(.markers) [data-marker]:hover .markerOutline,
-:where(.markers) [data-marker]:focus-visible .markerOutline,
-.markers [data-selected="true"] .markerOutline {
-    stroke: var(--color-accent-soft);
-}
-:where(.markers) [data-marker]:hover .markerGlyph {
-    stroke: var(--color-text-strong);
-}
-.statusDot {
-    fill: var(--color-text-muted);
-    stroke: rgb(var(--color-surface-rgb));
-    stroke-width: 1;
-}
-.markers [data-status="controlled"] .statusDot,
-.markers [data-status="compromised"] .statusDot {
-    fill: var(--color-accent-soft);
-}
-.markers [data-status="isolated"] .statusDot {
-    fill: var(--color-danger);
-}
-.markers [data-status="infiltrating"] .statusDot {
-    fill: var(--color-accent-soft);
-}
-.unreadDot {
-    fill: var(--color-accent);
-    stroke: rgb(var(--color-surface-rgb));
-    stroke-width: 1.5;
-}
-.markers [data-kind="person"] .markerGlyph {
-    stroke: var(--color-accent-soft);
 }
 .screenReaderOnly {
     position: absolute;
@@ -141,28 +51,4 @@
     bottom: 24px;
     color: #f7b6a8;
     font-size: 14px;
-}
-
-.markerSurface {
-    fill: rgb(var(--color-surface-rgb) / 84%);
-    stroke: var(--color-border);
-    stroke-width: 1;
-}
-
-/* 国別データの表示中は白地図を使い、値の濃淡と国境を読みやすくする。 */
-.dataMap {
-    background: #9cbac9;
-}
-.dataMap .countries path {
-    stroke: #283f49;
-    stroke-opacity: 0.55;
-}
-.dataMap .countries path:hover,
-.dataMap .countries path:focus-visible {
-    stroke: #101f32;
-    stroke-width: 1.5px;
-}
-.dataMap .selectedOutline {
-    stroke: #101f32;
-    stroke-width: 2px;
 }

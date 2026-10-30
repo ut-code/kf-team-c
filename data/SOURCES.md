@@ -28,7 +28,7 @@
 
 海は浅海（水深700m未満）と深海の二色。基調色は浅海RGB(27,49,63)、深海RGB(20,38,52)。色の境界は角切りを3回適用して曲線化し、海底陰影は加えない。設定は `scripts/map_studies/ocean-parameters.json`。
 
-海岸線は最終投影で被覆率を合成し、黒ずみを生む明暗加工は行わない。海面反射の強度は0.045、時間倍率は1.2。地図表示の明るさは `src/components/ui/theme.css` の `--map-brightness: 1.25` で調整する。
+海岸線は最終投影で被覆率を合成し、黒ずみを生む明暗加工は行わない。海面反射の強度は0.045、時間倍率は1.2。地図表示の明るさは `src/map/tone.css` の `--map-brightness: 1.25` で調整する。
 
 生成に必要な中間画像と入力・出力の記録は `assets/generated/map/`、`assets/generated/terrain/` に保存する。検証には `python scripts/map_studies/verify_generalized.py` と `python scripts/map_studies/verify_oceans.py` を使用する。現在の見た目のプレビューは `reports/map-preview.png`。
 
@@ -44,3 +44,31 @@ Natural Earth陰影版はNE2_50M_SRの原画像を地図本体に使い、地形
 https://science.nasa.gov/earth/earth-observatory/blue-marble-next-generation/base-topography/
 
 取得元とハッシュは `data/map-studies/comparison-sources.json`。原本の取得は `python scripts/acquire_map_comparison.py`、比較版だけの再生成は `python scripts/build_map_comparison.py`。`npm run assets` にも比較版の生成を含める。出力は `public/maps/comparison/`、生成記録は `data/map-studies/comparison-manifest.json`。
+
+標準表示はNASA海底地形付き版の海洋調整版。NASA原画像を投影し、水域の輝度に沿って落ち着いた青へ連続的に変換する。陸の写真は保持し、加工前の版も比較用に残す。画像の色調は `src/map/tone.css` で明るさ・コントラスト・彩度・セピア・色相を調整できる。海面反射は従来どおり画像の上へ重ねる。
+
+## 追加の衛星画像候補
+
+標準のNASA 2004年7月版に加え、同1月の冬季版、7月の地形陰影なし版、7月の海底地形付き版、NASA Black Marble 2016の夜間画像、EOX Sentinel-2 cloudless 2016を登録する。全候補で50m国境・海岸マスクを共用し、`src/map/tone.css` の設定も共通に適用する。選択してもカメラやゲーム進行は変えない。
+
+NASAの月別画像は2004年のMODIS合成画像。海底地形付き版の海は水深からの着色・陰影を含み、夜間版はSuomi NPP / VIIRSの都市光を合成した画像である。いずれも最新の写真や単一時点の撮影ではない。
+https://science.nasa.gov/earth/earth-observatory/blue-marble-next-generation/
+https://science.nasa.gov/earth/earth-observatory/night-light-maps-open-up-new-applications-90008/
+
+EOX Sentinel-2 cloudless 2016はCC BY 4.0。公式WMSからEPSG:4326・2048×1024の全球プレビューを取得し、ゲームの投影へ変換する。ゲーム内にもプレビューであることと原本の解像度を表示する。地表の雲除去モザイクと配信元による海・極域の背景処理を使用する。出典は地図上へ常時表示する。
+https://maps.eox.at/
+https://cloudless.eox.at/documentation/faq
+
+各原本のURL・SHA-256は `comparison-sources.json` に記録。`python scripts/acquire_map_comparison.py` で再取得し、`python scripts/build_map_comparison.py` で再生成、`python scripts/map_studies/verify_comparison.py` で候補登録・出力・海の画素・国境を検証する。
+
+## 海底地形付き版の海洋調整
+
+Google Maps / Earthの落ち着いた海色と控えめな陰影を見た目の参考に、NASA Blue Marble 2004年7月の海底地形付き版を加工した。Googleの画像や地形データはゲーム素材に使用していない。参考: https://maps.googleblog.com/2012/02/clearer-view-of-seafloor-in-google.html
+
+`scripts/map_studies/satellite-ocean-tone.json` に最暗部・最明部のRGB、原画像の輝度範囲、ガンマを定義する。原画像の連続的な海底陰影を狭い色域へ写し、彩度・明暗差を抑え、黒に近い海を持ち上げる。50m陸マスクの被覆率で水域を選ぶ。海峡や地図端で分断された海、カスピ海などの内陸水域も同じトーンに揃え、陸を保護する。原画像の青くない小島や海氷も保持する。追加の海岸影や陸のぼかしは使用しない。
+
+生成物: `public/maps/comparison/satellite-ocean-tuned.webp`。原画像と加工版のSHA-256、設定ファイルと生成コードのSHA-256は `comparison-manifest.json` に記録する。
+
+表示時の色調は `src/map/tone.css` で陸と水域を別々に設定する。WebGLのシェーダーが同じ原画像と水域マスクを参照し、領域別の色調を適用してから全体の色調を適用する。背景画像の二重描画やCSSフィルターの中間面は使用しない。水域には海・黒海・カスピ海・湖を含む。設定の反映に画像の再生成は不要。
+
+国IDテクスチャは `python scripts/build_country_index.py` で既存の国境SVGパスから生成する。出力は各地図ディレクトリの `country-index.png`。入力・出力のハッシュと国順は `data/map-studies/country-index-manifest.json` に記録する。画像はパレット用の識別子で、追加の地理素材は使用しない。

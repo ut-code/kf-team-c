@@ -45,9 +45,9 @@ export function DebugPanel({
                     </option>
                 ))}
             </Select>
-            {mapVariant === 'satellite' && (
-                <small>画像: NASA Blue Marble（2004年7月の衛星画像合成）</small>
-            )}
+            <p>
+                <small>{mapVariants[mapVariant].description}</small>
+            </p>
 
             <Button type="button" onClick={() => useGameStore.getState().step()}>
                 1日進める

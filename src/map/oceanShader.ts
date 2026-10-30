@@ -11,6 +11,7 @@ export const fragmentShader = `
 precision highp float;
 varying vec2 screenUV;
 uniform sampler2D seaMask;
+uniform sampler2D noiseGrid;
 uniform vec2 viewport;
 uniform float cameraX;
 uniform float period;
@@ -20,16 +21,14 @@ uniform float time;
 uniform float strength;
 uniform float tintStrength;
 uniform float detail;
-float hash(vec2 p) {
-    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
-}
+uniform float cameraY;
+uniform float worldHeight;
 // 周期的な高さと解析的な傾き。差分による高さの再計算を避ける。
 vec3 ripple(vec2 p, float repeat) {
     vec2 cell = floor(p), f = fract(p);
-    float a = hash(mod(cell, repeat));
-    float b = hash(mod(cell + vec2(1., 0.), repeat));
-    float c = hash(mod(cell + vec2(0., 1.), repeat));
-    float d = hash(mod(cell + vec2(1., 1.), repeat));
+    float offset=repeat>32.?0.:repeat>8.?64.:80.;
+    vec4 corners=texture2D(noiseGrid,(mod(cell,repeat)+vec2(offset,0.)+.5)/vec2(128.,64.));
+    float a=corners.r,b=corners.g,c=corners.b,d=corners.a;
     vec2 u = f*f*f*(f*(f*6.-15.)+10.);
     vec2 du = 30.*f*f*(f-1.)*(f-1.);
     float crossTerm = a-b-c+d;
@@ -39,7 +38,9 @@ vec3 ripple(vec2 p, float repeat) {
 void main() {
     float x = screenUV.x * viewport.x - leftEdge;
     if (x < 0. || x > displayWidth) discard;
-    vec2 uv = vec2(fract((x-cameraX)/period), 1.-screenUV.y);
+    float y=(1.-screenUV.y)*viewport.y-cameraY;
+    if(y<0.||y>worldHeight)discard;
+    vec2 uv = vec2(fract((x-cameraX)/period), y/worldHeight);
     float mask = texture2D(seaMask, uv).r;
     if (mask < .001) discard;
     vec2 p = vec2(uv.x*64., uv.y*34.);

@@ -1,0 +1,20 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><link rel="stylesheet" href="/src/components/ui/theme.css"><link rel="stylesheet" href="/src/map/tone.css"><style>html,body{margin:0;background:#080f13}canvas{width:1280px;height:720px;display:block}</style></head><body><canvas id="map"></canvas><script type="module">
+import { WorldRenderer } from '/src/map/WorldRenderer.ts';
+import { project } from '/src/map/geometry.ts';
+import { screenPoint } from '/src/map/view.ts';
+const countries=await fetch('/maps/comparison/countries.json').then(r=>r.json());
+const facilities=await fetch('/src/game/data/simulation/facilities.json').then(r=>r.json());
+const canvas=document.querySelector('canvas');
+// 検証中の数値だけを固定し、ユーザーのtone.cssは変更しない。
+document.documentElement.style.setProperty('--map-land-brightness','1');
+document.documentElement.style.setProperty('--map-ocean-brightness','1');
+const failures=[];window.addEventListener('unhandledrejection',e=>failures.push(String(e.reason)));window.addEventListener('error',e=>failures.push(e.message));
+const markers=facilities.map(f=>({id:f.id,kind:'facility',category:f.category,longitude:f.longitude,latitude:f.latitude,label:f.name}));markers.push({id:'country:SGP',kind:'country',longitude:103.85,latitude:1.28,label:'シンガポール'});
+const states=Object.fromEntries(countries.map(c=>[c.id,{economy:100,infrastructure:100,aiInfiltration:0,controlStatus:'free'}]));states.SGP={economy:100,infrastructure:100,aiInfiltration:0,controlStatus:'free'};
+const data={countries,countryStates:states,markers,facilityStates:{},selectedCountry:null,selectedMarker:null,speed:0,tick:0};
+const view={width:1280,height:720,zoom:1,x:-1500,y:0};
+window.result={ready:false,failures};
+const renderer=new WorldRenderer(canvas,{ready:()=>window.result.ready=true,error:e=>failures.push(String(e)),targets:t=>window.result.targets=t.length});
+renderer.setData(data);renderer.setView(view);renderer.setScene({countries,backgroundUrl:'/maps/comparison/satellite-ocean-tuned.webp',waterMaskUrl:'/maps/comparison/water-mask.png',surfaceMaskUrl:'/maps/comparison/surface-mask.png',countryIndexUrl:'/maps/comparison/country-index.png'});
+window.test={renderer,data,view,canvas,project,screenPoint};
+</script></body></html>
