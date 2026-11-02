@@ -60,13 +60,14 @@ if __name__ == "__main__":
                 )
         regions.append({"id": str(area), "path": "".join(paths)})
     maps = ROOT / "public/maps"
+    (maps / "textures").mkdir(parents=True, exist_ok=True)
     (maps / "small-regions.json").write_bytes(
         json.dumps(regions, separators=(",", ":")).encode()
     )
     # 同じ形状・順序・格子から生成し、国境と小地域境界のずれを生じさせない。
     for filename, shapes in [
-        ("small-region-index.png", area_shapes),
-        ("comparison/country-index.png", country_shapes),
+        ("textures/small-region-index.png", area_shapes),
+        ("textures/country-index.png", country_shapes),
     ]:
         pixels = rasterize(
             shapes,
@@ -77,8 +78,8 @@ if __name__ == "__main__":
         Image.fromarray(pixels).save(maps / filename, optimize=True)
     files = [
         "small-regions.json",
-        "small-region-index.png",
-        "comparison/country-index.png",
+        "textures/small-region-index.png",
+        "textures/country-index.png",
     ]
     report = {
         "regions": len(regions),

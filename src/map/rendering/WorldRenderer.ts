@@ -1,12 +1,6 @@
-import { AREAS } from '../game/data';
-import oceanSettings from '../game/data/map/ocean-surface.json';
-import { declutterMarkers } from './declutter';
-import { project, WORLD_WIDTH } from './geometry';
-import { createTexture, GLProgram, loadImage, quadVertex } from './gl';
-import { fragmentShader as waveFragment, vertexShader as waveVertex } from './oceanShader';
-import { type Atlas, loadAtlas, POPULATION_SPRITE_SIZE, SpriteBatch } from './sprites';
-import { ColorReader, type MapTone, readMapTone } from './tone';
-import type { MapMarker, MapRegion } from './types';
+import { AREAS } from '../../game/data';
+import { project, WORLD_WIDTH } from '../geometry';
+import type { MapMarker, MapRegion } from '../types';
 import {
     cullMarkers,
     type MapView,
@@ -17,9 +11,15 @@ import {
     type VisibleMarker,
     viewTransform,
     worldPoint,
-} from './view';
+} from '../view';
+import { declutterMarkers } from './declutter';
+import { createTexture, GLProgram, loadImage, quadVertex } from './gl';
+import oceanSettings from './ocean-surface.json';
+import { fragmentShader as waveFragment, vertexShader as waveVertex } from './shaders/ocean';
+import { compositeFragment, spriteFragment, spriteVertex, staticFragment } from './shaders/world';
+import { type Atlas, loadAtlas, POPULATION_SPRITE_SIZE, SpriteBatch } from './sprites';
+import { ColorReader, type MapTone, readMapTone } from './tone';
 import { createWaveNoise } from './waveNoise';
-import { compositeFragment, spriteFragment, spriteVertex, staticFragment } from './worldShaders';
 
 export interface MapScene {
     regions: MapRegion[];

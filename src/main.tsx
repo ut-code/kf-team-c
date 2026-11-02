@@ -1,5 +1,5 @@
 import './components/game.css';
-import './map/tone.css';
+import './map/rendering/tone.css';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { GameApp } from './components/GameApp';

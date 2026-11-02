@@ -1,7 +1,5 @@
 node_modules/
 dist/
-.venv/
-__pycache__/
 *.tsbuildinfo
 tmp/
 
@@ -11,16 +9,3 @@ AGENTS.md
 .codex/
 .aws/
 .env
-.env.*
-!.env.example
-*.pem
-*.key
-
-# ローカル実行ログとOSの付帯ファイル
-*.log
-.DS_Store
-Thumbs.db
-
-# 再取得可能な大型地形原本（取得スクリプトを使用）
-data/map-studies/raw/*.tif
-data/map-studies/raw/*.grd

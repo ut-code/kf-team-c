@@ -1,5 +1,5 @@
-import { WORLD_HEIGHT, WORLD_WIDTH } from './geometry.ts';
-import type { VisibleMarker } from './view.ts';
+import { WORLD_HEIGHT, WORLD_WIDTH } from '../geometry.ts';
+import type { VisibleMarker } from '../view.ts';
 
 /** 地図座標上の最小間隔。人口点の重なりを許容する。 */
 export const POPULATION_MIN_GAP = 3;

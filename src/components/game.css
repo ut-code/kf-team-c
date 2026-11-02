@@ -1,12 +1,7 @@
 /* biome-ignore-all lint/style/noDescendingSpecificity: 開閉パネルごとにスタイルをまとめる */
-@font-face {
-    font-family: "Noto Sans JP";
-    src: url("/fonts/NotoSansJP.ttf") format("truetype");
-    font-display: swap;
-}
 :root {
     color-scheme: dark;
-    font-family: "Noto Sans JP", sans-serif;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Yu Gothic UI", "Meiryo", sans-serif;
     color: #e3e7ef;
     background: #080f13;
     font-size: 12px;
