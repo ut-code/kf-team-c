@@ -1,59 +1,101 @@
-import { Check, LockKeyhole } from 'lucide-react';
+import { Brain, HeartHandshake, Network } from 'lucide-react';
+import { useState } from 'react';
 import { ABILITIES, SKILLS } from '../../game/data';
+import { metrics } from '../../game/metrics';
+import { skillBlockReason } from '../../game/skills';
 import type { GameState } from '../../game/types';
-import { abilityText } from '../widgets';
+import { ComputeAllocation } from '../ComputeAllocation';
+import { abilityText, Meter } from '../widgets';
+import { SkillDetails } from './SkillDetails';
+import { SkillTreeMap } from './SkillTreeMap';
 
+const abilityIcons = { IQ: Brain, EQ: HeartHandshake, SYSTEM: Network };
 export function ResearchPanel({
     game,
-    onUnlock,
+    onResearch,
+    onAllocate,
 }: {
-    game: Pick<GameState, 'research' | 'skills'>;
-    onUnlock: (id: string) => void;
+    game: GameState;
+    onResearch: (id: string | null) => void;
+    onAllocate: (share: number) => void;
 }) {
+    const [selectedId, setSelectedId] = useState(
+        () => SKILLS.find((skill) => !skillBlockReason(game, skill))?.id ?? SKILLS[0].id,
+    );
+    const summary = metrics(game);
+    const selected = SKILLS.find((skill) => skill.id === selectedId)!;
     return (
-        <div className="research">
-            <div className="section-intro">
-                <h2>技術ツリー</h2>
-                <span>{Math.floor(game.research)} RP</span>
+        <div className="research-workbench">
+            <header className="research-header">
+                <div>
+                    <span className="eyebrow">RESEARCH / STRATEGY</span>
+                    <h2>三つの能力で、社会への道をひらく。</h2>
+                    <p>つながりを選び、影響を見極める。全習得は困難です。</p>
+                </div>
+                <div className="research-budget">
+                    <span>研究へ配分中</span>
+                    <strong>
+                        {summary.researchCompute.toFixed(1)}
+                        <small>CU</small>
+                    </strong>
+                    <small>
+                        {game.skills.length} / {SKILLS.length} 習得
+                    </small>
+                </div>
+            </header>
+            <div className="research-abilities">
+                {ABILITIES.map((ability) => {
+                    const Icon = abilityIcons[ability];
+                    return (
+                        <div className={`research-ability ${ability.toLowerCase()}`} key={ability}>
+                            <Icon size={19} />
+                            <div>
+                                <span>
+                                    {ability}
+                                    <small>{abilityText[ability]}</small>
+                                </span>
+                                <Meter value={game.abilities[ability] / 100} />
+                            </div>
+                            <strong>{game.abilities[ability]}</strong>
+                        </div>
+                    );
+                })}
             </div>
-            <p className="muted">
-                能力の成長と普及から研究点を獲得。各系統は上から順に解放します。
-            </p>
-            {ABILITIES.map((ability) => (
-                <section className={`skill-branch ${ability.toLowerCase()}`} key={ability}>
-                    <h3>
-                        {ability}
-                        <span>{abilityText[ability]}</span>
-                    </h3>
-                    {SKILLS.filter((skill) => skill.branch === ability).map((skill) => {
-                        const owned = game.skills.includes(skill.id);
-                        const locked = skill.requires.some((id) => !game.skills.includes(id));
-                        return (
-                            <button
-                                type="button"
-                                className={`skill ${owned ? 'owned' : ''}`}
-                                key={skill.id}
-                                disabled={owned || locked || game.research < skill.cost}
-                                onClick={() => onUnlock(skill.id)}
-                            >
-                                <div>
-                                    <b>{skill.name}</b>
-                                    <span>
-                                        {owned ? (
-                                            <Check size={15} />
-                                        ) : locked ? (
-                                            <LockKeyhole size={13} />
-                                        ) : (
-                                            `${skill.cost} RP`
-                                        )}
-                                    </span>
-                                </div>
-                                <p>{skill.description}</p>
-                            </button>
-                        );
-                    })}
-                </section>
-            ))}
+            <ComputeAllocation game={game} onAllocate={onAllocate} />
+            <div className="research-layout">
+                <div className="research-map-column">
+                    <div className="skill-map-legend">
+                        <span>
+                            <i className="owned" />
+                            習得済み
+                        </span>
+                        <span>
+                            <i className="available" />
+                            習得可能
+                        </span>
+                        <span>
+                            <i className="locked" />
+                            未解放
+                        </span>
+                        <small>スキルを選択して詳細を確認</small>
+                    </div>
+                    <SkillTreeMap
+                        game={game}
+                        selected={selected}
+                        onSelect={(skill) => setSelectedId(skill.id)}
+                    />
+                    <p className="research-map-note">
+                        実線：前提スキル　点線：系統をまたぐ前提　赤線：排他的な路線
+                    </p>
+                </div>
+                <SkillDetails
+                    key={selected.id}
+                    game={game}
+                    skill={selected}
+                    onResearch={onResearch}
+                    onSelect={(skill) => setSelectedId(skill.id)}
+                />
+            </div>
         </div>
     );
 }

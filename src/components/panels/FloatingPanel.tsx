@@ -1,7 +1,12 @@
 import { X } from 'lucide-react';
 import type { ReactNode } from 'react';
 
-const panelTitles = { ability: '能力配分', research: 'スキルツリー', area: '小地域' };
+const panelTitles = {
+    operations: '運用',
+    research: 'スキルツリー',
+    area: '生活圏',
+    social: 'SNS・社会介入',
+};
 export type GamePanel = keyof typeof panelTitles;
 
 interface FloatingPanelProps {
@@ -12,7 +17,10 @@ interface FloatingPanelProps {
 
 export function FloatingPanel({ panel, onClose, children }: FloatingPanelProps) {
     return (
-        <aside className="floating-panel glass" aria-label="操作パネル">
+        <aside
+            className={`${panel === 'research' ? 'research-workspace' : 'floating-panel'} glass`}
+            aria-label="操作パネル"
+        >
             <div className="panel-heading">
                 <span>{panelTitles[panel]}</span>
                 <button type="button" aria-label="操作パネルを閉じる" onClick={onClose}>

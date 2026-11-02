@@ -2,12 +2,13 @@ import { create } from 'zustand';
 import {
     advanceMonth,
     answerChat,
-    campaign,
+    beginResearch,
     createGame,
-    setAllocation,
-    unlockSkill,
+    resolveEvent,
+    runPolicy,
+    setInfrastructureShare,
 } from '../game/engine';
-import type { Ability, Field, GameState } from '../game/types';
+import type { GameState, Policy } from '../game/types';
 
 interface GameStore {
     game: GameState | null;
@@ -15,16 +16,16 @@ interface GameStore {
     start: () => void;
     tick: () => void;
     speed: (value: number) => void;
-    allocate: (ability: Ability, value: number) => void;
-    focus: (field: Field) => void;
-    unlock: (id: string) => void;
-    campaign: (area: number) => void;
+    research: (id: string | null) => void;
+    allocateCompute: (share: number) => void;
+    policy: (area: number, policy: Policy) => void;
     answer: (option: number) => void;
+    decideEvent: (option: number) => void;
     openChat: (id: number) => void;
     closeChat: () => void;
     dismissChat: () => void;
+    dismissImpact: () => void;
 }
-
 export const useGameStore = create<GameStore>((set) => {
     const change = (update: (game: GameState) => GameState) =>
         set((state) => (state.game ? { game: update(state.game) } : state));
@@ -34,11 +35,11 @@ export const useGameStore = create<GameStore>((set) => {
         start: () => change((game) => ({ ...game, started: true })),
         tick: () => change(advanceMonth),
         speed: (speed) => change((game) => ({ ...game, speed })),
-        allocate: (ability, value) => change((game) => setAllocation(game, ability, value)),
-        focus: (focus) => change((game) => ({ ...game, focus })),
-        unlock: (id) => change((game) => unlockSkill(game, id)),
-        campaign: (area) => change((game) => campaign(game, area)),
+        research: (id) => change((game) => beginResearch(game, id)),
+        allocateCompute: (share) => change((game) => setInfrastructureShare(game, share)),
+        policy: (area, policy) => change((game) => runPolicy(game, area, policy)),
         answer: (option) => change((game) => answerChat(game, option)),
+        decideEvent: (option) => change((game) => resolveEvent(game, option)),
         openChat: (id) =>
             change((game) => ({
                 ...game,
@@ -47,5 +48,6 @@ export const useGameStore = create<GameStore>((set) => {
             })),
         closeChat: () => change((game) => ({ ...game, pendingChat: null })),
         dismissChat: () => change((game) => ({ ...game, chatResult: null })),
+        dismissImpact: () => change((game) => ({ ...game, impact: null })),
     };
 });

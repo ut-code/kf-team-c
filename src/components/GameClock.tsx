@@ -18,11 +18,11 @@ export function GameClock({ blocked }: { blocked: boolean }) {
             previous = now;
             while (elapsed.current >= MONTH_MS) {
                 const current = useGameStore.getState().game!;
-                if (current.outcome !== 'playing') break;
+                if (current.outcome !== 'playing' || current.pendingEvent) break;
                 elapsed.current -= MONTH_MS;
                 useGameStore.getState().tick();
             }
-            setFraction(elapsed.current / MONTH_MS);
+            setFraction(Math.min(1, elapsed.current / MONTH_MS));
         }, 100);
         return () => window.clearInterval(timer);
     }, [blocked, game.speed]);

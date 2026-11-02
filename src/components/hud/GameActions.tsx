@@ -1,24 +1,24 @@
-import { Activity, CircleHelp, Globe2, Network } from 'lucide-react';
+import { Activity, CircleHelp, Globe2, MessageCircle, Network } from 'lucide-react';
 import type { GamePanel } from '../panels/FloatingPanel';
 
 interface GameActionsProps {
     activePanel: GamePanel | null;
-    research: number;
+    researching: boolean;
     onTogglePanel: (panel: GamePanel) => void;
     onHelp: () => void;
 }
 
-export function GameActions({ activePanel, research, onTogglePanel, onHelp }: GameActionsProps) {
+export function GameActions({ activePanel, researching, onTogglePanel, onHelp }: GameActionsProps) {
     return (
         <nav className="game-actions" aria-label="ゲームの操作">
             <button
                 type="button"
                 className="glass"
-                aria-expanded={activePanel === 'ability'}
-                onClick={() => onTogglePanel('ability')}
+                aria-expanded={activePanel === 'operations'}
+                onClick={() => onTogglePanel('operations')}
             >
                 <Activity size={18} />
-                能力配分
+                運用
             </button>
             <button
                 type="button"
@@ -27,7 +27,7 @@ export function GameActions({ activePanel, research, onTogglePanel, onHelp }: Ga
                 onClick={() => onTogglePanel('research')}
             >
                 <Network size={18} />
-                スキルツリー<small>{Math.floor(research)} RP</small>
+                スキルツリー<small>{researching ? '研究中' : '停止中'}</small>
             </button>
             <button
                 type="button"
@@ -36,7 +36,16 @@ export function GameActions({ activePanel, research, onTogglePanel, onHelp }: Ga
                 onClick={() => onTogglePanel('area')}
             >
                 <Globe2 size={18} />
-                小地域
+                生活圏
+            </button>
+            <button
+                type="button"
+                className="glass"
+                aria-expanded={activePanel === 'social'}
+                onClick={() => onTogglePanel('social')}
+            >
+                <MessageCircle size={18} />
+                SNS
             </button>
             <button
                 type="button"
