@@ -10,9 +10,9 @@ import {
     WORLD_HEIGHT,
     WORLD_WIDTH,
 } from '../map/geometry';
+import { type MapTarget, WorldRenderer } from '../map/rendering/WorldRenderer';
 import type { MapRegion } from '../map/types';
 import type { MapView } from '../map/view';
-import { type MapTarget, WorldRenderer } from '../map/WorldRenderer';
 import { useMapStore } from '../state/mapStore';
 import styles from './WorldMap.module.css';
 

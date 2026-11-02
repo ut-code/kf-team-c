@@ -1,9 +1,8 @@
-import { ArrowRight, Check, ChevronRight, LockKeyhole, RotateCcw } from 'lucide-react';
-import { ABILITIES, SKILLS, STAGE_COLORS, STAGES } from '../game/data';
+import { ArrowRight, ChevronRight, RotateCcw } from 'lucide-react';
+import { STAGE_COLORS, STAGES } from '../game/data';
 import { metrics } from '../game/engine';
 import type { GameState } from '../game/types';
-import { useGameStore } from '../state/gameStore';
-import { abilityText, Modal, percent } from './widgets';
+import { Modal, percent } from './widgets';
 
 export function Brief({ onStart, returning }: { onStart: () => void; returning: boolean }) {
     return (
@@ -58,55 +57,6 @@ export function Brief({ onStart, returning }: { onStart: () => void; returning: 
                 便利になった世界で、人間が自ら決める価値は、どこに残るのだろう。
             </p>
         </Modal>
-    );
-}
-
-export function Research({ game }: { game: GameState }) {
-    return (
-        <div className="research">
-            <div className="section-intro">
-                <h2>技術ツリー</h2>
-                <span>{Math.floor(game.research)} RP</span>
-            </div>
-            <p className="muted">
-                能力の成長と普及から研究点を獲得。各系統は上から順に解放します。
-            </p>
-            {ABILITIES.map((ability) => (
-                <section className={`skill-branch ${ability.toLowerCase()}`} key={ability}>
-                    <h3>
-                        {ability}
-                        <span>{abilityText[ability]}</span>
-                    </h3>
-                    {SKILLS.filter((skill) => skill.branch === ability).map((skill) => {
-                        const owned = game.skills.includes(skill.id);
-                        const locked = skill.requires.some((id) => !game.skills.includes(id));
-                        return (
-                            <button
-                                type="button"
-                                className={`skill ${owned ? 'owned' : ''}`}
-                                key={skill.id}
-                                disabled={owned || locked || game.research < skill.cost}
-                                onClick={() => useGameStore.getState().unlock(skill.id)}
-                            >
-                                <div>
-                                    <b>{skill.name}</b>
-                                    <span>
-                                        {owned ? (
-                                            <Check size={15} />
-                                        ) : locked ? (
-                                            <LockKeyhole size={13} />
-                                        ) : (
-                                            `${skill.cost} RP`
-                                        )}
-                                    </span>
-                                </div>
-                                <p>{skill.description}</p>
-                            </button>
-                        );
-                    })}
-                </section>
-            ))}
-        </div>
     );
 }
 

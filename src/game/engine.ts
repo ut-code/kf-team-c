@@ -1,5 +1,4 @@
 import { geographicDistance } from '../map/geometry.ts';
-import { createPopulation, randomSource } from '../map/population.ts';
 import {
     ABILITIES,
     AREAS,
@@ -10,6 +9,7 @@ import {
     TOTAL_MONTHS,
     WORLD_POPULATION,
 } from './data.ts';
+import { createPopulation, randomSource } from './population.ts';
 import type { Ability, Conversation, Field, GameState, News, Stage } from './types.ts';
 
 export const clamp = (value: number, min = 0, max = 1) => Math.max(min, Math.min(max, value));

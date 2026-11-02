@@ -1,4 +1,4 @@
-import { STAGE_COLORS } from '../game/data';
+import { STAGE_COLORS } from '../../game/data';
 
 /** 人口点の描画サイズはズームによらずCSSピクセルで固定する。 */
 export const POPULATION_SPRITE_SIZE = 5.5;

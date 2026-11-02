@@ -1,4 +1,4 @@
-import world from '../game/data/world.json' with { type: 'json' };
+import world from './data/world.json' with { type: 'json' };
 
 interface CountryStatistics {
     internet: number | null;
@@ -8,8 +8,8 @@ interface CountryStatistics {
     services: number | null;
 }
 
-import type { Population } from '../game/types.ts';
-import { geographicDistance, project } from './geometry.ts';
+import { geographicDistance, project } from '../map/geometry.ts';
+import type { Population } from './types.ts';
 
 export function randomSource(seed: number) {
     let value = seed >>> 0;
