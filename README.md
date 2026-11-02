@@ -6,6 +6,17 @@ AIが人類支配を目指すシミュレーションゲーム。
 
 Node.js 24以降で `npm ci`、`npm run dev` を実行します。ビルドは `npm run build`、コード検査は `npm run check`、ゲーム進行の検証は `npm run simulate -- 1` です。
 
+## Cloudflare Workersへのデプロイ
+
+`wrangler.json` で、ビルド結果の `dist/` を静的アセットとして配信します。
+Cloudflare側のWorker名は設定の `name`（`kf-team-c`）と一致させてください。
+
+- ビルドコマンド：`npm run build`
+- 本番デプロイコマンド：`npx wrangler deploy`
+- プレビューデプロイコマンド：`npx wrangler preview`
+
+`previews: {}` はプレビューデプロイを有効にするために必要です。配信対象の `assets` はトップレベルで指定します。`npm run preview` はローカルでビルド結果を確認するViteのコマンドです。
+
 ## ファイル構成
 
 - `src/components/`：Reactによる画面・操作。`panels/` は操作パネル、`hud/` は世界指標・ニュース・操作ナビゲーション。
