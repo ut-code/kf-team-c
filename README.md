@@ -4,7 +4,7 @@ AIが人類支配を目指すシミュレーションゲーム。
 
 ## 開発
 
-Node.js 24以降で `npm ci`、`npm run dev` を実行します。ビルドは `npm run build`、コード検査は `npm run check`、ゲーム進行の検証は `npm run simulate -- 1` です。
+Node.js 24以降で `npm ci`、`npm run dev` を実行します。ビルドは `npm run build`、コード検査は `npm run check`、ゲーム進行の確認は `npm run simulate -- 1` です。ゲーム処理の責務と調整箇所は [src/game/README.md](src/game/README.md) を参照してください。
 
 ## Cloudflare Workersへのデプロイ
 

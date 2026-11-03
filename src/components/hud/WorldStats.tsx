@@ -17,14 +17,18 @@ export function WorldStats({ summary }: { summary: ReturnType<typeof metrics> })
                 <strong>{percent(summary.trust)}</strong>
             </div>
             <div className={summary.coexistence >= 0.5 ? 'warning-text' : ''}>
-                <span>共存制度</span>
+                <span>自律回復制度</span>
                 <strong>{percent(summary.coexistence)}</strong>
+            </div>
+            <div className={summary.stability < 0.3 ? 'warning-text' : ''}>
+                <span>社会安定</span>
+                <strong>{percent(summary.stability)}</strong>
             </div>
             <div
                 className={summary.maintenance > summary.capacity ? 'warning-text' : ''}
                 title={`供給 ${summary.capacity.toFixed(0)} − 維持 ${summary.maintenance.toFixed(0)}`}
             >
-                <span>育成資源</span>
+                <span>運用余力</span>
                 <strong>{summary.free.toFixed(0)}</strong>
             </div>
         </section>

@@ -1,12 +1,12 @@
 import world from './data/world.json' with { type: 'json' };
-import type { Ability, AreaDefinition, CountryStatistics, Skill } from './types.ts';
+import type { Ability, AreaDefinition, CountryStatistics } from './types.ts';
 
 export const ABILITIES: Ability[] = ['IQ', 'EQ', 'SYSTEM'];
 export const FIELDS = ['教育', '労働', '情報', '医療・生活', '行政'];
-export const STAGES = ['自律', '道具利用', '判断委譲', '構造的依存', '利用拒否'];
-export const STAGE_COLORS = ['#778496', '#4daaff', '#fa786e', '#b68aff', '#f0c75e'];
+export const STAGES = ['自律', '道具利用', '判断委譲', '構造的依存'];
+export const STAGE_COLORS = ['#778496', '#4daaff', '#fa786e', '#b68aff'];
 export const POPULATION_COUNT = world.points.length;
-export const STRUCTURAL_REQUIREMENTS = { system: 40, institution: 0.72 };
+export const STRUCTURAL_REQUIREMENTS = { system: 52, institution: 2.7 };
 export const TOTAL_MONTHS = 480;
 export const MONTH_MS = 3_125;
 export const START_YEAR = world.referenceYear;
@@ -62,77 +62,4 @@ export const STATISTICS_YEAR = world.referenceYear;
 export const WORLD_POPULATION = AREAS.reduce((sum, area) => sum + area.population, 0);
 export const REGIONS = [...new Set(AREAS.map((area) => area.region))];
 
-export const SKILLS: Skill[] = [
-    {
-        id: 'reason',
-        name: '検証型推論',
-        branch: 'IQ',
-        cost: 30,
-        requires: [],
-        description: 'IQ成長 +35%。判断ミスの被害を軽減。',
-    },
-    {
-        id: 'tutor',
-        name: '個別教育',
-        branch: 'IQ',
-        cost: 65,
-        requires: ['reason'],
-        description: '教育の制度化 +60%。新世代がAIによる判断に親しむ。',
-    },
-    {
-        id: 'science',
-        name: '自律研究',
-        branch: 'IQ',
-        cost: 110,
-        requires: ['tutor'],
-        description: '研究点の獲得 +65%。全分野の判断委譲を促進。',
-    },
-    {
-        id: 'dialogue',
-        name: '文脈理解',
-        branch: 'EQ',
-        cost: 30,
-        requires: [],
-        description: 'EQ成長 +35%。地域の信頼獲得を促進。',
-    },
-    {
-        id: 'companion',
-        name: '生活伴走',
-        branch: 'EQ',
-        cost: 65,
-        requires: ['dialogue'],
-        description: '医療・生活と情報の制度化 +45%。SNS効果を強化。',
-    },
-    {
-        id: 'consensus',
-        name: '合意形成',
-        branch: 'EQ',
-        cost: 110,
-        requires: ['companion'],
-        description: '反発の蓄積 -40%。対話の能力判定 +15。',
-    },
-    {
-        id: 'efficient',
-        name: '推論の軽量化',
-        branch: 'SYSTEM',
-        cost: 30,
-        requires: [],
-        description: '維持費 -25%、SYSTEM成長 +35%。制度間連携の前提技術。',
-    },
-    {
-        id: 'integration',
-        name: '制度間連携',
-        branch: 'SYSTEM',
-        cost: 65,
-        requires: ['efficient'],
-        description: '構造的依存の必須技術。SYSTEM 40・分野の制度化72%から紫へ進む。',
-    },
-    {
-        id: 'resilient',
-        name: '分散社会基盤',
-        branch: 'SYSTEM',
-        cost: 110,
-        requires: ['integration'],
-        description: '維持費をさらに -25%、障害の被害を軽減。支配には必須ではない。',
-    },
-];
+export { SKILLS } from './skills.ts';

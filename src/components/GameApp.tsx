@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AREAS, FIELDS, STAGES } from '../game/data';
 import { generation, metrics } from '../game/engine';
+import { warnings } from '../game/metrics';
 import { mapScene } from '../map/config';
 import { WORLD_WIDTH } from '../map/geometry';
 import type { MapMarker, MapRegion } from '../map/types';
@@ -8,16 +9,19 @@ import { useGameStore } from '../state/gameStore';
 import { useMapStore } from '../state/mapStore';
 import { ChatResult } from './ChatResult';
 import { ConversationPanel } from './ConversationPanel';
+import { EventDialog } from './EventDialog';
 import { GameClock } from './GameClock';
 import { Brief, Result } from './GameOverlays';
 import { GameActions } from './hud/GameActions';
 import { NewsFeed } from './hud/NewsFeed';
 import { StageLegend } from './hud/StageLegend';
 import { WorldStats } from './hud/WorldStats';
-import { AbilityPanel } from './panels/AbilityPanel';
+import { ImpactReport } from './ImpactReport';
 import { AreaPanel } from './panels/AreaPanel';
 import { FloatingPanel, type GamePanel } from './panels/FloatingPanel';
+import { OperationsPanel } from './panels/OperationsPanel';
 import { ResearchPanel } from './panels/ResearchPanel';
+import { SocialPanel } from './panels/SocialPanel';
 import { WorldMap } from './WorldMap';
 
 export function GameApp({ regions }: { regions: MapRegion[] }) {
@@ -30,7 +34,9 @@ export function GameApp({ regions }: { regions: MapRegion[] }) {
     const [hidden, setHidden] = useState(document.hidden);
     const selectedMarker = useMapStore((state) => state.selectedMarkerId);
     const summary = useMemo(() => metrics(game), [game]);
-    const blocked = !game.started || game.outcome !== 'playing' || help || hidden;
+    const blocked =
+        !game.started || game.outcome !== 'playing' || help || hidden || game.pendingEvent !== null;
+    const alerts = warnings(game);
     const markers = useMemo<MapMarker[]>(
         () => [
             ...game.points.map(
@@ -116,7 +122,8 @@ export function GameApp({ regions }: { regions: MapRegion[] }) {
         selectedMarker === null || selectedMarker.startsWith('chat-')
             ? null
             : game.points[Number(selectedMarker)];
-    const { allocate, focus, unlock, campaign, dismissChat } = useGameStore.getState();
+    const { research, allocateCompute, policy, dismissChat, dismissImpact, decideEvent, openChat } =
+        useGameStore.getState();
     const selectArea = (index: number) => {
         setSelectedArea(index);
         useMapStore.getState().selectMarker(null);
@@ -160,26 +167,44 @@ export function GameApp({ regions }: { regions: MapRegion[] }) {
                 />
             </div>
             <WorldStats summary={summary} />
+            {alerts.length > 0 && (
+                <div className="crisis-banner glass" role="alert">
+                    {alerts[0]}
+                </div>
+            )}
             <NewsFeed news={game.news} />
             <GameClock key={game.seed} blocked={blocked} />
             <GameActions
                 activePanel={tab}
-                research={game.research}
+                researching={game.activeResearch !== null}
                 onTogglePanel={togglePanel}
                 onHelp={() => setHelp(true)}
             />
             <StageLegend />
             {tab && (
                 <FloatingPanel panel={tab} onClose={closePanel}>
-                    {tab === 'ability' && (
-                        <AbilityPanel
+                    {tab === 'operations' && (
+                        <OperationsPanel
                             game={game}
-                            summary={summary}
-                            onAllocate={allocate}
-                            onFocus={focus}
+                            onAllocate={allocateCompute}
+                            onSocial={() => setTab('social')}
                         />
                     )}
-                    {tab === 'research' && <ResearchPanel game={game} onUnlock={unlock} />}
+                    {tab === 'social' && (
+                        <SocialPanel
+                            game={game}
+                            initialArea={areaIndex}
+                            onPolicy={policy}
+                            onChat={openChat}
+                        />
+                    )}
+                    {tab === 'research' && (
+                        <ResearchPanel
+                            game={game}
+                            onResearch={research}
+                            onAllocate={allocateCompute}
+                        />
+                    )}
                     {tab === 'area' && (
                         <AreaPanel
                             game={game}
@@ -189,23 +214,28 @@ export function GameApp({ regions }: { regions: MapRegion[] }) {
                             region={region}
                             setRegion={setRegion}
                             onSelectArea={selectArea}
-                            onCampaign={campaign}
+                            onSocial={() => setTab('social')}
                         />
                     )}
                 </FloatingPanel>
             )}
-            {game.pendingChat && (
+            {game.pendingChat && tab !== 'research' && (
                 <ConversationPanel
                     chat={game.pendingChat}
-                    abilities={game.abilities}
-                    hasConsensus={game.skills.includes('consensus')}
+                    game={game}
                     onClose={closeChat}
                     onAnswer={answerChat}
                 />
             )}
+            {game.impact && tab !== 'research' && (
+                <ImpactReport impact={game.impact} onDismiss={dismissImpact} />
+            )}
+            {game.pendingEvent && game.started && !help && (
+                <EventDialog event={game.pendingEvent} game={game} onChoose={decideEvent} />
+            )}
             {game.chatResult && <ChatResult message={game.chatResult} onDismiss={dismissChat} />}
             <small className="map-credit">
-                NASA / Natural Earth · 人口：GHSL 2020 © EU（CC BY 4.0）
+                NASA / Natural Earth · 人口：UN WPP · 位置：GHSL © EU · ITU / UIS / World Bank
             </small>
             {(!game.started || help) && (
                 <Brief
