@@ -22,13 +22,28 @@ vec3 tone(vec3 c,vec4 t,float hue,vec4 tint) {
 }
 float idAt(vec2 p) { return floor(texture2D(countryIds,vec2(fract(p.x),clamp(p.y,0.,1.))).r*255.+.5); }
 float areaAt(vec2 p) { return floor(texture2D(areaIds,vec2(fract(p.x),clamp(p.y,0.,1.))).r*255.+.5); }
+// アトラスの左右は都市起点から別々に計算した到達順。依存は使用領域内に収める。
+vec3 coverageAt(vec2 p) {
+    p=vec2(fract(p.x),clamp(p.y,0.,1.));
+    float area=areaAt(p);
+    vec4 fill=texture2D(palette,vec2((area+.5)/256.,.25));
+    vec2 amount=vec2(fill.r*65280.+fill.g*255.,fill.b*65280.+fill.a*255.)/65535.;
+    vec2 used=texture2D(invasion,vec2(p.x*.5,p.y)).rg;
+    vec2 dependent=texture2D(invasion,vec2(.5+p.x*.5,p.y)).rg;
+    vec2 rank=vec2(used.r*65280.+used.g*255.,dependent.r*65280.+dependent.g*255.)/65535.;
+    vec4 opposition=texture2D(palette,vec2((area+.5)/256.,.75));
+    float antiAmount=(opposition.r*65280.+opposition.g*255.)/65535.;
+    // Bチャンネルに収めた独立の都市起点順。地域人口は増やさない。
+    float antiRank=texture2D(invasion,vec2(p.x*.5,p.y)).b;
+    float anti=step(antiRank,antiAmount)*step(.00001,antiAmount);
+    return vec3(step(rank,amount)*step(vec2(.00001),amount),anti)*step(.5,area)*(1.-texture2D(water,p).a);
+}
 void main(){
     vec2 pixel=uv*viewport;
     float x=pixel.x-camera.z;
     if(x<0.||x>displayWidth||pixel.y<camera.y||pixel.y>camera.y+worldHeight){gl_FragColor=vec4(mix(vec3(.031,.059,.075),vec3(.612,.729,.788),dataMode),1.);return;}
     vec2 p=vec2(fract((x-camera.x)/period),(pixel.y-camera.y)/worldHeight);
     float area=areaAt(p);
-    vec4 fill=texture2D(palette,vec2((area+.5)/256.,.5));
     vec3 c;
     if(dataMode>.5) c=vec3(.15,.19,.22);
     else {
@@ -39,17 +54,30 @@ void main(){
 
     }
     if(area>0.) {
-        float adoption=(fill.r*65280.+fill.g*255.)/65535.;
-        float dependency=(fill.b*65280.+fill.a*255.)/65535.;
-        vec2 encoded=texture2D(invasion,p).rg;
-        float rank=(encoded.r*65280.+encoded.g*255.)/65535.;
-        float land=1.-texture2D(water,p).a;
-        float blue=(1.-step(adoption,rank))*step(.00001,adoption)*land;
-        float red=(1.-step(dependency,rank))*step(.00001,dependency)*land;
-        // 模様は画面ではなく地理座標に固定し、移動・拡大でも領域を維持する。
-        float hatch=step(.65,fract((p.x*8192.+p.y*4361.)/13.));
-        c=mix(c,vec3(.12,.48,.65),blue*.66);
-        c=mix(c,mix(vec3(.80,.08,.16),vec3(1.,.32,.36),hatch*.40),red*.88);
+        vec3 coverage=coverageAt(p);
+        // 画面上で約2pxの内側輪郭。ズームしても線が太くならない。
+        vec2 delta=vec2(2./period,2./worldHeight);
+        vec3 neighbor=min(min(coverageAt(p+vec2(delta.x,0.)),coverageAt(p-vec2(delta.x,0.))),
+                          min(coverageAt(p+vec2(0.,delta.y)),coverageAt(p-vec2(0.,delta.y))));
+        vec3 edge=max(vec3(0.),coverage-neighbor);
+        float opposition=coverage.z;
+        float blue=coverage.x*(1.-coverage.y)*(1.-opposition);
+        float red=coverage.y*(1.-opposition);
+        // 地図に固定した粗い斜線と薄い面色。衛星画像の地形を残す。
+        float stripe=fract((p.x*8192.+p.y*4361.)/40.);
+        float hatch=smoothstep(.72,.77,stripe)*(1.-smoothstep(.95,1.,stripe));
+        vec3 blueColor=vec3(.25,.72,.91), redColor=vec3(.96,.28,.35);
+        c=mix(c,blueColor,blue*(.10+hatch*.32));
+        // 赤は斜線なしの面色。元画像の色相を弱め、緑・茶との混色による濁りを防ぐ。
+        float terrainLight=dot(c,vec3(.213,.715,.072));
+        vec3 neutralTerrain=mix(vec3(terrainLight),c,.10);
+        vec3 dependencyFill=vec3(.90,.10,.18)*(.72+.28*clamp(terrainLight*2.,0.,1.));
+        c=mix(c,mix(neutralTerrain,dependencyFill,.86),red);
+        vec3 oppositionColor=vec3(.90,.67,.30);
+        c=mix(c,oppositionColor,opposition*(.16+hatch*.28));
+        c=mix(c,blueColor,edge.x*(1.-red)*(1.-opposition)*.72);
+        c=mix(c,redColor,edge.y*(1.-opposition)*.75);
+        c=mix(c,oppositionColor,edge.z*.78);
     }
     bool focus=area>0.&&(abs(area-selected)<.1||abs(area-hovered)<.1);
     if(focus) c=mix(c,vec3(.86,.92,.94),.10);

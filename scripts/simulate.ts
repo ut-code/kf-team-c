@@ -15,12 +15,6 @@ const strategies: Record<string, { dependencyAfter: number; order: string[] }> =
             'reason',
             'verification',
             'audit',
-            'french',
-            'arabic',
-            'hindi',
-            'chinese',
-            'southeast',
-            'spanish',
             'lightweight',
             'offline',
             'mobile',
@@ -36,12 +30,6 @@ const strategies: Record<string, { dependencyAfter: number; order: string[] }> =
             'autonomous',
             'conversation',
             'personalize',
-            'chinese',
-            'french',
-            'spanish',
-            'arabic',
-            'hindi',
-            'southeast',
             'reason',
             'verification',
             'audit',
@@ -59,15 +47,9 @@ const strategies: Record<string, { dependencyAfter: number; order: string[] }> =
             'conversation',
             'reason',
             'personalize',
-            'chinese',
-            'french',
-            'arabic',
-            'hindi',
             'lightweight',
             'offline',
             'mobile',
-            'spanish',
-            'southeast',
             'verification',
             'audit',
             'automation',
@@ -80,10 +62,6 @@ const strategies: Record<string, { dependencyAfter: number; order: string[] }> =
             'distributed',
             'memory',
             'companion',
-            'portuguese',
-            'japanese',
-            'korean',
-            'russian',
         ],
     },
     late: {
@@ -92,15 +70,9 @@ const strategies: Record<string, { dependencyAfter: number; order: string[] }> =
             'conversation',
             'reason',
             'personalize',
-            'chinese',
-            'french',
-            'arabic',
-            'hindi',
             'lightweight',
             'offline',
             'mobile',
-            'spanish',
-            'southeast',
             'verification',
             'audit',
             'privacy',
@@ -134,14 +106,16 @@ for (const origin of ORIGINS) {
             for (const area of game.areas) {
                 assert.ok(Number.isFinite(area.autonomous) && Number.isFinite(area.dependent));
                 assert.ok(area.autonomous >= -1e-10 && area.dependent >= -1e-10);
-                assert.ok(area.autonomous + area.dependent <= 1 + 1e-10);
+                assert.ok(area.autonomous + area.dependent + area.antiAI <= 1 + 1e-10);
             }
-            assert.ok(game.skillPoints >= 0 && game.response >= 0 && game.response <= 1);
+            assert.ok(game.skillPoints >= 0);
+            for (const area of game.areas)
+                assert.ok(area.antiAI >= 0 && area.favorability >= 0 && area.favorability <= 1);
             if (game.month % 60 === 0 || game.outcome !== 'playing')
                 snapshots.push({
                     month: game.month,
                     ...metrics(game),
-                    response: game.response,
+                    antiAI: metrics(game).antiAI,
                     sp: game.skillPoints,
                 });
         }
@@ -154,7 +128,7 @@ for (const origin of ORIGINS) {
             snapshots,
         });
         console.log(
-            `${origin.name} / ${name}: ${game.outcome} (${game.month}か月), 利用 ${(metrics(game).adoption * 100).toFixed(1)}%, 依存 ${(metrics(game).dependent * 100).toFixed(1)}%, 対策 ${(game.response * 100).toFixed(1)}%`,
+            `${origin.name} / ${name}: ${game.outcome} (${game.month}か月), 利用 ${(metrics(game).adoption * 100).toFixed(1)}%, 依存 ${(metrics(game).dependent * 100).toFixed(1)}%, 反AI ${(metrics(game).antiAI * 100).toFixed(1)}%`,
         );
     }
 }

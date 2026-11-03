@@ -5,14 +5,20 @@ export const clamp = (value: number, min = 0, max = 1) => Math.max(min, Math.min
 export function metrics(state: GameState) {
     let autonomous = 0;
     let dependent = 0;
+    let antiAI = 0;
+    let favorability = 0;
     state.areas.forEach((area, index) => {
         autonomous += (area.autonomous * AREAS[index].population) / WORLD_POPULATION;
         dependent += (area.dependent * AREAS[index].population) / WORLD_POPULATION;
+        antiAI += (area.antiAI * AREAS[index].population) / WORLD_POPULATION;
+        favorability += (area.favorability * AREAS[index].population) / WORLD_POPULATION;
     });
     return {
         autonomous,
         dependent,
+        antiAI,
+        favorability,
         adoption: autonomous + dependent,
-        unused: Math.max(0, 1 - autonomous - dependent),
+        unused: Math.max(0, 1 - autonomous - dependent - antiAI),
     };
 }

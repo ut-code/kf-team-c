@@ -406,7 +406,7 @@ export class WorldRenderer {
     }
 
     private updatePalette() {
-        const bytes = new Uint8Array(256 * 4);
+        const bytes = new Uint8Array(256 * 4 * 2);
         this.shown.forEach((area, index) => {
             const offset = (index + 1) * 4;
             const adoption = Math.round((area.autonomous + area.dependent) * 65535);
@@ -415,10 +415,13 @@ export class WorldRenderer {
             bytes[offset + 1] = adoption & 255;
             bytes[offset + 2] = dependency >> 8;
             bytes[offset + 3] = dependency & 255;
+            const antiAI = Math.round(area.antiAI * 65535);
+            bytes[1024 + offset] = antiAI >> 8;
+            bytes[1024 + offset + 1] = antiAI & 255;
         });
         const gl = this.gl;
         gl.bindTexture(gl.TEXTURE_2D, this.textures.palette);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 256, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, bytes);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 256, 2, 0, gl.RGBA, gl.UNSIGNED_BYTE, bytes);
         this.paletteDirty = false;
         this.staticDirty = true;
     }
@@ -508,7 +511,7 @@ export class WorldRenderer {
         let transitioning = false;
         this.shown.forEach((area, index) => {
             const target = this.data!.areaStates[index];
-            for (const key of ['autonomous', 'dependent'] as const) {
+            for (const key of ['autonomous', 'dependent', 'antiAI'] as const) {
                 if (Math.abs(target[key] - area[key]) < 0.00001) area[key] = target[key];
                 else {
                     area[key] += (target[key] - area[key]) * (1 - Math.exp(-Math.min(dt, 0.1) * 5));

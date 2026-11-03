@@ -15,6 +15,7 @@ import { type MapTarget, WorldRenderer } from '../map/rendering/WorldRenderer';
 import type { MapRegion } from '../map/types';
 import type { MapView } from '../map/view';
 import { useMapStore } from '../state/mapStore';
+import { type MapEncounter, MapEncounterMarkers } from './society/MapEncounterMarkers';
 import styles from './WorldMap.module.css';
 
 interface Gesture {
@@ -43,6 +44,8 @@ export const WorldMap = memo(function WorldMap({
     trafficSpeed,
     trafficTick,
     onAreaInspect,
+    encounters = [],
+    onEncounterSelect,
 }: {
     regions: MapRegion[];
     selectedArea: number | null;
@@ -58,6 +61,8 @@ export const WorldMap = memo(function WorldMap({
     trafficSpeed: number;
     trafficTick: number;
     onAreaInspect?: (id: number | null) => void;
+    encounters?: MapEncounter[];
+    onEncounterSelect?: (id: string) => void;
 }) {
     const viewport = useRef<HTMLDivElement>(null),
         canvas = useRef<HTMLCanvasElement>(null);
@@ -67,6 +72,7 @@ export const WorldMap = memo(function WorldMap({
     const [dragging, setDragging] = useState(false),
         [error, setError] = useState<string | null>(null),
         [ready, setReady] = useState(false);
+    const [markerView, setMarkerView] = useState<MapView>({ ...view.current });
     const [targets, setTargets] = useState<MapTarget[]>([]);
     const camera = useMapStore((state) => state.camera);
     const selected = useMapStore((state) => state.selectedAreaId);
@@ -129,13 +135,17 @@ export const WorldMap = memo(function WorldMap({
         if (gesture.current) return;
         view.current.x = camera.x;
         renderer.current?.setView(view.current);
+        setMarkerView({ ...view.current });
     }, [camera.x]);
 
     const limitY = useCallback(
         (y: number) => Math.max(view.current.height * (1 - view.current.zoom), Math.min(0, y)),
         [],
     );
-    const applyView = useCallback(() => renderer.current?.setView(view.current), []);
+    const applyView = useCallback(() => {
+        renderer.current?.setView(view.current);
+        setMarkerView({ ...view.current });
+    }, []);
 
     useEffect(() => {
         const element = viewport.current!;
@@ -344,6 +354,13 @@ export const WorldMap = memo(function WorldMap({
                 aria-hidden="true"
                 data-world-renderer="webgl"
             />
+            {ready && (
+                <MapEncounterMarkers
+                    encounters={encounters}
+                    view={markerView}
+                    onSelect={onEncounterSelect}
+                />
+            )}
             <div className={styles.screenReaderOnly} role="group" aria-label="画面内の小地域">
                 {targets.map((target) => (
                     <button

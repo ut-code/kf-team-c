@@ -2,8 +2,8 @@ import regions from './data/regions.json' with { type: 'json' };
 import type { AreaDefinition } from './types.ts';
 
 export const AREAS = regions as AreaDefinition[];
-export const STAGES = ['AI未使用', '自律的使用', 'AI依存'];
-export const STAGE_COLORS = ['#778496', '#55bce6', '#ef424e'];
+export const STAGES = ['AI未使用', '自律的使用', 'AI依存', '反AI'];
+export const STAGE_COLORS = ['#778496', '#55bce6', '#ef424e', '#e4b565'];
 export const TOTAL_MONTHS = 480;
 export const MONTH_MS = 3_125;
 export const START_YEAR = 2030;

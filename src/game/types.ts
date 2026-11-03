@@ -1,5 +1,7 @@
+import type { EncounterState } from './society/types.ts';
+
 export type Branch = 'IQ' | 'EQ' | 'SYSTEM';
-export type Stage = 0 | 1 | 2;
+export type Stage = 0 | 1 | 2 | 3;
 export type Outcome = 'playing' | 'victory' | 'autonomy' | 'timeout';
 export type Language =
     | 'english'
@@ -27,17 +29,12 @@ export interface AreaDefinition {
     enterprise: number;
     language: Language;
 }
-/** 地域内の人口比率。未使用は 1 − autonomous − dependent。 */
+/** 地域内の人口比率。未使用は 1 − autonomous − dependent − antiAI。反AIは排他的な人口状態。 */
 export interface AreaState {
     autonomous: number;
     dependent: number;
-}
-export interface News {
-    id: number;
-    month: number;
-    title: string;
-    detail: string;
-    kind: 'info' | 'good' | 'warning';
+    antiAI: number;
+    favorability: number;
 }
 export interface GameState {
     seed: number;
@@ -50,10 +47,10 @@ export interface GameState {
     skills: string[];
     skillPoints: number;
     earnedPoints: number;
-    response: number;
-    responseStarted: boolean;
+    socialStrategy: string;
+    encounters: EncounterState[];
+    lastEncounterMonth: number;
     peakDependency: number;
-    news: News[];
 }
 export interface SkillEffect {
     spread?: number;
@@ -65,7 +62,6 @@ export interface SkillEffect {
     dependency?: number;
     resilience?: number;
     discretion?: number;
-    language?: Language;
 }
 export interface Skill {
     id: string;

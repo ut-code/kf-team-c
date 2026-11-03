@@ -1,24 +1,52 @@
-import { Network, X } from 'lucide-react';
+import { Bell, MessageSquare, Network, Radio, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { AREAS, STAGE_COLORS, STAGES } from '../game/data';
 import { areaHint, metrics } from '../game/engine';
+import { socialStrategy } from '../game/society/strategies';
+import { encounterDefinition } from '../game/society/system';
 import { mapScene } from '../map/config';
 import type { MapRegion } from '../map/types';
 import { useGameStore } from '../state/gameStore';
 import { useMapStore } from '../state/mapStore';
 import { GameClock } from './GameClock';
-import { Brief, Result } from './GameOverlays';
+import { Result } from './GameOverlays';
 import { ResearchPanel } from './panels/ResearchPanel';
+import { EncounterPanel } from './society/EncounterPanel';
+import { SocietyPanel } from './society/SocietyPanel';
 import { WorldMap } from './WorldMap';
 import { percent } from './widgets';
 
 export function GameApp({ regions }: { regions: MapRegion[] }) {
     const game = useGameStore((state) => state.game)!;
     const [researchOpen, setResearchOpen] = useState(false);
+    const [societyPanel, setSocietyPanel] = useState<'sns' | 'inbox' | null>(null);
+    const [encounterId, setEncounterId] = useState<string | null>(null);
+    const pending = game.encounters.filter((item) => item.status === 'pending');
+    const mapEncounters = pending.flatMap((item) => {
+        const definition = encounterDefinition(item.id);
+        return definition
+            ? [
+                  {
+                      id: item.id,
+                      title: definition.title,
+                      kind: definition.kind,
+                      location:
+                          definition.location ??
+                          AREAS.find((area) => area.id === definition.areaId)!,
+                  },
+              ]
+            : [];
+    });
     const [hidden, setHidden] = useState(document.hidden);
     const selected = useMapStore((state) => state.selectedAreaId);
     const summary = useMemo(() => metrics(game), [game]);
-    const blocked = !game.started || game.outcome !== 'playing' || hidden || researchOpen;
+    const blocked =
+        !game.started ||
+        game.outcome !== 'playing' ||
+        hidden ||
+        researchOpen ||
+        societyPanel !== null ||
+        encounterId !== null;
     useEffect(() => {
         const visibility = () => setHidden(document.hidden);
         document.addEventListener('visibilitychange', visibility);
@@ -28,6 +56,8 @@ export function GameApp({ regions }: { regions: MapRegion[] }) {
         const keydown = (event: KeyboardEvent) => {
             if (event.key === 'Escape') {
                 setResearchOpen(false);
+                setSocietyPanel(null);
+                setEncounterId(null);
                 useMapStore.getState().selectArea(null);
             }
             if (
@@ -45,7 +75,12 @@ export function GameApp({ regions }: { regions: MapRegion[] }) {
     }, [blocked, game.speed]);
     const area = selected === null ? null : game.areas[selected];
     const stages = area
-        ? [Math.max(0, 1 - area.autonomous - area.dependent), area.autonomous, area.dependent]
+        ? [
+              Math.max(0, 1 - area.autonomous - area.dependent - area.antiAI),
+              area.autonomous,
+              area.dependent,
+              area.antiAI,
+          ]
         : [];
     return (
         <main className="game-shell">
@@ -56,15 +91,14 @@ export function GameApp({ regions }: { regions: MapRegion[] }) {
                     selectedArea={selected}
                     areaStates={game.areas}
                     initialLongitude={0}
+                    encounters={mapEncounters}
+                    onEncounterSelect={setEncounterId}
                     trafficSpeed={blocked ? 0 : game.speed}
                     trafficTick={game.month}
                     onAreaSelect={(index) => useMapStore.getState().selectArea(index)}
                 />
             </div>
-            <header className="world-hud glass">
-                <span className="wordmark">
-                    HUMANITY<span>.exe</span>
-                </span>
+            <section className="world-hud glass" aria-label="世界の指標">
                 <div className="world-number">
                     <span>AI利用</span>
                     <strong>{percent(summary.adoption)}</strong>
@@ -73,17 +107,37 @@ export function GameApp({ regions }: { regions: MapRegion[] }) {
                     <span>AI依存</span>
                     <strong>{percent(summary.dependent)}</strong>
                 </div>
-                <div
-                    className="response-status"
-                    title="人間による代替運用を整え、AI依存から自律的使用へ戻す計画"
-                >
-                    <div>
-                        <span>脱依存計画</span>
-                        <b>{game.responseStarted ? percent(game.response) : '未始動'}</b>
-                    </div>
-                    <progress value={game.response} max={1} />
+                <div className="world-number opposition-number">
+                    <span>反AI</span>
+                    <strong>{percent(summary.antiAI)}</strong>
                 </div>
-            </header>
+            </section>
+            <nav className="society-toolbar" aria-label="世界への戦略">
+                <button type="button" className="glass" onClick={() => setSocietyPanel('sns')}>
+                    <Radio size={17} />
+                    <span>SNS</span>
+                    <small>{socialStrategy(game.socialStrategy).name}</small>
+                </button>
+                <button type="button" className="glass" onClick={() => setSocietyPanel('inbox')}>
+                    <Bell size={17} />
+                    <span>世界の動き</span>
+                    <b>{pending.length}</b>
+                </button>
+                <button
+                    type="button"
+                    className="glass"
+                    onClick={() => setSocietyPanel('inbox')}
+                    aria-label="人物との連絡"
+                >
+                    <MessageSquare size={17} />
+                    <b>
+                        {
+                            pending.filter((item) => encounterDefinition(item.id)?.kind === 'chat')
+                                .length
+                        }
+                    </b>
+                </button>
+            </nav>
             <GameClock key={game.seed} blocked={blocked} />
             {area && selected !== null && (
                 <aside className="area-card glass" aria-label="地域の状況">
@@ -117,12 +171,10 @@ export function GameApp({ regions }: { regions: MapRegion[] }) {
                             </div>
                         ))}
                     </dl>
+                    <p>AI好感度 {Math.round(area.favorability * 100)} / 100</p>
                     <p>{areaHint(game, selected)}</p>
                 </aside>
             )}
-            <div className="news-ticker" aria-live="polite">
-                {game.news[0]?.title}
-            </div>
             <footer className="map-footer">
                 <div className="map-legend">
                     {STAGES.map((label, i) => (
@@ -135,6 +187,7 @@ export function GameApp({ regions }: { regions: MapRegion[] }) {
                 <button
                     type="button"
                     className="evolution-button glass"
+                    aria-label="進化"
                     onClick={() => setResearchOpen(true)}
                 >
                     <Network size={20} />
@@ -148,6 +201,20 @@ export function GameApp({ regions }: { regions: MapRegion[] }) {
             <small className="map-credit">
                 NASA / Natural Earth · UN WPP / ITU · 地域設定はゲーム上の仮定
             </small>
+            {societyPanel && (
+                <SocietyPanel
+                    game={game}
+                    tab={societyPanel}
+                    onClose={() => setSocietyPanel(null)}
+                    onOpen={(id) => {
+                        setSocietyPanel(null);
+                        setEncounterId(id);
+                    }}
+                />
+            )}
+            {encounterId && (
+                <EncounterPanel game={game} id={encounterId} onClose={() => setEncounterId(null)} />
+            )}
             {researchOpen && (
                 <ResearchPanel
                     game={game}
@@ -155,12 +222,13 @@ export function GameApp({ regions }: { regions: MapRegion[] }) {
                     onClose={() => setResearchOpen(false)}
                 />
             )}
-            {!game.started && <Brief onStart={(origin) => useGameStore.getState().start(origin)} />}
             {game.outcome !== 'playing' && (
                 <Result
                     game={game}
                     onRestart={() => {
                         setResearchOpen(false);
+                        setSocietyPanel(null);
+                        setEncounterId(null);
                         useMapStore.getState().selectArea(null);
                         useGameStore.getState().initialize(game.seed + 1);
                     }}
