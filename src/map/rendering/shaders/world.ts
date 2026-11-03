@@ -1,7 +1,7 @@
 export const staticFragment = `
 precision highp float;
 varying vec2 uv;
-uniform sampler2D photo, water, countryIds, areaIds, palette;
+uniform sampler2D photo, water, countryIds, areaIds, palette, invasion;
 uniform vec2 viewport;
 uniform vec4 camera;
 uniform float period, displayWidth, worldHeight, dataMode, selected, hovered;
@@ -27,18 +27,30 @@ void main(){
     float x=pixel.x-camera.z;
     if(x<0.||x>displayWidth||pixel.y<camera.y||pixel.y>camera.y+worldHeight){gl_FragColor=vec4(mix(vec3(.031,.059,.075),vec3(.612,.729,.788),dataMode),1.);return;}
     vec2 p=vec2(fract((x-camera.x)/period),(pixel.y-camera.y)/worldHeight);
-    float id=idAt(p);
-    vec4 fill=texture2D(palette,vec2((id+.5)/256.,.5));
+    float area=areaAt(p);
+    vec4 fill=texture2D(palette,vec2((area+.5)/256.,.5));
     vec3 c;
-    if(dataMode>.5) c=mix(vec3(.612,.729,.788),fill.rgb,fill.a);
+    if(dataMode>.5) c=vec3(.15,.19,.22);
     else {
         vec3 original=texture2D(photo,p).rgb;
         vec3 land= tone(original,landTone,hues.x,landTint);
         vec3 sea= tone(original,oceanTone,hues.y,oceanTint);
         c=tone(mix(land,sea,texture2D(water,p).a),globalTone,hues.z,vec4(0.));
-        c=mix(c,territory.rgb,fill.a);
+
     }
-    float area=areaAt(p);
+    if(area>0.) {
+        float adoption=(fill.r*65280.+fill.g*255.)/65535.;
+        float dependency=(fill.b*65280.+fill.a*255.)/65535.;
+        vec2 encoded=texture2D(invasion,p).rg;
+        float rank=(encoded.r*65280.+encoded.g*255.)/65535.;
+        float land=1.-texture2D(water,p).a;
+        float blue=(1.-step(adoption,rank))*step(.00001,adoption)*land;
+        float red=(1.-step(dependency,rank))*step(.00001,dependency)*land;
+        // 模様は画面ではなく地理座標に固定し、移動・拡大でも領域を維持する。
+        float hatch=step(.65,fract((p.x*8192.+p.y*4361.)/13.));
+        c=mix(c,vec3(.12,.48,.65),blue*.66);
+        c=mix(c,mix(vec3(.80,.08,.16),vec3(1.,.32,.36),hatch*.40),red*.88);
+    }
     bool focus=area>0.&&(abs(area-selected)<.1||abs(area-hovered)<.1);
     if(focus) c=mix(c,vec3(.86,.92,.94),.10);
     gl_FragColor=vec4(c,1.);
@@ -83,29 +95,3 @@ void main(){
     gl_FragColor=vec4(color,1.);
 }
 `;
-
-export const spriteVertex = `
-attribute vec2 position, texcoord;
-attribute vec4 color;
-attribute float ship;
-uniform vec2 viewport;
-varying vec2 atlasUV, screen;
-varying vec4 tint;
-varying float clipShip;
-void main(){atlasUV=texcoord;tint=color;clipShip=ship;screen=position;gl_Position=vec4(position.x/viewport.x*2.-1.,1.-position.y/viewport.y*2.,0.,1.);}
-`;
-export const spriteFragment = `
-precision mediump float;
-varying vec2 atlasUV,screen;
-varying vec4 tint;
-varying float clipShip;
-uniform sampler2D atlas,water;
-uniform vec4 camera;
-uniform float period,worldHeight,displayWidth;
-void main(){
-    float x=screen.x-camera.z;
-    if(x<0.||x>displayWidth||screen.y<camera.y||screen.y>camera.y+worldHeight)discard;
-    vec4 c=texture2D(atlas,atlasUV)*tint;
-    if(clipShip>.5)c.a*=texture2D(water,vec2(fract((x-camera.x)/period),(screen.y-camera.y)/worldHeight)).a;
-    gl_FragColor=vec4(c.rgb*c.a,c.a);
-}`;

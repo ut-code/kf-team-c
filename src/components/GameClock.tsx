@@ -18,7 +18,7 @@ export function GameClock({ blocked }: { blocked: boolean }) {
             previous = now;
             while (elapsed.current >= MONTH_MS) {
                 const current = useGameStore.getState().game!;
-                if (current.outcome !== 'playing' || current.pendingEvent) break;
+                if (current.outcome !== 'playing') break;
                 elapsed.current -= MONTH_MS;
                 useGameStore.getState().tick();
             }

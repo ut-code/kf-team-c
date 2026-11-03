@@ -1,5 +1,6 @@
 import type { KeyboardEvent, PointerEvent } from 'react';
 import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import type { AreaState } from '../game/types';
 import {
     centerCamera,
     constrainCamera,
@@ -35,6 +36,8 @@ export const WorldMap = memo(function WorldMap({
     surfaceMaskUrl,
     countryIndexUrl,
     areaIndexUrl,
+    invasionUrl,
+    areaStates,
     onAreaSelect,
     initialLongitude,
     trafficSpeed,
@@ -48,6 +51,8 @@ export const WorldMap = memo(function WorldMap({
     surfaceMaskUrl: string;
     countryIndexUrl: string;
     areaIndexUrl: string;
+    invasionUrl: string;
+    areaStates: AreaState[];
     onAreaSelect?: (id: number | null) => void;
     initialLongitude?: number;
     trafficSpeed: number;
@@ -65,8 +70,6 @@ export const WorldMap = memo(function WorldMap({
     const [targets, setTargets] = useState<MapTarget[]>([]);
     const camera = useMapStore((state) => state.camera);
     const selected = useMapStore((state) => state.selectedAreaId);
-    const selectedMarker = useMapStore((state) => state.selectedMarkerId);
-    const markers = useMapStore((state) => state.markers);
 
     useLayoutEffect(() => {
         try {
@@ -92,13 +95,12 @@ export const WorldMap = memo(function WorldMap({
     useLayoutEffect(() => {
         renderer.current?.setData({
             regions,
-            markers,
+            areaStates,
             selectedArea,
-            selectedMarker,
             speed: trafficSpeed,
             tick: trafficTick,
         });
-    }, [regions, markers, selectedArea, selectedMarker, trafficSpeed, trafficTick]);
+    }, [regions, areaStates, selectedArea, trafficSpeed, trafficTick]);
 
     useEffect(() => {
         if (!renderer.current) return;
@@ -111,8 +113,17 @@ export const WorldMap = memo(function WorldMap({
             surfaceMaskUrl,
             countryIndexUrl,
             areaIndexUrl,
+            invasionUrl,
         });
-    }, [regions, backgroundUrl, waterMaskUrl, surfaceMaskUrl, countryIndexUrl, areaIndexUrl]);
+    }, [
+        regions,
+        backgroundUrl,
+        waterMaskUrl,
+        surfaceMaskUrl,
+        countryIndexUrl,
+        areaIndexUrl,
+        invasionUrl,
+    ]);
 
     useLayoutEffect(() => {
         if (gesture.current) return;
@@ -201,11 +212,8 @@ export const WorldMap = memo(function WorldMap({
     }, [initialLongitude, limitY, applyView]);
 
     const select = (target: MapTarget | null) => {
-        if (target?.kind === 'marker') useMapStore.getState().selectMarker(target.id);
-        else {
-            useMapStore.getState().selectArea(target?.area ?? null);
-            if (target) onAreaSelect?.(target.area);
-        }
+        useMapStore.getState().selectArea(target?.area ?? null);
+        onAreaSelect?.(target?.area ?? null);
     };
     const point = (event: PointerEvent<HTMLDivElement>) => {
         const bounds = event.currentTarget.getBoundingClientRect();
@@ -213,7 +221,6 @@ export const WorldMap = memo(function WorldMap({
     };
     const hover = (target: MapTarget | null) => {
         renderer.current?.setHover(target);
-        if (target) useMapStore.getState().selectArea(target.area);
         onAreaInspect?.(target?.area ?? null);
         if (canvas.current) canvas.current.title = target?.label ?? '';
     };
@@ -342,11 +349,7 @@ export const WorldMap = memo(function WorldMap({
                     <button
                         type="button"
                         key={`${target.kind}:${target.id}`}
-                        aria-pressed={
-                            target.kind === 'area'
-                                ? selected === target.area
-                                : selectedMarker === target.id
-                        }
+                        aria-pressed={selected === target.area}
                         onFocus={() => hover(target)}
                         onBlur={() => hover(null)}
                         onClick={() => select(target)}

@@ -1,5 +1,5 @@
 import { WORLD_HEIGHT, WORLD_WIDTH } from './geometry.ts';
-import type { MapMarker, MapRegion } from './types.ts';
+import type { MapRegion } from './types.ts';
 
 export interface MapView {
     width: number;
@@ -21,11 +21,6 @@ export interface Ring {
 export interface RegionShape {
     region: MapRegion;
     rings: Ring[];
-}
-export interface VisibleMarker {
-    marker: MapMarker;
-    x: number;
-    y: number;
 }
 
 export function viewTransform(view: MapView) {
@@ -111,25 +106,6 @@ export function regionAtPoint(shapes: RegionShape[], x: number, y: number): stri
         if (inside) return shapes[c].region.id;
     }
     return null;
-}
-
-/** 端をまたいでも、実際に画面へ入る施設だけを個別表示する。 */
-export function cullMarkers(
-    markers: { marker: MapMarker; x: number; y: number }[],
-    view: MapView,
-): VisibleMarker[] {
-    const t = viewTransform(view),
-        result: VisibleMarker[] = [];
-    for (const item of markers) {
-        const screen = screenPoint(view, item.x, item.y);
-        if (screen.y < -24 || screen.y > view.height + 24) continue;
-        for (const dx of [-t.period, 0, t.period]) {
-            const x = screen.x + dx;
-            if (x >= t.left - 24 && x <= t.left + t.width + 24)
-                result.push({ marker: item.marker, x, y: screen.y });
-        }
-    }
-    return result;
 }
 
 /** 拡大率によらず、画面内のピクセル数だけを確保する。 */

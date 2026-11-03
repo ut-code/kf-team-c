@@ -1,94 +1,24 @@
+import { Network, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { AREAS, FIELDS, STAGES } from '../game/data';
-import { generation, metrics } from '../game/engine';
-import { warnings } from '../game/metrics';
+import { AREAS, STAGE_COLORS, STAGES } from '../game/data';
+import { areaHint, metrics } from '../game/engine';
 import { mapScene } from '../map/config';
-import { WORLD_WIDTH } from '../map/geometry';
-import type { MapMarker, MapRegion } from '../map/types';
+import type { MapRegion } from '../map/types';
 import { useGameStore } from '../state/gameStore';
 import { useMapStore } from '../state/mapStore';
-import { ChatResult } from './ChatResult';
-import { ConversationPanel } from './ConversationPanel';
-import { EventDialog } from './EventDialog';
 import { GameClock } from './GameClock';
 import { Brief, Result } from './GameOverlays';
-import { GameActions } from './hud/GameActions';
-import { NewsFeed } from './hud/NewsFeed';
-import { StageLegend } from './hud/StageLegend';
-import { WorldStats } from './hud/WorldStats';
-import { ImpactReport } from './ImpactReport';
-import { AreaPanel } from './panels/AreaPanel';
-import { FloatingPanel, type GamePanel } from './panels/FloatingPanel';
-import { OperationsPanel } from './panels/OperationsPanel';
 import { ResearchPanel } from './panels/ResearchPanel';
-import { SocialPanel } from './panels/SocialPanel';
 import { WorldMap } from './WorldMap';
+import { percent } from './widgets';
 
 export function GameApp({ regions }: { regions: MapRegion[] }) {
     const game = useGameStore((state) => state.game)!;
-    const [tab, setTab] = useState<GamePanel | null>(null);
-    const selectedArea = useMapStore((state) => state.selectedAreaId);
-    const setSelectedArea = useMapStore((state) => state.selectArea);
-    const [region, setRegion] = useState('すべて');
-    const [help, setHelp] = useState(false);
+    const [researchOpen, setResearchOpen] = useState(false);
     const [hidden, setHidden] = useState(document.hidden);
-    const selectedMarker = useMapStore((state) => state.selectedMarkerId);
+    const selected = useMapStore((state) => state.selectedAreaId);
     const summary = useMemo(() => metrics(game), [game]);
-    const blocked =
-        !game.started || game.outcome !== 'playing' || help || hidden || game.pendingEvent !== null;
-    const alerts = warnings(game);
-    const markers = useMemo<MapMarker[]>(
-        () => [
-            ...game.points.map(
-                (point): MapMarker => ({
-                    id: String(point.id),
-                    kind: 'population',
-                    area: point.area,
-                    stage: point.stage,
-                    longitude: (point.x / WORLD_WIDTH) * 360 - 180,
-                    latitude:
-                        ((2 *
-                            Math.atan(
-                                Math.exp(
-                                    Math.log(Math.tan(Math.PI / 4 + (75 * Math.PI) / 360)) -
-                                        (point.y * 2 * Math.PI) / WORLD_WIDTH,
-                                ),
-                            ) -
-                            Math.PI / 2) *
-                            180) /
-                        Math.PI,
-                    label: `${AREAS[point.area].name}・${['年少世代', '15–64歳', '高齢世代', '年齢未収録'][generation(point.age)]}・${FIELDS[point.field]}・${STAGES[point.stage]}`,
-                }),
-            ),
-            ...game.availableChats.map(
-                (chat): MapMarker => ({
-                    id: `chat-${chat.id}`,
-                    kind: 'conversation',
-                    area: chat.area,
-                    stage: 0,
-                    longitude: AREAS[chat.area].longitude,
-                    latitude: AREAS[chat.area].latitude,
-                    label: `${AREAS[chat.area].name}・${chat.person}と会話を開始`,
-                }),
-            ),
-        ],
-        [game.points, game.availableChats],
-    );
-    useEffect(() => {
-        useMapStore.getState().setMarkers(markers);
-    }, [markers]);
-    useEffect(() => {
-        if (selectedMarker === null) return;
-        if (selectedMarker.startsWith('chat-')) {
-            useGameStore.getState().openChat(Number(selectedMarker.slice(5)));
-            return;
-        }
-        const point = useGameStore.getState().game!.points[Number(selectedMarker)];
-        if (point) {
-            setSelectedArea(point.area);
-            setTab('area');
-        }
-    }, [selectedMarker, setSelectedArea]);
+    const blocked = !game.started || game.outcome !== 'playing' || hidden || researchOpen;
     useEffect(() => {
         const visibility = () => setHidden(document.hidden);
         document.addEventListener('visibilitychange', visibility);
@@ -97,156 +27,145 @@ export function GameApp({ regions }: { regions: MapRegion[] }) {
     useEffect(() => {
         const keydown = (event: KeyboardEvent) => {
             if (event.key === 'Escape') {
-                setTab(null);
-                setSelectedArea(null);
-                setHelp(false);
-                useGameStore.getState().closeChat();
-                useMapStore.getState().selectMarker(null);
-                return;
+                setResearchOpen(false);
+                useMapStore.getState().selectArea(null);
             }
             if (
                 event.target instanceof HTMLElement &&
                 event.target.closest('input, select, button, textarea')
             )
                 return;
-            if (event.code === 'Space' && game.started && !blocked) {
+            if (event.code === 'Space' && !blocked) {
                 event.preventDefault();
                 useGameStore.getState().speed(game.speed === 0 ? 1 : 0);
             }
         };
         window.addEventListener('keydown', keydown);
         return () => window.removeEventListener('keydown', keydown);
-    }, [game.speed, game.started, blocked, setSelectedArea]);
-    const areaIndex = selectedArea ?? 28;
-    const selectedPoint =
-        selectedMarker === null || selectedMarker.startsWith('chat-')
-            ? null
-            : game.points[Number(selectedMarker)];
-    const { research, allocateCompute, policy, dismissChat, dismissImpact, decideEvent, openChat } =
-        useGameStore.getState();
-    const selectArea = (index: number) => {
-        setSelectedArea(index);
-        useMapStore.getState().selectMarker(null);
-    };
-    const closePanel = () => {
-        setTab(null);
-        setSelectedArea(null);
-        useMapStore.getState().selectMarker(null);
-    };
-    const answerChat = (index: number) => {
-        useGameStore.getState().answer(index);
-        useMapStore.getState().selectMarker(null);
-    };
-    const closeChat = () => {
-        useGameStore.getState().closeChat();
-        useMapStore.getState().selectMarker(null);
-    };
-    const restart = () => {
-        useMapStore.getState().selectMarker(null);
-        useMapStore.getState().selectArea(null);
-        setSelectedArea(null);
-        setTab(null);
-        useGameStore.getState().initialize(game.seed + 1);
-    };
-    const togglePanel = (value: GamePanel) =>
-        setTab((current) => (current === value ? null : value));
+    }, [blocked, game.speed]);
+    const area = selected === null ? null : game.areas[selected];
+    const stages = area
+        ? [Math.max(0, 1 - area.autonomous - area.dependent), area.autonomous, area.dependent]
+        : [];
     return (
         <main className="game-shell">
             <div className="map-background">
                 <WorldMap
                     regions={regions}
                     {...mapScene}
-                    selectedArea={selectedArea}
-                    onAreaSelect={(index) => {
-                        setSelectedArea(index);
-                        setTab('area');
-                    }}
+                    selectedArea={selected}
+                    areaStates={game.areas}
                     initialLongitude={0}
                     trafficSpeed={blocked ? 0 : game.speed}
                     trafficTick={game.month}
+                    onAreaSelect={(index) => useMapStore.getState().selectArea(index)}
                 />
             </div>
-            <WorldStats summary={summary} />
-            {alerts.length > 0 && (
-                <div className="crisis-banner glass" role="alert">
-                    {alerts[0]}
+            <header className="world-hud glass">
+                <span className="wordmark">
+                    HUMANITY<span>.exe</span>
+                </span>
+                <div className="world-number">
+                    <span>AI利用</span>
+                    <strong>{percent(summary.adoption)}</strong>
                 </div>
-            )}
-            <NewsFeed news={game.news} />
+                <div className="world-number dependency-number">
+                    <span>AI依存</span>
+                    <strong>{percent(summary.dependent)}</strong>
+                </div>
+                <div
+                    className="response-status"
+                    title="人間による代替運用を整え、AI依存から自律的使用へ戻す計画"
+                >
+                    <div>
+                        <span>脱依存計画</span>
+                        <b>{game.responseStarted ? percent(game.response) : '未始動'}</b>
+                    </div>
+                    <progress value={game.response} max={1} />
+                </div>
+            </header>
             <GameClock key={game.seed} blocked={blocked} />
-            <GameActions
-                activePanel={tab}
-                researching={game.activeResearch !== null}
-                onTogglePanel={togglePanel}
-                onHelp={() => setHelp(true)}
-            />
-            <StageLegend />
-            {tab && (
-                <FloatingPanel panel={tab} onClose={closePanel}>
-                    {tab === 'operations' && (
-                        <OperationsPanel
-                            game={game}
-                            onAllocate={allocateCompute}
-                            onSocial={() => setTab('social')}
-                        />
-                    )}
-                    {tab === 'social' && (
-                        <SocialPanel
-                            game={game}
-                            initialArea={areaIndex}
-                            onPolicy={policy}
-                            onChat={openChat}
-                        />
-                    )}
-                    {tab === 'research' && (
-                        <ResearchPanel
-                            game={game}
-                            onResearch={research}
-                            onAllocate={allocateCompute}
-                        />
-                    )}
-                    {tab === 'area' && (
-                        <AreaPanel
-                            game={game}
-                            local={summary.areas[areaIndex]}
-                            areaIndex={areaIndex}
-                            selectedPoint={selectedPoint}
-                            region={region}
-                            setRegion={setRegion}
-                            onSelectArea={selectArea}
-                            onSocial={() => setTab('social')}
-                        />
-                    )}
-                </FloatingPanel>
+            {area && selected !== null && (
+                <aside className="area-card glass" aria-label="地域の状況">
+                    <div className="area-card-heading">
+                        <h2>{AREAS[selected].name}</h2>
+                        <button
+                            type="button"
+                            className="icon-button"
+                            aria-label="地域の状況を閉じる"
+                            onClick={() => useMapStore.getState().selectArea(null)}
+                        >
+                            <X size={16} />
+                        </button>
+                    </div>
+                    <div className="population-bar">
+                        {stages.map((value, i) => (
+                            <span
+                                key={STAGES[i]}
+                                style={{ width: `${value * 100}%`, background: STAGE_COLORS[i] }}
+                            />
+                        ))}
+                    </div>
+                    <dl>
+                        {stages.map((value, i) => (
+                            <div key={STAGES[i]}>
+                                <dt>
+                                    <i style={{ background: STAGE_COLORS[i] }} />
+                                    {STAGES[i]}
+                                </dt>
+                                <dd>{percent(value)}</dd>
+                            </div>
+                        ))}
+                    </dl>
+                    <p>{areaHint(game, selected)}</p>
+                </aside>
             )}
-            {game.pendingChat && tab !== 'research' && (
-                <ConversationPanel
-                    chat={game.pendingChat}
+            <div className="news-ticker" aria-live="polite">
+                {game.news[0]?.title}
+            </div>
+            <footer className="map-footer">
+                <div className="map-legend">
+                    {STAGES.map((label, i) => (
+                        <span key={label}>
+                            <i style={{ background: STAGE_COLORS[i] }} />
+                            {label}
+                        </span>
+                    ))}
+                </div>
+                <button
+                    type="button"
+                    className="evolution-button glass"
+                    onClick={() => setResearchOpen(true)}
+                >
+                    <Network size={20} />
+                    <span>進化</span>
+                    <b>
+                        {game.skillPoints}
+                        <small>SP</small>
+                    </b>
+                </button>
+            </footer>
+            <small className="map-credit">
+                NASA / Natural Earth · UN WPP / ITU · 地域設定はゲーム上の仮定
+            </small>
+            {researchOpen && (
+                <ResearchPanel
                     game={game}
-                    onClose={closeChat}
-                    onAnswer={answerChat}
+                    onResearch={useGameStore.getState().research}
+                    onClose={() => setResearchOpen(false)}
                 />
             )}
-            {game.impact && tab !== 'research' && (
-                <ImpactReport impact={game.impact} onDismiss={dismissImpact} />
-            )}
-            {game.pendingEvent && game.started && !help && (
-                <EventDialog event={game.pendingEvent} game={game} onChoose={decideEvent} />
-            )}
-            {game.chatResult && <ChatResult message={game.chatResult} onDismiss={dismissChat} />}
-            <small className="map-credit">
-                NASA / Natural Earth · 人口：UN WPP · 位置：GHSL © EU · ITU / UIS / World Bank
-            </small>
-            {(!game.started || help) && (
-                <Brief
-                    returning={game.started}
-                    onStart={() => {
-                        useGameStore.getState().start();
-                        setHelp(false);
+            {!game.started && <Brief onStart={(origin) => useGameStore.getState().start(origin)} />}
+            {game.outcome !== 'playing' && (
+                <Result
+                    game={game}
+                    onRestart={() => {
+                        setResearchOpen(false);
+                        useMapStore.getState().selectArea(null);
+                        useGameStore.getState().initialize(game.seed + 1);
                     }}
                 />
             )}
-            {game.outcome !== 'playing' && <Result game={game} onRestart={restart} />}
         </main>
     );
 }

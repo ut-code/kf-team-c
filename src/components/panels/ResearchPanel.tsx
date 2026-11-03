@@ -1,101 +1,136 @@
-import { Brain, HeartHandshake, Network } from 'lucide-react';
-import { useState } from 'react';
-import { ABILITIES, SKILLS } from '../../game/data';
-import { metrics } from '../../game/metrics';
-import { skillBlockReason } from '../../game/skills';
+import { Check, X } from 'lucide-react';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { layoutSkills } from '../../game/skillLayout';
+import { SKILLS, skillBlockReason } from '../../game/skills';
 import type { GameState } from '../../game/types';
-import { ComputeAllocation } from '../ComputeAllocation';
-import { abilityText, Meter } from '../widgets';
-import { SkillDetails } from './SkillDetails';
-import { SkillTreeMap } from './SkillTreeMap';
 
-const abilityIcons = { IQ: Brain, EQ: HeartHandshake, SYSTEM: Network };
 export function ResearchPanel({
     game,
     onResearch,
-    onAllocate,
+    onClose,
 }: {
     game: GameState;
-    onResearch: (id: string | null) => void;
-    onAllocate: (share: number) => void;
+    onResearch: (id: string) => void;
+    onClose: () => void;
 }) {
-    const [selectedId, setSelectedId] = useState(
-        () => SKILLS.find((skill) => !skillBlockReason(game, skill))?.id ?? SKILLS[0].id,
-    );
-    const summary = metrics(game);
-    const selected = SKILLS.find((skill) => skill.id === selectedId)!;
+    const [selected, setSelected] = useState('reason');
+    const viewport = useRef<HTMLDivElement>(null);
+    const [size, setSize] = useState({ width: 1400, height: 650 });
+    useLayoutEffect(() => {
+        const observer = new ResizeObserver(([entry]) => {
+            setSize({ width: entry.contentRect.width, height: entry.contentRect.height });
+        });
+        observer.observe(viewport.current!);
+        return () => observer.disconnect();
+    }, []);
+    const tree = useMemo(() => layoutSkills(SKILLS, size.width, size.height), [size]);
+    const positions = new Map(tree.positions.map((node) => [node.skill.id, node]));
+    const skill = SKILLS.find((item) => item.id === selected)!;
+    const reason = skillBlockReason(game, skill);
+    const owned = game.skills.includes(skill.id);
     return (
-        <div className="research-workbench">
-            <header className="research-header">
+        <section className="research-workspace" aria-label="スキルツリー">
+            <header className="research-heading">
                 <div>
-                    <span className="eyebrow">RESEARCH / STRATEGY</span>
-                    <h2>三つの能力で、社会への道をひらく。</h2>
-                    <p>つながりを選び、影響を見極める。全習得は困難です。</p>
+                    <span className="eyebrow">EVOLUTION</span>
+                    <h1>進化</h1>
                 </div>
-                <div className="research-budget">
-                    <span>研究へ配分中</span>
-                    <strong>
-                        {summary.researchCompute.toFixed(1)}
-                        <small>CU</small>
-                    </strong>
+                <strong className="sp-count" title="時間経過と、世界への普及・依存で獲得">
+                    {game.skillPoints}
+                    <small>SP</small>
+                </strong>
+                <button
+                    type="button"
+                    className="icon-button"
+                    aria-label="スキルツリーを閉じる"
+                    onClick={onClose}
+                >
+                    <X size={22} />
+                </button>
+            </header>
+            <div className="tree-viewport" ref={viewport}>
+                <svg
+                    viewBox={tree.viewBox}
+                    className="organic-tree"
+                    aria-label="中央から枝分かれする進化の系統"
+                >
+                    <title>スキルツリー</title>
+                    {tree.positions.map((node) => {
+                        const parent = positions.get(node.skill.requires[0]);
+                        const x = parent?.x ?? tree.centerX,
+                            y = parent?.y ?? tree.centerY;
+                        const complete = game.skills.includes(node.skill.id);
+                        return (
+                            <path
+                                key={`edge-${node.skill.id}`}
+                                className={`tree-branch ${complete ? 'complete' : ''}`}
+                                d={`M ${x} ${y} C ${x * 0.6 + node.x * 0.4} ${y}, ${node.x * 0.7 + x * 0.3} ${node.y}, ${node.x} ${node.y}`}
+                            />
+                        );
+                    })}
+                    <circle
+                        className="tree-origin-halo"
+                        cx={tree.centerX}
+                        cy={tree.centerY}
+                        r="44"
+                    />
+                    <circle className="tree-origin" cx={tree.centerX} cy={tree.centerY} r="25" />
+                    <text
+                        className="tree-origin-label"
+                        x={tree.centerX}
+                        y={tree.centerY}
+                        textAnchor="middle"
+                        dy="5"
+                    >
+                        AI
+                    </text>
+                    {tree.positions.map(({ skill, x, y }) => {
+                        const owned = game.skills.includes(skill.id);
+                        const locked = skill.requires.some((id) => !game.skills.includes(id));
+                        const affordable = !skillBlockReason(game, skill);
+                        return (
+                            <foreignObject
+                                key={skill.id}
+                                x={x - tree.nodeWidth / 2}
+                                y={y - tree.nodeHeight / 2}
+                                width={tree.nodeWidth}
+                                height={tree.nodeHeight}
+                            >
+                                <button
+                                    type="button"
+                                    className={`tree-node ${owned ? 'owned' : ''} ${locked ? 'locked' : ''} ${affordable ? 'available' : ''} ${skill.effect.dependency ? 'dependency' : ''}`}
+                                    aria-pressed={selected === skill.id}
+                                    onClick={() => setSelected(skill.id)}
+                                >
+                                    <span>{skill.name}</span>
+                                    <small>
+                                        {owned ? <Check size={12} /> : `${skill.cost} SP`}
+                                    </small>
+                                </button>
+                            </foreignObject>
+                        );
+                    })}
+                </svg>
+            </div>
+            <footer className="skill-selection">
+                <div>
+                    <h2>{skill.name}</h2>
+                    <p>{skill.description}</p>
                     <small>
-                        {game.skills.length} / {SKILLS.length} 習得
+                        {skill.requires.length > 0
+                            ? `前提：${skill.requires.map((id) => SKILLS.find((item) => item.id === id)!.name).join('・')}`
+                            : '起点から習得可能'}
                     </small>
                 </div>
-            </header>
-            <div className="research-abilities">
-                {ABILITIES.map((ability) => {
-                    const Icon = abilityIcons[ability];
-                    return (
-                        <div className={`research-ability ${ability.toLowerCase()}`} key={ability}>
-                            <Icon size={19} />
-                            <div>
-                                <span>
-                                    {ability}
-                                    <small>{abilityText[ability]}</small>
-                                </span>
-                                <Meter value={game.abilities[ability] / 100} />
-                            </div>
-                            <strong>{game.abilities[ability]}</strong>
-                        </div>
-                    );
-                })}
-            </div>
-            <ComputeAllocation game={game} onAllocate={onAllocate} />
-            <div className="research-layout">
-                <div className="research-map-column">
-                    <div className="skill-map-legend">
-                        <span>
-                            <i className="owned" />
-                            習得済み
-                        </span>
-                        <span>
-                            <i className="available" />
-                            習得可能
-                        </span>
-                        <span>
-                            <i className="locked" />
-                            未解放
-                        </span>
-                        <small>スキルを選択して詳細を確認</small>
-                    </div>
-                    <SkillTreeMap
-                        game={game}
-                        selected={selected}
-                        onSelect={(skill) => setSelectedId(skill.id)}
-                    />
-                    <p className="research-map-note">
-                        実線：前提スキル　点線：系統をまたぐ前提　赤線：排他的な路線
-                    </p>
-                </div>
-                <SkillDetails
-                    key={selected.id}
-                    game={game}
-                    skill={selected}
-                    onResearch={onResearch}
-                    onSelect={(skill) => setSelectedId(skill.id)}
-                />
-            </div>
-        </div>
+                <button
+                    type="button"
+                    className="learn-button"
+                    disabled={reason !== null}
+                    onClick={() => onResearch(skill.id)}
+                >
+                    {owned ? '習得済み' : (reason ?? `習得する · ${skill.cost} SP`)}
+                </button>
+            </footer>
+        </section>
     );
 }
