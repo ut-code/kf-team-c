@@ -150,7 +150,7 @@ export function GameApp({ regions }: { regions: MapRegion[] }) {
                 </aside>
             )}
             <footer className="map-footer">
-                <div className="map-legend">
+                <div className="map-legend glass">
                     {STAGES.map((label, i) => (
                         <span key={label}>
                             <i style={{ background: STAGE_COLORS[i] }} />

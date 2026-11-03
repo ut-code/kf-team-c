@@ -37,7 +37,7 @@ export function EncounterPanel({
                         ) : (
                             <img
                                 className="event-emblem"
-                                src={`${import.meta.env.BASE_URL}images/event-marker.png`}
+                                src={`${import.meta.env.BASE_URL}images/event-marker.svg`}
                                 alt=""
                             />
                         )}

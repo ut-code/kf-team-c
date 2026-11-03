@@ -1,5 +1,6 @@
 import type { KeyboardEvent, PointerEvent } from 'react';
 import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import type { AreaState } from '../game/types';
 import {
     centerCamera,
@@ -87,6 +88,10 @@ export const WorldMap = memo(function WorldMap({
                 error: (reason) =>
                     setError(reason instanceof Error ? reason.message : String(reason)),
                 targets: setTargets,
+                presented: (nextView) => {
+                    // ポインター入力時には先行させず、WebGL描画直後にDOMを確定する。
+                    flushSync(() => setMarkerView(nextView));
+                },
             });
             renderer.current = engine;
             return () => {
@@ -135,7 +140,6 @@ export const WorldMap = memo(function WorldMap({
         if (gesture.current) return;
         view.current.x = camera.x;
         renderer.current?.setView(view.current);
-        setMarkerView({ ...view.current });
     }, [camera.x]);
 
     const limitY = useCallback(
@@ -144,7 +148,6 @@ export const WorldMap = memo(function WorldMap({
     );
     const applyView = useCallback(() => {
         renderer.current?.setView(view.current);
-        setMarkerView({ ...view.current });
     }, []);
 
     useEffect(() => {

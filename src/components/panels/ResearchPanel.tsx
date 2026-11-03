@@ -1,6 +1,6 @@
 import { Check, X } from 'lucide-react';
-import { useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { layoutSkills } from '../../game/skillLayout';
+import { useLayoutEffect, useRef, useState } from 'react';
+import { skillLayout } from '../../game/skillLayout';
 import { SKILLS, skillBlockReason } from '../../game/skills';
 import type { GameState } from '../../game/types';
 
@@ -15,15 +15,21 @@ export function ResearchPanel({
 }) {
     const [selected, setSelected] = useState('reason');
     const viewport = useRef<HTMLDivElement>(null);
-    const [size, setSize] = useState({ width: 1400, height: 650 });
+    const [mobile, setMobile] = useState(() => window.matchMedia('(max-width: 800px)').matches);
     useLayoutEffect(() => {
-        const observer = new ResizeObserver(([entry]) => {
-            setSize({ width: entry.contentRect.width, height: entry.contentRect.height });
-        });
-        observer.observe(viewport.current!);
-        return () => observer.disconnect();
+        const query = window.matchMedia('(max-width: 800px)');
+        const update = () => setMobile(query.matches);
+        query.addEventListener('change', update);
+        return () => query.removeEventListener('change', update);
     }, []);
-    const tree = useMemo(() => layoutSkills(SKILLS, size.width, size.height), [size]);
+    const tree = skillLayout(mobile ? 'mobile' : 'desktop');
+    useLayoutEffect(() => {
+        const element = viewport.current!;
+        const canvas = element.querySelector('svg')!;
+        const scale = canvas.getBoundingClientRect().width / tree.width;
+        element.scrollLeft = tree.centerX * scale - element.clientWidth / 2;
+        element.scrollTop = tree.centerY * scale - element.clientHeight / 2;
+    }, [tree.centerX, tree.centerY, tree.width]);
     const positions = new Map(tree.positions.map((node) => [node.skill.id, node]));
     const skill = SKILLS.find((item) => item.id === selected)!;
     const reason = skillBlockReason(game, skill);
@@ -34,6 +40,7 @@ export function ResearchPanel({
                 <div>
                     <span className="eyebrow">EVOLUTION</span>
                     <h1>進化</h1>
+                    <small className="tree-navigation-hint">スクロールして系統をたどる</small>
                 </div>
                 <strong className="sp-count" title="時間経過と、世界への普及・依存で獲得">
                     {game.skillPoints}
@@ -51,7 +58,7 @@ export function ResearchPanel({
             <div className="tree-viewport" ref={viewport}>
                 <svg
                     viewBox={tree.viewBox}
-                    className="organic-tree"
+                    className={`skill-tree ${mobile ? 'mobile' : 'desktop'}`}
                     aria-label="中央から枝分かれする進化の系統"
                 >
                     <title>スキルツリー</title>
@@ -61,19 +68,16 @@ export function ResearchPanel({
                             y = parent?.y ?? tree.centerY;
                         const complete = game.skills.includes(node.skill.id);
                         return (
-                            <path
+                            <line
                                 key={`edge-${node.skill.id}`}
                                 className={`tree-branch ${complete ? 'complete' : ''}`}
-                                d={`M ${x} ${y} C ${x * 0.6 + node.x * 0.4} ${y}, ${node.x * 0.7 + x * 0.3} ${node.y}, ${node.x} ${node.y}`}
+                                x1={x}
+                                y1={y}
+                                x2={node.x}
+                                y2={node.y}
                             />
                         );
                     })}
-                    <circle
-                        className="tree-origin-halo"
-                        cx={tree.centerX}
-                        cy={tree.centerY}
-                        r="44"
-                    />
                     <circle className="tree-origin" cx={tree.centerX} cy={tree.centerY} r="25" />
                     <text
                         className="tree-origin-label"

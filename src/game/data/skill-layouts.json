@@ -1,0 +1,222 @@
+{
+    "desktop": {
+        "width": 1500,
+        "height": 600,
+        "nodeWidth": 120,
+        "nodeHeight": 48,
+        "centerX": 750,
+        "centerY": 350,
+        "positions": {
+            "curriculum": {
+                "x": 107,
+                "y": 126
+            },
+            "tutor": {
+                "x": 285,
+                "y": 160
+            },
+            "discovery": {
+                "x": 108,
+                "y": 304
+            },
+            "science": {
+                "x": 255,
+                "y": 264
+            },
+            "knowledge": {
+                "x": 443,
+                "y": 230
+            },
+            "certified": {
+                "x": 98,
+                "y": 385
+            },
+            "audit": {
+                "x": 236,
+                "y": 384
+            },
+            "privacy": {
+                "x": 282,
+                "y": 566
+            },
+            "verification": {
+                "x": 392,
+                "y": 454
+            },
+            "reason": {
+                "x": 554,
+                "y": 357
+            },
+            "companion": {
+                "x": 784,
+                "y": 50
+            },
+            "memory": {
+                "x": 755,
+                "y": 123
+            },
+            "personalize": {
+                "x": 773,
+                "y": 209
+            },
+            "conversation": {
+                "x": 767,
+                "y": 285
+            },
+            "mobile": {
+                "x": 1181,
+                "y": 140
+            },
+            "distributed": {
+                "x": 1175,
+                "y": 296
+            },
+            "offline": {
+                "x": 1030,
+                "y": 239
+            },
+            "autonomous": {
+                "x": 1428,
+                "y": 405
+            },
+            "decision": {
+                "x": 1290,
+                "y": 411
+            },
+            "integration": {
+                "x": 1136,
+                "y": 389
+            },
+            "backbone": {
+                "x": 1416,
+                "y": 538
+            },
+            "public": {
+                "x": 1268,
+                "y": 530
+            },
+            "platform": {
+                "x": 1122,
+                "y": 560
+            },
+            "automation": {
+                "x": 995,
+                "y": 459
+            },
+            "lightweight": {
+                "x": 917,
+                "y": 320
+            }
+        }
+    },
+    "mobile": {
+        "width": 400,
+        "height": 1100,
+        "nodeWidth": 86,
+        "nodeHeight": 48,
+        "centerX": 200,
+        "centerY": 450,
+        "positions": {
+            "curriculum": {
+                "x": 56,
+                "y": 61
+            },
+            "tutor": {
+                "x": 53,
+                "y": 179
+            },
+            "discovery": {
+                "x": 161,
+                "y": 61
+            },
+            "science": {
+                "x": 151,
+                "y": 160
+            },
+            "knowledge": {
+                "x": 81,
+                "y": 263
+            },
+            "certified": {
+                "x": 270,
+                "y": 89
+            },
+            "audit": {
+                "x": 250,
+                "y": 183
+            },
+            "privacy": {
+                "x": 348,
+                "y": 177
+            },
+            "verification": {
+                "x": 307,
+                "y": 254
+            },
+            "reason": {
+                "x": 188,
+                "y": 374
+            },
+            "companion": {
+                "x": 53,
+                "y": 670
+            },
+            "memory": {
+                "x": 69,
+                "y": 583
+            },
+            "personalize": {
+                "x": 61,
+                "y": 506
+            },
+            "conversation": {
+                "x": 64,
+                "y": 441
+            },
+            "mobile": {
+                "x": 52,
+                "y": 886
+            },
+            "distributed": {
+                "x": 151,
+                "y": 853
+            },
+            "offline": {
+                "x": 82,
+                "y": 772
+            },
+            "autonomous": {
+                "x": 231,
+                "y": 1060
+            },
+            "decision": {
+                "x": 235,
+                "y": 985
+            },
+            "integration": {
+                "x": 250,
+                "y": 861
+            },
+            "backbone": {
+                "x": 341,
+                "y": 1059
+            },
+            "public": {
+                "x": 343,
+                "y": 977
+            },
+            "platform": {
+                "x": 349,
+                "y": 875
+            },
+            "automation": {
+                "x": 280,
+                "y": 764
+            },
+            "lightweight": {
+                "x": 295,
+                "y": 591
+            }
+        }
+    }
+}

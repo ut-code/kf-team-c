@@ -19,3 +19,9 @@ Node.js 24以降で `npm ci`、`npm run dev` を実行します。ビルドは `
 - `tmp/`：再取得できる原本、処理途中のファイル、検証レポート。Git管理対象外。
 
 イベントや人物チャットの追加方法・効果の定義は [社会システムの編集ガイド](src/game/society/README.md) を参照してください。
+
+## 地図のブラウザー検証
+
+`npm run dev` を起動した状態で `node scripts/test-map-browser.mjs` を実行します。Chrome / Chromium が必要です。自動検出できない場合は `CHROME_PATH`、別ポートで起動している場合は `MAP_TEST_URL` を指定します。
+
+実際にWebGLへ送信したカメラと、画面上のマーカー先端を照合します。描画フレームを遅らせたドラッグ、経度の循環、拡大後の縦横移動、リサイズ・DPR変更、専用アイコンの読み込みとチャットのクリックを検証します。画像はGit管理外の `tmp/browser-check/map-*.png` に保存します。

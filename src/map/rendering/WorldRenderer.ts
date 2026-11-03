@@ -90,6 +90,7 @@ export class WorldRenderer {
     private styleDirty = true;
     private paletteDirty = true;
     private targetsDirty = true;
+    private viewDirty = true;
     private frame = 0;
     private previous = 0;
     private rendered = 0;
@@ -117,6 +118,7 @@ export class WorldRenderer {
             ready: () => void;
             error: (error: unknown) => void;
             targets: (targets: MapTarget[]) => void;
+            presented: (view: MapView) => void;
         },
     ) {
         const gl = canvas.getContext('webgl', {
@@ -363,6 +365,7 @@ export class WorldRenderer {
         )
             return;
         this.view = { ...view };
+        this.viewDirty = true;
         this.waveDirty = true;
         this.targetsDirty = true;
         this.invalidate(true);
@@ -565,6 +568,11 @@ export class WorldRenderer {
         this.selection(composite);
         gl.uniform1f(composite.location('animated'), 1);
         gl.drawArrays(gl.TRIANGLES, 0, 6);
+        // HTMLマーカーも、実際に描き終えたカメラに揃えて同じフレームで更新する。
+        if (this.viewDirty) {
+            this.viewDirty = false;
+            this.callbacks.presented({ ...this.view });
+        }
         this.rendered = now;
         this.dirty = false;
         this.stats.frames++;

@@ -11,6 +11,8 @@
         "build": "tsc -b && vite build",
         "preview": "vite preview --host 127.0.0.1",
         "test:game": "node --experimental-strip-types --test scripts/test-game.ts",
+        "layout:skills": "node --experimental-strip-types scripts/build-skill-layout.ts",
+        "check:skill-layout": "node --experimental-strip-types scripts/build-skill-layout.ts --check",
         "simulate": "node --experimental-strip-types scripts/simulate.ts",
         "lint": "biome lint .",
         "format": "biome format --write .",

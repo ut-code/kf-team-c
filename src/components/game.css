@@ -5,6 +5,7 @@
     --muted: #8b9ca9;
     --line: #ffffff16;
     --accent: #91d8de;
+    --surface-grain: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='grain'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.82' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Cpath fill='%23fff' opacity='.035' filter='url(%23grain)' d='M0 0h180v180H0z'/%3E%3C/svg%3E");
     font-synthesis: none;
 }
 * {
@@ -41,7 +42,12 @@ button[aria-pressed="true"] {
     background: #91d8de14;
 }
 .glass {
-    background: #0b1822df;
+    background-color: #0b1822f2;
+    background-image: var(--surface-grain);
+    background-size: 180px 180px;
+    box-shadow:
+        inset 0 1px #ffffff08,
+        0 4px 16px #0003;
     border: 1px solid var(--line);
     backdrop-filter: blur(18px);
 }
@@ -60,31 +66,48 @@ button[aria-pressed="true"] {
     inset: 0;
     overflow: hidden;
 }
+.game-shell > :is(.world-hud, .game-clock, .area-card, .map-footer, .map-credit) {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Yu Gothic UI", "Meiryo", sans-serif;
+}
+.world-hud.glass,
+.game-clock.glass,
+.area-card.glass,
+.map-footer .glass {
+    background: #101820d9;
+    border: 1px solid #b3c6d324;
+    border-radius: 7px;
+    box-shadow: 0 5px 24px #0003;
+    backdrop-filter: blur(12px);
+}
 .world-hud {
     position: absolute;
-    top: 20px;
+    top: 16px;
     left: 50%;
     transform: translateX(-50%);
-    border-radius: 10px;
     display: flex;
-    align-items: center;
-    gap: 28px;
-    padding: 12px 20px;
+    padding: 9px 5px;
     pointer-events: none;
 }
 .world-number {
-    display: grid;
-    gap: 2px;
-    min-width: 100px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 88px;
+    padding: 0 17px;
+    border-right: 1px solid #ffffff18;
+}
+.world-number:last-child {
+    border-right: 0;
 }
 .world-number > span {
-    font-size: 11px;
-    color: var(--muted);
+    font-size: 9px;
+    color: #b3bfca;
+    letter-spacing: 0.3px;
 }
 .world-number strong {
-    font-size: 28px;
-    line-height: 1.2;
-    font-weight: 500;
+    font-size: 17px;
+    line-height: 1.15;
+    font-weight: 400;
     font-variant-numeric: tabular-nums;
 }
 .dependency-number strong {
@@ -92,50 +115,62 @@ button[aria-pressed="true"] {
 }
 .game-clock {
     position: absolute;
-    left: 24px;
-    bottom: 28px;
-    border-radius: 8px;
-    padding: 10px 14px;
+    left: 18px;
+    bottom: 18px;
+    width: max-content;
+    padding: 10px 12px;
 }
 .clock-row {
     display: flex;
     align-items: center;
-    gap: 18px;
+    justify-content: space-between;
+    gap: 12px;
 }
 .calendar-date {
-    display: flex;
+    display: grid;
+    grid-template-columns: 4ch auto 2ch auto 2ch auto;
+    column-gap: 2px;
     align-items: baseline;
-    gap: 3px;
-    font-size: 12px;
+    font-size: 18px;
+    font-weight: 400;
+    white-space: nowrap;
     font-variant-numeric: tabular-nums;
 }
-.calendar-date span:nth-child(even) {
-    font-size: 9px;
-    color: var(--muted);
+.calendar-date span:nth-child(odd) {
+    text-align: right;
 }
 .time-controls {
     display: flex;
-    gap: 4px;
+    gap: 3px;
 }
 .time-controls button {
     display: grid;
     place-items: center;
-    height: 28px;
-    min-width: 28px;
-    padding: 0 5px;
+    width: 27px;
+    min-width: 27px;
+    height: 26px;
+    padding: 0;
     font-size: 10px;
-    border: 0;
-    background: transparent;
+    border: 1px solid #ffffff18;
+    border-radius: 5px;
+    background: #ffffff05;
+}
+.time-controls button:hover:not(:disabled) {
+    background: #ffffff18;
+    border-color: #ffffff40;
 }
 .time-controls button[aria-pressed="true"] {
-    background: #91d8de18;
-    color: var(--accent);
+    background: #8abfc224;
+    color: #d5eaec;
+    border-color: #8abfc255;
 }
 .area-card {
     position: absolute;
-    top: 116px;
-    left: 24px;
-    width: 280px;
+    top: 89px;
+    right: 18px;
+    width: 335px;
+    max-height: calc(100% - 169px);
+    overflow-y: auto;
     padding: 17px 20px;
     border-radius: 8px;
 }
@@ -197,9 +232,9 @@ button[aria-pressed="true"] {
 }
 .map-footer {
     position: absolute;
-    bottom: 28px;
-    left: 24px;
-    right: 24px;
+    bottom: 18px;
+    left: 18px;
+    right: 18px;
     display: flex;
     justify-content: flex-end;
     align-items: center;
@@ -208,69 +243,70 @@ button[aria-pressed="true"] {
 .map-legend {
     position: absolute;
     left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
+    bottom: 0;
+    transform: translateX(-50%);
     display: flex;
+    align-items: center;
+    gap: 17px;
+    padding: 8px 12px;
+    pointer-events: none;
+}
+.map-legend > span {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 9px;
+    color: #bfccd6;
     white-space: nowrap;
-    gap: 18px;
-    font-size: 10px;
-    color: #a9b9c5;
-    text-shadow: 0 1px 5px #000;
+}
+.map-legend i {
+    width: 5px;
+    height: 5px;
+    margin: 0;
+    border-radius: 50%;
+    flex-shrink: 0;
 }
 .game-actions {
     display: flex;
     align-items: stretch;
-    gap: 10px;
+    gap: 7px;
     pointer-events: auto;
 }
-.sns-button {
+.game-actions > button {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 15px 20px;
-    border-radius: 8px;
+    gap: 8px;
+    min-height: 45px;
+    padding: 12px 14px;
+    font-size: 11px;
 }
-.sns-button > svg {
-    color: var(--accent);
+.game-actions > button:hover:not(:disabled) {
+    background: #ffffff18;
+    border-color: #ffffff40;
 }
-.sns-button > span {
-    font-size: 15px;
+.game-actions > :where(button) > svg {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    color: #c6d4df;
 }
-.sns-button > small {
-    color: var(--muted);
-    font-size: 10px;
-}
-.evolution-button {
-    pointer-events: auto;
-    display: flex;
-    gap: 12px;
-    align-items: center;
-    min-width: 180px;
-    padding: 15px 20px;
-    border-radius: 8px;
-}
-.evolution-button > svg {
-    color: var(--accent);
-}
-.evolution-button > span {
-    font-size: 15px;
+.game-actions > :where(button) small {
+    margin-left: 3px;
+    font-size: 9px;
+    color: #afc7cc;
 }
 .evolution-button b {
-    margin-left: auto;
-    font-size: 23px;
-    font-weight: 500;
-    color: var(--accent);
-}
-.evolution-button small {
-    font-size: 10px;
-    margin-left: 4px;
+    font-size: 11px;
+    font-weight: 400;
+    color: #c6d4df;
+    font-variant-numeric: tabular-nums;
 }
 .map-credit {
     position: absolute;
-    left: 24px;
-    bottom: 6px;
-    color: #7d909d;
+    right: 18px;
+    bottom: 3px;
     font-size: 7px;
+    color: #a2b5c1;
     pointer-events: none;
 }
 .research-workspace {
@@ -279,14 +315,24 @@ button[aria-pressed="true"] {
     z-index: 20;
     display: flex;
     flex-direction: column;
-    background: radial-gradient(ellipse at 50% 45%, #152b35 0%, #0b1720 66%);
+    background-color: #0e1921;
+    background-image:
+        var(--surface-grain), linear-gradient(#9db2bf05 1px, transparent 1px),
+        linear-gradient(90deg, #9db2bf05 1px, transparent 1px),
+        radial-gradient(ellipse at 50% 45%, #21353d55, transparent 70%);
+    background-size:
+        180px 180px,
+        32px 32px,
+        32px 32px,
+        100% 100%;
     overflow: hidden;
 }
 .research-heading {
     display: flex;
     align-items: center;
     gap: 32px;
-    padding: 20px 32px 0;
+    padding: 14px 32px;
+    border-bottom: 1px solid var(--line);
     flex-shrink: 0;
     height: 80px;
 }
@@ -304,7 +350,7 @@ button[aria-pressed="true"] {
 }
 .sp-count {
     margin-left: auto;
-    font-size: 32px;
+    font-size: 24px;
     font-weight: 500;
     color: var(--accent);
     font-variant-numeric: tabular-nums;
@@ -313,16 +359,36 @@ button[aria-pressed="true"] {
     font-size: 11px;
     margin-left: 8px;
 }
+.tree-navigation-hint {
+    display: block;
+    margin-top: 5px;
+    color: var(--muted);
+    font-size: 10px;
+}
 .tree-viewport {
+    display: flex;
+    flex-direction: column;
     flex: 1;
     min-height: 0;
-    padding: 0 24px 8px;
-    overflow: hidden;
+    overflow: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #49606d #101c24;
+    overscroll-behavior: contain;
 }
-.organic-tree {
+.skill-tree {
     display: block;
-    width: 100%;
-    height: 100%;
+    flex-shrink: 0;
+    max-width: none;
+}
+.skill-tree.desktop {
+    margin-block: auto;
+    width: max(1100px, 100%);
+    height: auto;
+    aspect-ratio: 1500 / 600;
+}
+.skill-tree.mobile {
+    width: 400px;
+    height: 1100px;
 }
 .tree-branch {
     fill: none;
@@ -333,11 +399,6 @@ button[aria-pressed="true"] {
 .tree-branch.complete {
     stroke: #8cd2d7;
     opacity: 0.9;
-}
-.tree-origin-halo {
-    fill: #91d8de04;
-    stroke: #91d8de17;
-    stroke-width: 1;
 }
 .tree-origin {
     fill: #142e38;
@@ -359,7 +420,11 @@ button[aria-pressed="true"] {
     gap: 4px;
     background: #10232e;
     border: 1px solid #45616e;
-    border-radius: 20px 8px;
+    border-radius: 6px;
+    box-shadow:
+        inset 0 1px #ffffff0a,
+        0 2px 4px #0003;
+    padding: 4px 6px;
 }
 .tree-node > span {
     font-size: 14px;
@@ -373,11 +438,26 @@ button[aria-pressed="true"] {
     align-items: center;
 }
 .tree-node.locked {
-    opacity: 0.7;
+    background: #15212a;
+    border-color: #344650;
+    color: #8b9ca9;
+}
+.tree-node:where(.locked) small {
+    color: #748894;
+}
+.tree-node:focus-visible {
+    outline-offset: -4px;
+}
+.tree-node:hover:not(:disabled) {
+    background: #233943;
+    border-color: #a5c1c9;
 }
 .tree-node.available {
     border-color: #8cced4;
-    box-shadow: 0 0 18px #91d8de0b;
+    box-shadow:
+        inset 3px 0 #8cced4,
+        inset 0 1px #ffffff12,
+        0 2px 4px #0003;
 }
 .tree-node.dependency {
     border-color: #94535c;
@@ -396,6 +476,15 @@ button[aria-pressed="true"] {
     border-color: #e8f7f8;
     background: #25434e;
 }
+.tree-node,
+.tree-node:hover:not(:disabled),
+.tree-node.locked,
+.tree-node.owned,
+.tree-node.owned.dependency,
+.tree-node[aria-pressed="true"] {
+    background-image: var(--surface-grain);
+    background-size: 180px 180px;
+}
 .skill-selection {
     flex-shrink: 0;
     display: flex;
@@ -404,7 +493,9 @@ button[aria-pressed="true"] {
     min-height: 114px;
     padding: 18px 36px;
     border-top: 1px solid var(--line);
-    background: #08131bba;
+    background-color: #0b151d;
+    background-image: var(--surface-grain);
+    background-size: 180px 180px;
 }
 .skill-selection h2 {
     font-size: 18px;
@@ -439,7 +530,9 @@ button[aria-pressed="true"] {
     max-height: calc(100dvh - 40px);
     overflow-y: auto;
     padding: 42px 48px;
-    background: #0d1c25;
+    background-color: #0d1c25;
+    background-image: var(--surface-grain);
+    background-size: 180px 180px;
     color: #e6edf2;
     border: 1px solid #91d8de40;
     border-radius: 12px;
@@ -500,74 +593,105 @@ button[aria-pressed="true"] {
 .startup-error {
     padding: 40px;
 }
+@media (max-width: 1150px) {
+    .world-number {
+        min-width: 74px;
+        padding-inline: 11px;
+    }
+    .map-legend {
+        bottom: 56px;
+        left: auto;
+        right: 0;
+        transform: none;
+    }
+    .game-actions > button {
+        padding: 11px;
+    }
+}
 @media (max-width: 800px) {
     .world-hud {
         top: 12px;
-        width: max-content;
-        max-width: calc(100% - 24px);
-        padding: 12px 16px;
-        gap: 20px;
+        left: auto;
+        right: 12px;
+        transform: none;
     }
     .world-number {
-        min-width: 70px;
+        min-width: 52px;
+        padding-inline: 8px;
     }
     .world-number strong {
-        font-size: 23px;
+        font-size: 14px;
+    }
+    .world-number > span {
+        font-size: 8px;
     }
     .game-clock {
         left: 12px;
-        padding: 10px;
-    }
-    .clock-row {
-        gap: 8px;
+        bottom: 12px;
+        padding: 9px 11px;
     }
     .calendar-date {
-        font-size: 11px;
-        gap: 2px;
-    }
-    .time-controls {
-        gap: 2px;
-    }
-    .time-controls button {
-        min-width: 24px;
-        padding: 0 3px;
+        font-size: 14px;
     }
     .area-card {
-        top: 148px;
-        left: 12px;
-        width: 240px;
+        top: 85px;
+        right: 12px;
+        width: min(325px, calc(100vw - 24px));
+        max-height: calc(100% - 161px);
     }
     .map-footer {
         left: 12px;
         right: 12px;
+        bottom: 12px;
     }
     .map-legend {
-        top: auto;
-        left: 50%;
-        bottom: calc(100% + 18px);
-        transform: translateX(-50%);
-        gap: 12px;
-        font-size: 9px;
-    }
-    .evolution-button {
-        min-width: 80px;
-        padding: 12px;
-        gap: 8px;
-    }
-    .evolution-button > span {
         display: none;
     }
-    .research-heading {
-        padding: 12px 18px 0;
-        height: 64px;
+    .game-actions {
+        gap: 4px;
     }
-    .tree-viewport {
-        padding: 0 6px;
+    .game-actions > button {
+        width: 41px;
+        min-height: 41px;
+        padding: 10px;
+        gap: 0;
+    }
+    .game-actions > :where(button) > span,
+    .game-actions > :where(button) > small,
+    .game-actions > :where(button) > b {
+        display: none;
+    }
+    .map-credit {
+        bottom: 1px;
+        font-size: 6px;
+    }
+    .research-heading {
+        padding: 10px 18px;
+        height: 82px;
+    }
+    .tree-node > span {
+        font-size: 11px;
+    }
+    .tree-node {
+        gap: 2px;
+        padding: 4px 3px;
+    }
+    .tree-navigation-hint {
+        font-size: 9px;
     }
     .skill-selection {
         padding: 14px 18px;
         min-height: 112px;
-        gap: 14px;
+        gap: 12px;
+        align-items: stretch;
+        flex-direction: column;
+    }
+    .skill-selection p {
+        line-height: 1.6;
+    }
+    .learn-button {
+        width: 100%;
+        height: 40px;
     }
     .skill-selection h2 {
         font-size: 15px;
@@ -597,40 +721,38 @@ button[aria-pressed="true"] {
 .map-encounters {
     position: absolute;
     inset: 0;
+    overflow: hidden;
     pointer-events: none;
 }
 .map-encounter-marker {
     position: absolute;
-    transform: translate(-50%, -70%);
-    width: 52px;
-    height: 60px;
+    transform: translate(-50%, -100%);
+    width: 40px;
+    height: 44px;
     padding: 0;
     border: 0;
     background: transparent;
     pointer-events: auto;
-    filter: drop-shadow(0 3px 5px #000b);
+    filter: drop-shadow(0 2px 2px #0009);
 }
 .map-encounter-marker:hover:not(:disabled) {
     background: transparent;
-    filter: drop-shadow(0 0 7px #e4b56590);
+    filter: brightness(1.15) drop-shadow(0 2px 3px #000b);
 }
 .map-encounter-marker img {
-    width: 100%;
-    height: 100%;
+    position: absolute;
+    left: 4px;
+    bottom: 0;
+    display: block;
+    pointer-events: none;
+    user-select: none;
+    width: 32px;
+    height: 36px;
     object-fit: contain;
 }
 .encounter-result > svg {
     flex-shrink: 0;
     margin-top: 3px;
-}
-.map-encounter-marker.chat > svg {
-    position: absolute;
-    bottom: 2px;
-    right: 0;
-    background: #1a323d;
-    padding: 2px;
-    box-sizing: content-box;
-    border: 1px solid #91d8de;
 }
 .society-heading {
     display: flex;
@@ -874,10 +996,6 @@ button[aria-pressed="true"] {
     .society-heading h2 {
         font-size: 17px;
     }
-    .map-encounter-marker {
-        width: 44px;
-        height: 52px;
-    }
     .society-heading .eyebrow {
         letter-spacing: 1px;
         font-size: 8px;
@@ -889,12 +1007,6 @@ button[aria-pressed="true"] {
     .conversation-log {
         max-height: 30dvh;
     }
-    .map-legend {
-        gap: 8px;
-    }
-    .map-legend i {
-        margin-right: 4px;
-    }
 }
 
 fieldset.encounter-choices {
@@ -904,19 +1016,13 @@ fieldset.encounter-choices {
     min-width: 0;
 }
 
-@media (max-width: 1100px) {
-    .map-legend {
-        top: auto;
-        bottom: calc(100% + 18px);
-        transform: translateX(-50%);
+@media (max-width: 380px) {
+    .clock-row {
+        flex-direction: column;
+        gap: 6px;
     }
-}
-@media (max-width: 800px) {
-    .sns-button {
-        padding: 12px;
-        gap: 8px;
-    }
-    .sns-button > small {
-        display: none;
+    .time-controls {
+        width: 100%;
+        justify-content: space-between;
     }
 }

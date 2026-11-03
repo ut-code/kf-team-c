@@ -1,4 +1,3 @@
-import { MessageSquare } from 'lucide-react';
 import { project } from '../../map/geometry';
 import { type MapView, screenPoint } from '../../map/view';
 
@@ -35,13 +34,17 @@ export function MapEncounterMarkers({
                         type="button"
                         key={encounter.id}
                         className={`map-encounter-marker ${encounter.kind}`}
+                        data-encounter-id={encounter.id}
                         style={{ left: point.x, top: point.y }}
                         aria-label={`${encounter.kind === 'event' ? 'イベント' : '人物からの連絡'}：${encounter.title}`}
                         title={encounter.title}
                         onClick={() => onSelect?.(encounter.id)}
                     >
-                        <img src={`${import.meta.env.BASE_URL}images/event-marker.png`} alt="" />
-                        {encounter.kind === 'chat' && <MessageSquare size={13} />}
+                        <img
+                            src={`${import.meta.env.BASE_URL}images/${encounter.kind === 'chat' ? 'chat' : 'event'}-marker.svg`}
+                            alt=""
+                            draggable={false}
+                        />
                     </button>
                 );
             })}

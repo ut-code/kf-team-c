@@ -55,29 +55,40 @@ void main(){
     }
     if(area>0.) {
         vec3 coverage=coverageAt(p);
-        // 画面上で約2pxの内側輪郭。ズームしても線が太くならない。
-        vec2 delta=vec2(2./period,2./worldHeight);
+        // 輪郭は約1pxの内側だけに置く。明るい太線で面を縁取らない。
+        vec2 delta=vec2(.9/period,.9/worldHeight);
         vec3 neighbor=min(min(coverageAt(p+vec2(delta.x,0.)),coverageAt(p-vec2(delta.x,0.))),
                           min(coverageAt(p+vec2(0.,delta.y)),coverageAt(p-vec2(0.,delta.y))));
         vec3 edge=max(vec3(0.),coverage-neighbor);
         float opposition=coverage.z;
         float blue=coverage.x*(1.-coverage.y)*(1.-opposition);
         float red=coverage.y*(1.-opposition);
-        // 地図に固定した粗い斜線と薄い面色。衛星画像の地形を残す。
-        float stripe=fract((p.x*8192.+p.y*4361.)/40.);
-        float hatch=smoothstep(.72,.77,stripe)*(1.-smoothstep(.95,1.,stripe));
-        vec3 blueColor=vec3(.25,.72,.91), redColor=vec3(.96,.28,.35);
-        c=mix(c,blueColor,blue*(.10+hatch*.32));
-        // 赤は斜線なしの面色。元画像の色相を弱め、緑・茶との混色による濁りを防ぐ。
+        // 各状態を重ねる前の地形を共通の明暗源にする。
         float terrainLight=dot(c,vec3(.213,.715,.072));
-        vec3 neutralTerrain=mix(vec3(terrainLight),c,.10);
-        vec3 dependencyFill=vec3(.90,.10,.18)*(.72+.28*clamp(terrainLight*2.,0.,1.));
-        c=mix(c,mix(neutralTerrain,dependencyFill,.86),red);
-        vec3 oppositionColor=vec3(.90,.67,.30);
-        c=mix(c,oppositionColor,opposition*(.16+hatch*.28));
-        c=mix(c,blueColor,edge.x*(1.-red)*(1.-opposition)*.72);
-        c=mix(c,redColor,edge.y*(1.-opposition)*.75);
-        c=mix(c,oppositionColor,edge.z*.78);
+        float relief=smoothstep(.03,.62,terrainLight);
+        vec3 neutralTerrain=vec3(terrainLight);
+        // 利用は地表を透かす青い面。粒子・回路・斜線は重ねない。
+        vec3 blueColor=mix(vec3(.12,.34,.44),vec3(.29,.62,.72),relief);
+        c=mix(c,blueColor,blue*.38);
+        // 依存は地表の色相を抑え、地形の陰影を深紅の明暗へ移す。
+        // 模様や時間変化を加えず、大きな面でも地理を読めるようにする。
+        vec3 dependencyFill=mix(vec3(.31,.035,.065),vec3(.76,.16,.20),relief);
+        c=mix(c,mix(neutralTerrain,dependencyFill,.90),red*.94);
+        // 反AIだけに地図記号として斜線を置く。地図座標に固定し、縮小時は弱める。
+        float stripe=fract((p.x*8192.+p.y*4361.)/80.);
+        vec2 stripeGradient=vec2(8192./period,4361./worldHeight)/80.;
+        float stripePixel=length(stripeGradient);
+        float aa=clamp(stripePixel*.65,.008,.12);
+        float hatch=smoothstep(.68-aa,.68+aa,stripe)*(1.-smoothstep(.88-aa,.88+aa,stripe));
+        hatch*=smoothstep(3.,7.,1./max(stripePixel,.0001));
+        vec3 oppositionColor=mix(vec3(.48,.35,.17),vec3(.76,.60,.33),relief);
+        vec3 oppositionBase=mix(neutralTerrain,oppositionColor,.50);
+        c=mix(c,oppositionBase,opposition*.72);
+        c=mix(c,vec3(.78,.63,.36),opposition*hatch*.32);
+        // 輪郭は面の色に近づけ、状態の境界を控えめに補助する。
+        c=mix(c,vec3(.29,.58,.68),edge.x*(1.-red)*(1.-opposition)*.30);
+        c=mix(c,vec3(.64,.12,.17),edge.y*(1.-opposition)*.26);
+        c=mix(c,vec3(.70,.54,.29),edge.z*.40);
     }
     bool focus=area>0.&&(abs(area-selected)<.1||abs(area-hovered)<.1);
     if(focus) c=mix(c,vec3(.86,.92,.94),.10);
