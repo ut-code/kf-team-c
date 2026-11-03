@@ -1,29 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="64" height="72" viewBox="0 0 64 72" fill="none">
-  <defs>
-    <linearGradient id="face" x1="20" y1="15" x2="43" y2="25" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#ff9484"/><stop offset=".25" stop-color="#fa6c61"/><stop offset=".65" stop-color="#e34448"/><stop offset="1" stop-color="#be2d3c"/>
-    </linearGradient>
-    <linearGradient id="edge" x1="21" y1="2" x2="40" y2="47" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#ffb19c"/><stop offset=".42" stop-color="#f47968"/><stop offset="1" stop-color="#a52b38"/>
-    </linearGradient>
-    <linearGradient id="side" x1="43" y1="6" x2="43" y2="50" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#ac3440"/><stop offset="1" stop-color="#671e2c"/>
-    </linearGradient>
-    <radialGradient id="dot" cx=".3" cy=".25" r=".85">
-      <stop stop-color="#ff9484"/><stop offset=".46" stop-color="#ec5553"/><stop offset="1" stop-color="#b52b3b"/>
-    </radialGradient>
-  </defs>
-  <!-- The symbol itself has a shallow side face. No housing, insignia or metal trim. -->
-  <path d="M23 6h23l-3 44H26Z" fill="url(#side)" stroke="#11202a" stroke-width="2" stroke-linejoin="round"/>
-  <path d="m43 3 3 3-3 44-3-3Z" fill="url(#side)"/>
-  <path d="M20 3h23l-3 44H23Z" fill="url(#edge)" stroke="#64222e" stroke-width=".8" stroke-linejoin="round"/>
-  <path d="M23 6h17l-2.7 37.5H25.7Z" fill="url(#face)"/>
-  <path d="M21 4h21M21 4l2.8 41" stroke="#ffd0b7" stroke-opacity=".65" stroke-width=".8" stroke-linejoin="round"/>
-  <path d="m40 7-2.7 36.5H26" stroke="#942c3b" stroke-opacity=".55" stroke-width=".8"/>
-  <path d="M26 12v9m1 12 .3 5" stroke="#ffb09a" stroke-opacity=".18" stroke-width=".7" stroke-linecap="round"/>
-  <circle cx="34" cy="63" r="9" fill="#742131" stroke="#11202a" stroke-width="2"/>
-  <circle cx="31.5" cy="60.5" r="9" fill="url(#edge)" stroke="#64222e" stroke-width=".8"/>
-  <circle cx="31.5" cy="60.5" r="7.3" fill="url(#dot)"/>
-  <path d="M24 58a8 8 0 0 1 9-5" stroke="#ffd0b7" stroke-opacity=".65" stroke-width=".8" stroke-linecap="round"/>
-  <path d="M38 59a7 7 0 0 1-8 8" stroke="#942c3b" stroke-opacity=".55" stroke-width=".8" stroke-linecap="round"/>
+  <circle cx="32" cy="40" r="29" stroke="#ef5350" stroke-width="3"/>
+  <path d="M32 24v20" stroke="#ef5350" stroke-width="6" stroke-linecap="round"/>
+  <circle cx="32" cy="55" r="3.5" fill="#ef5350"/>
 </svg>
