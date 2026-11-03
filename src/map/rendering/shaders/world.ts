@@ -22,19 +22,19 @@ vec3 tone(vec3 c,vec4 t,float hue,vec4 tint) {
 }
 float idAt(vec2 p) { return floor(texture2D(countryIds,vec2(fract(p.x),clamp(p.y,0.,1.))).r*255.+.5); }
 float areaAt(vec2 p) { return floor(texture2D(areaIds,vec2(fract(p.x),clamp(p.y,0.,1.))).r*255.+.5); }
-// アトラスの左右は都市起点から別々に計算した到達順。依存は使用領域内に収める。
+// 3列に人口密度で重み付けした16bit到達順。依存は使用領域内に収める。
 vec3 coverageAt(vec2 p) {
     p=vec2(fract(p.x),clamp(p.y,0.,1.));
     float area=areaAt(p);
     vec4 fill=texture2D(palette,vec2((area+.5)/256.,.25));
     vec2 amount=vec2(fill.r*65280.+fill.g*255.,fill.b*65280.+fill.a*255.)/65535.;
-    vec2 used=texture2D(invasion,vec2(p.x*.5,p.y)).rg;
-    vec2 dependent=texture2D(invasion,vec2(.5+p.x*.5,p.y)).rg;
+    vec2 used=texture2D(invasion,vec2(p.x/3.,p.y)).rg;
+    vec2 dependent=texture2D(invasion,vec2((1.+p.x)/3.,p.y)).rg;
     vec2 rank=vec2(used.r*65280.+used.g*255.,dependent.r*65280.+dependent.g*255.)/65535.;
     vec4 opposition=texture2D(palette,vec2((area+.5)/256.,.75));
     float antiAmount=(opposition.r*65280.+opposition.g*255.)/65535.;
-    // Bチャンネルに収めた独立の都市起点順。地域人口は増やさない。
-    float antiRank=texture2D(invasion,vec2(p.x*.5,p.y)).b;
+    vec2 antiEncoded=texture2D(invasion,vec2((2.+p.x)/3.,p.y)).rg;
+    float antiRank=(antiEncoded.r*65280.+antiEncoded.g*255.)/65535.;
     float anti=step(antiRank,antiAmount)*step(.00001,antiAmount);
     return vec3(step(rank,amount)*step(vec2(.00001),amount),anti)*step(.5,area)*(1.-texture2D(water,p).a);
 }

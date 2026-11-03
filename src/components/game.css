@@ -217,6 +217,29 @@ button[aria-pressed="true"] {
     color: #a9b9c5;
     text-shadow: 0 1px 5px #000;
 }
+.game-actions {
+    display: flex;
+    align-items: stretch;
+    gap: 10px;
+    pointer-events: auto;
+}
+.sns-button {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 15px 20px;
+    border-radius: 8px;
+}
+.sns-button > svg {
+    color: var(--accent);
+}
+.sns-button > span {
+    font-size: 15px;
+}
+.sns-button > small {
+    color: var(--muted);
+    font-size: 10px;
+}
 .evolution-button {
     pointer-events: auto;
     display: flex;
@@ -571,29 +594,6 @@ button[aria-pressed="true"] {
 .opposition-number strong {
     color: #e4b565;
 }
-.society-toolbar {
-    position: absolute;
-    right: 24px;
-    top: 116px;
-    display: flex;
-    gap: 8px;
-}
-.society-toolbar button {
-    display: flex;
-    align-items: center;
-    gap: 9px;
-    padding: 10px 13px;
-    border-radius: 3px;
-    font-size: 11px;
-}
-.society-toolbar small {
-    color: var(--muted);
-    font-size: 9px;
-}
-.society-toolbar b {
-    color: #e4b565;
-    font-size: 12px;
-}
 .map-encounters {
     position: absolute;
     inset: 0;
@@ -871,21 +871,6 @@ button[aria-pressed="true"] {
     margin: 16px 0;
 }
 @media (max-width: 800px) {
-    .society-toolbar {
-        top: 96px;
-        right: 12px;
-        left: 12px;
-        justify-content: flex-end;
-        gap: 6px;
-    }
-    .society-toolbar button {
-        padding: 8px;
-        font-size: 10px;
-        gap: 6px;
-    }
-    .society-toolbar small {
-        display: none;
-    }
     .society-heading h2 {
         font-size: 17px;
     }
@@ -917,4 +902,21 @@ fieldset.encounter-choices {
     margin: 0;
     padding: 0;
     min-width: 0;
+}
+
+@media (max-width: 1100px) {
+    .map-legend {
+        top: auto;
+        bottom: calc(100% + 18px);
+        transform: translateX(-50%);
+    }
+}
+@media (max-width: 800px) {
+    .sns-button {
+        padding: 12px;
+        gap: 8px;
+    }
+    .sns-button > small {
+        display: none;
+    }
 }

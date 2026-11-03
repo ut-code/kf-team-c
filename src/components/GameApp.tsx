@@ -1,4 +1,4 @@
-import { Bell, MessageSquare, Network, Radio, X } from 'lucide-react';
+import { Network, Radio, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { AREAS, STAGE_COLORS, STAGES } from '../game/data';
 import { areaHint, metrics } from '../game/engine';
@@ -19,7 +19,7 @@ import { percent } from './widgets';
 export function GameApp({ regions }: { regions: MapRegion[] }) {
     const game = useGameStore((state) => state.game)!;
     const [researchOpen, setResearchOpen] = useState(false);
-    const [societyPanel, setSocietyPanel] = useState<'sns' | 'inbox' | null>(null);
+    const [snsOpen, setSnsOpen] = useState(false);
     const [encounterId, setEncounterId] = useState<string | null>(null);
     const pending = game.encounters.filter((item) => item.status === 'pending');
     const mapEncounters = pending.flatMap((item) => {
@@ -45,7 +45,7 @@ export function GameApp({ regions }: { regions: MapRegion[] }) {
         game.outcome !== 'playing' ||
         hidden ||
         researchOpen ||
-        societyPanel !== null ||
+        snsOpen ||
         encounterId !== null;
     useEffect(() => {
         const visibility = () => setHidden(document.hidden);
@@ -56,7 +56,7 @@ export function GameApp({ regions }: { regions: MapRegion[] }) {
         const keydown = (event: KeyboardEvent) => {
             if (event.key === 'Escape') {
                 setResearchOpen(false);
-                setSocietyPanel(null);
+                setSnsOpen(false);
                 setEncounterId(null);
                 useMapStore.getState().selectArea(null);
             }
@@ -112,32 +112,6 @@ export function GameApp({ regions }: { regions: MapRegion[] }) {
                     <strong>{percent(summary.antiAI)}</strong>
                 </div>
             </section>
-            <nav className="society-toolbar" aria-label="世界への戦略">
-                <button type="button" className="glass" onClick={() => setSocietyPanel('sns')}>
-                    <Radio size={17} />
-                    <span>SNS</span>
-                    <small>{socialStrategy(game.socialStrategy).name}</small>
-                </button>
-                <button type="button" className="glass" onClick={() => setSocietyPanel('inbox')}>
-                    <Bell size={17} />
-                    <span>世界の動き</span>
-                    <b>{pending.length}</b>
-                </button>
-                <button
-                    type="button"
-                    className="glass"
-                    onClick={() => setSocietyPanel('inbox')}
-                    aria-label="人物との連絡"
-                >
-                    <MessageSquare size={17} />
-                    <b>
-                        {
-                            pending.filter((item) => encounterDefinition(item.id)?.kind === 'chat')
-                                .length
-                        }
-                    </b>
-                </button>
-            </nav>
             <GameClock key={game.seed} blocked={blocked} />
             {area && selected !== null && (
                 <aside className="area-card glass" aria-label="地域の状況">
@@ -184,34 +158,36 @@ export function GameApp({ regions }: { regions: MapRegion[] }) {
                         </span>
                     ))}
                 </div>
-                <button
-                    type="button"
-                    className="evolution-button glass"
-                    aria-label="進化"
-                    onClick={() => setResearchOpen(true)}
-                >
-                    <Network size={20} />
-                    <span>進化</span>
-                    <b>
-                        {game.skillPoints}
-                        <small>SP</small>
-                    </b>
-                </button>
+                <nav className="game-actions" aria-label="世界への戦略">
+                    <button
+                        type="button"
+                        className="sns-button glass"
+                        aria-label="SNS戦略"
+                        onClick={() => setSnsOpen(true)}
+                    >
+                        <Radio size={20} />
+                        <span>SNS</span>
+                        <small>{socialStrategy(game.socialStrategy).name}</small>
+                    </button>
+                    <button
+                        type="button"
+                        className="evolution-button glass"
+                        aria-label="進化"
+                        onClick={() => setResearchOpen(true)}
+                    >
+                        <Network size={20} />
+                        <span>進化</span>
+                        <b>
+                            {game.skillPoints}
+                            <small>SP</small>
+                        </b>
+                    </button>
+                </nav>
             </footer>
             <small className="map-credit">
                 NASA / Natural Earth · UN WPP / ITU · 地域設定はゲーム上の仮定
             </small>
-            {societyPanel && (
-                <SocietyPanel
-                    game={game}
-                    tab={societyPanel}
-                    onClose={() => setSocietyPanel(null)}
-                    onOpen={(id) => {
-                        setSocietyPanel(null);
-                        setEncounterId(id);
-                    }}
-                />
-            )}
+            {snsOpen && <SocietyPanel game={game} onClose={() => setSnsOpen(false)} />}
             {encounterId && (
                 <EncounterPanel game={game} id={encounterId} onClose={() => setEncounterId(null)} />
             )}
@@ -227,7 +203,7 @@ export function GameApp({ regions }: { regions: MapRegion[] }) {
                     game={game}
                     onRestart={() => {
                         setResearchOpen(false);
-                        setSocietyPanel(null);
+                        setSnsOpen(false);
                         setEncounterId(null);
                         useMapStore.getState().selectArea(null);
                         useGameStore.getState().initialize(game.seed + 1);

@@ -5,6 +5,8 @@ import math
 from pathlib import Path
 
 import numpy as np
+import rasterio
+from rasterio.windows import Window
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -129,17 +131,58 @@ def arrival(areas, groups, cost, kind='adoption'):
     return distance
 
 
-def ranks(areas, distance):
+def population_weights(areas):
+    """GHSLの実人口を表示格子へ集計する。実行時には格子や個人を保持しない。"""
+    source = ROOT / 'tmp/data/GHS_POP_E2020_GLOBE_R2023A_4326_30ss_V1_0.tif'
+    population = np.zeros(areas.shape, dtype=np.float64)
+    with rasterio.open(source) as dataset:
+        if dataset.crs.to_epsg() != 4326 or dataset.transform.b or dataset.transform.d:
+            raise ValueError('GHSL人口原本は回転のない経緯度格子である必要があります。')
+        longitudes = dataset.transform.c + (np.arange(dataset.width) + .5) * dataset.transform.a
+        columns = np.floor((longitudes + 180) / 360 * areas.shape[1]).astype(np.int32)
+        for start in range(0, dataset.height, 128):
+            count = min(128, dataset.height - start)
+            latitudes = dataset.transform.f + (start + np.arange(count) + .5) * dataset.transform.e
+            valid_rows = (latitudes >= -60) & (latitudes <= 75)
+            if not np.any(valid_rows):
+                continue
+            ys = np.zeros(count, dtype=np.int32)
+            mercator = np.log(np.tan(np.pi / 4 + np.radians(latitudes[valid_rows]) / 2))
+            ys[valid_rows] = np.floor((NORTH - mercator) / (NORTH - SOUTH) * areas.shape[0]).astype(np.int32)
+            values = dataset.read(1, window=Window(0, start, dataset.width, count))
+            valid = (values > 0) & valid_rows[:, None] & (columns >= 0)[None, :] & (columns < areas.shape[1])[None, :]
+            row, column = np.nonzero(valid)
+            indices = ys[row] * areas.shape[1] + columns[column]
+            population += np.bincount(indices, weights=values[row, column], minlength=population.size).reshape(areas.shape)
+    weights = np.zeros_like(population)
+    for area in range(1, 38):
+        mask = areas == area
+        total = population[mask].sum()
+        if total <= 0:
+            raise ValueError(f'人口が取得できない地域: {area}')
+        # 人口密度を主とし、無人地帯は終盤にだけ埋まるよう薄い面積重みを加える。
+        weights[mask] = population[mask] / total * .97 + .03 / mask.sum()
+    cache = ROOT / 'tmp/reports'
+    cache.mkdir(parents=True, exist_ok=True)
+    np.save(cache / 'invasion-weights.npy', weights)
+    return weights
+
+
+def ranks(areas, distance, weights):
     result = np.full(areas.shape, 65535, dtype=np.uint16)
     for area in range(1, 38):
         mask = areas == area
         values = distance[mask]
-        # 起点のない離島は終盤まで未到達。経緯度上の架空起点は追加しない。
         order = np.argsort(values, kind='stable')
+        mass = weights[mask]
         quantiles = np.empty(len(values), dtype=np.float64)
-        quantiles[order] = (np.arange(len(values))+1) / len(values)
+        population_fraction = np.cumsum(mass[order]) / mass.sum()
+        land_fraction = (np.arange(len(values)) + 1) / len(values)
+        # 人口の少ない回廊でも広がりすぎないよう、陸地面積の予算も同時に守る。
+        quantiles[order] = np.maximum(population_fraction, land_fraction)
         quantiles[~np.isfinite(values)] = 1
-        result[mask] = np.clip(quantiles*65534, 1, 65534).astype(np.uint16)
+        # 上へ丸め、人口予算に届かないセルを先に塗る誤差を防ぐ。
+        result[mask] = np.clip(np.ceil(quantiles * 65535), 1, 65535).astype(np.uint16)
     return result
 
 
@@ -149,24 +192,34 @@ def build():
     areas = np.asarray(source.resize((WIDTH,height), Image.Resampling.NEAREST))
     points = json.loads((ROOT/'src/game/data/world.json').read_text(encoding='utf-8'))['points']
     groups = urban_centers(points, areas)
+    print('人口密度を描画格子へ集計', flush=True)
+    weights = population_weights(areas)
     cost = passage(areas, groups)
-    adoption = ranks(areas, arrival(areas, groups, cost))
+    adoption = ranks(areas, arrival(areas, groups, cost), weights)
     dependency_cost = cost * (.5 + relief(areas.shape, 501) * 2)
-    dependency = ranks(areas, arrival(areas, groups, dependency_cost, 'dependency'))
+    dependency = ranks(areas, arrival(areas, groups, dependency_cost, 'dependency'), weights)
     # 依存は使用領域内。起点と進行経路は別に持ち、同じマスクの縮小版にしない。
     dependency = np.maximum(dependency, adoption)
     opposition_cost = cost * (.5 + relief(areas.shape, 907) * 2)
-    opposition = ranks(areas, arrival(areas, groups, opposition_cost, 'opposition'))
-    # RGBの左右アトラス。画像のアルファ前乗算で16bitの下位桁が失われるのを防ぐ。
+    opposition = ranks(areas, arrival(areas, groups, opposition_cost, 'opposition'), weights)
+    for name, rank in [('使用', adoption), ('依存', dependency), ('反AI', opposition)]:
+        for area in range(1, 38):
+            mask = areas == area
+            for amount in [0, .0001, .001, .01, .1, .5, .9]:
+                covered = weights[mask & (rank / 65535 <= amount)].sum()
+                land = np.mean(rank[mask] / 65535 <= amount)
+                if covered > amount + 1e-9 or land > amount + 1e-9:
+                    raise ValueError(f'{name}: 地域{area}の表示が人口・面積予算を超えています。')
+    # RGBの3列アトラス。画像のアルファ前乗算で16bitの下位桁が失われるのを防ぐ。
     def encode(rank):
         return np.stack([rank >> 8, rank & 255, np.zeros_like(rank)], axis=-1).astype('uint8')
-    used = encode(adoption)
-    used[:, :, 2] = np.clip(opposition.astype('float64') / 65535 * 255, 1, 255).astype('uint8')
-    pixels = np.concatenate([used, encode(dependency)], axis=1)
+    pixels = np.concatenate([encode(adoption), encode(dependency), encode(opposition)], axis=1)
     Image.fromarray(pixels).save(TEXTURES/'invasion-rank.png', optimize=True)
     report = {'width': WIDTH, 'height': height, 'urbanCenters': groups[1:],
               'source': 'src/game/data/world.json / GHSL 2020 population sample',
-              'channels': {'RG, left half': 'adoption uint16', 'RG, right half': 'dependency uint16', 'B, left half': 'antiAI uint8'},
+              'channels': {'RG, first third': 'adoption uint16', 'RG, second third': 'dependency uint16', 'RG, third third': 'antiAI uint16'},
+              'coverageWeight': {'population': .97, 'landArea': .03},
+              'populationSource': 'GHSL GHS_POP_E2020_GLOBE_R2023A_4326_30ss_V1_0.tif',
               'interpretation': 'visual growth order, not population or measured transport routes'}
     (ROOT/'data/statistics/invasion-processing.json').write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
     print(f'都市起点の前線テクスチャ: {WIDTH} x {height}, {sum(map(len,groups))} centers',flush=True)

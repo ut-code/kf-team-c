@@ -409,13 +409,13 @@ export class WorldRenderer {
         const bytes = new Uint8Array(256 * 4 * 2);
         this.shown.forEach((area, index) => {
             const offset = (index + 1) * 4;
-            const adoption = Math.round((area.autonomous + area.dependent) * 65535);
-            const dependency = Math.round(area.dependent * 65535);
+            const adoption = Math.floor((area.autonomous + area.dependent) * 65535);
+            const dependency = Math.floor(area.dependent * 65535);
             bytes[offset] = adoption >> 8;
             bytes[offset + 1] = adoption & 255;
             bytes[offset + 2] = dependency >> 8;
             bytes[offset + 3] = dependency & 255;
-            const antiAI = Math.round(area.antiAI * 65535);
+            const antiAI = Math.floor(area.antiAI * 65535);
             bytes[1024 + offset] = antiAI >> 8;
             bytes[1024 + offset + 1] = antiAI & 255;
         });

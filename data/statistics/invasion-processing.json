@@ -4566,9 +4566,14 @@
   ],
   "source": "src/game/data/world.json / GHSL 2020 population sample",
   "channels": {
-    "RG, left half": "adoption uint16",
-    "RG, right half": "dependency uint16",
-    "B, left half": "antiAI uint8"
+    "RG, first third": "adoption uint16",
+    "RG, second third": "dependency uint16",
+    "RG, third third": "antiAI uint16"
   },
+  "coverageWeight": {
+    "population": 0.97,
+    "landArea": 0.03
+  },
+  "populationSource": "GHSL GHS_POP_E2020_GLOBE_R2023A_4326_30ss_V1_0.tif",
   "interpretation": "visual growth order, not population or measured transport routes"
 }

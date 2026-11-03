@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
-export const percent = (value: number) => `${(value * 100).toFixed(1)}%`;
+export const percent = (value: number) =>
+    value > 0 && value < 0.001 ? '<0.1%' : `${(value * 100).toFixed(1)}%`;
 export function Modal({
     children,
     label,
