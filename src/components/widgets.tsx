@@ -1,41 +1,66 @@
-import { useEffect, useRef } from 'react';
+import { useLayoutEffect, useRef } from 'react';
 
+const populationFormatter = new Intl.NumberFormat('ja-JP', { maximumFractionDigits: 0 });
+export const population = (millions: number) =>
+    `${populationFormatter.format(Math.max(0, millions) * 1_000_000)}人`;
 export const percent = (value: number) => `${(value * 100).toFixed(1)}%`;
-export const abilityText = {
-    IQ: '推論・分析・問題解決',
-    EQ: '感情理解・対話・共感',
-    SYSTEM: '自動化・社会システム統合',
-};
-
-export function Meter({ value, color = 'var(--accent)' }: { value: number; color?: string }) {
-    return (
-        <span className="meter">
-            <span
-                style={{ width: `${Math.max(0, Math.min(100, value * 100))}%`, background: color }}
-            />
-        </span>
-    );
-}
-
 export function Modal({
     children,
     label,
     wide = false,
+    className = '',
+    onClose,
+    modal = true,
+    closeOnEscape = true,
+    anchor,
 }: {
     children: React.ReactNode;
     label: string;
     wide?: boolean;
+    className?: string;
+    onClose?: () => void;
+    modal?: boolean;
+    closeOnEscape?: boolean;
+    anchor?: { x: number; y: number };
 }) {
     const dialog = useRef<HTMLDialogElement>(null);
-    useEffect(() => {
-        dialog.current!.showModal();
-    }, []);
+    useLayoutEffect(() => {
+        const element = dialog.current!;
+        if (modal) element.showModal();
+        else element.show();
+        return () => element.close();
+    }, [modal]);
+    useLayoutEffect(() => {
+        if (modal || !anchor) return;
+        const element = dialog.current!;
+        const position = () => {
+            const { width, height } = element.getBoundingClientRect();
+            const margin = 18;
+            const gap = 28;
+            const right = anchor.x + gap;
+            const left = anchor.x - gap - width;
+            const preferred = right + width <= window.innerWidth - margin ? right : left;
+            element.style.left = `${Math.max(margin, Math.min(window.innerWidth - width - margin, preferred))}px`;
+            element.style.top = `${Math.max(margin, Math.min(window.innerHeight - height - margin, anchor.y - 32))}px`;
+        };
+        position();
+        const observer = new ResizeObserver(position);
+        observer.observe(element);
+        window.addEventListener('resize', position);
+        return () => {
+            observer.disconnect();
+            window.removeEventListener('resize', position);
+        };
+    }, [modal, anchor]);
     return (
         <dialog
             ref={dialog}
-            className={`modal ${wide ? 'wide' : ''}`}
+            className={`modal ${wide ? 'wide' : ''} ${modal ? '' : 'floating'} ${className}`}
             aria-label={label}
-            onCancel={(event) => event.preventDefault()}
+            onCancel={(event) => {
+                event.preventDefault();
+                if (closeOnEscape) onClose?.();
+            }}
         >
             {children}
         </dialog>

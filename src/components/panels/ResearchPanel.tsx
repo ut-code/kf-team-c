@@ -1,101 +1,45 @@
-import { Brain, HeartHandshake, Network } from 'lucide-react';
+import { X } from 'lucide-react';
 import { useState } from 'react';
-import { ABILITIES, SKILLS } from '../../game/data';
-import { metrics } from '../../game/metrics';
-import { skillBlockReason } from '../../game/skills';
+import { SKILLS } from '../../game/skills';
 import type { GameState } from '../../game/types';
-import { ComputeAllocation } from '../ComputeAllocation';
-import { abilityText, Meter } from '../widgets';
 import { SkillDetails } from './SkillDetails';
 import { SkillTreeMap } from './SkillTreeMap';
 
-const abilityIcons = { IQ: Brain, EQ: HeartHandshake, SYSTEM: Network };
 export function ResearchPanel({
     game,
     onResearch,
-    onAllocate,
+    onClose,
 }: {
     game: GameState;
-    onResearch: (id: string | null) => void;
-    onAllocate: (share: number) => void;
+    onResearch: (id: string) => void;
+    onClose: () => void;
 }) {
-    const [selectedId, setSelectedId] = useState(
-        () => SKILLS.find((skill) => !skillBlockReason(game, skill))?.id ?? SKILLS[0].id,
-    );
-    const summary = metrics(game);
-    const selected = SKILLS.find((skill) => skill.id === selectedId)!;
+    const [selected, setSelected] = useState('reason');
+    const skill = SKILLS.find((item) => item.id === selected)!;
     return (
-        <div className="research-workbench">
-            <header className="research-header">
-                <div>
-                    <span className="eyebrow">RESEARCH / STRATEGY</span>
-                    <h2>三つの能力で、社会への道をひらく。</h2>
-                    <p>つながりを選び、影響を見極める。全習得は困難です。</p>
-                </div>
-                <div className="research-budget">
-                    <span>研究へ配分中</span>
+        <section className="research-workspace" aria-label="スキルツリー">
+            <header className="research-heading">
+                <h1>スキルツリー</h1>
+                <div className="research-budget" title="時間経過と、世界への普及・依存で獲得">
+                    <span>保有スキルポイント</span>
                     <strong>
-                        {summary.researchCompute.toFixed(1)}
-                        <small>CU</small>
+                        {game.skillPoints}
+                        <small>SP</small>
                     </strong>
-                    <small>
-                        {game.skills.length} / {SKILLS.length} 習得
-                    </small>
                 </div>
+                <button
+                    type="button"
+                    className="icon-button"
+                    aria-label="スキルツリーを閉じる"
+                    onClick={onClose}
+                >
+                    <X size={22} />
+                </button>
             </header>
-            <div className="research-abilities">
-                {ABILITIES.map((ability) => {
-                    const Icon = abilityIcons[ability];
-                    return (
-                        <div className={`research-ability ${ability.toLowerCase()}`} key={ability}>
-                            <Icon size={19} />
-                            <div>
-                                <span>
-                                    {ability}
-                                    <small>{abilityText[ability]}</small>
-                                </span>
-                                <Meter value={game.abilities[ability] / 100} />
-                            </div>
-                            <strong>{game.abilities[ability]}</strong>
-                        </div>
-                    );
-                })}
-            </div>
-            <ComputeAllocation game={game} onAllocate={onAllocate} />
             <div className="research-layout">
-                <div className="research-map-column">
-                    <div className="skill-map-legend">
-                        <span>
-                            <i className="owned" />
-                            習得済み
-                        </span>
-                        <span>
-                            <i className="available" />
-                            習得可能
-                        </span>
-                        <span>
-                            <i className="locked" />
-                            未解放
-                        </span>
-                        <small>スキルを選択して詳細を確認</small>
-                    </div>
-                    <SkillTreeMap
-                        game={game}
-                        selected={selected}
-                        onSelect={(skill) => setSelectedId(skill.id)}
-                    />
-                    <p className="research-map-note">
-                        実線：前提スキル　点線：系統をまたぐ前提　赤線：排他的な路線
-                    </p>
-                </div>
-                <SkillDetails
-                    key={selected.id}
-                    game={game}
-                    skill={selected}
-                    onResearch={onResearch}
-                    onSelect={(skill) => setSelectedId(skill.id)}
-                />
+                <SkillTreeMap game={game} selectedId={selected} onSelect={setSelected} />
+                <SkillDetails game={game} skill={skill} onResearch={onResearch} />
             </div>
-        </div>
+        </section>
     );
 }

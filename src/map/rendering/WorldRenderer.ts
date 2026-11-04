@@ -1,25 +1,22 @@
-import { AREAS } from '../../game/data';
-import { project, WORLD_WIDTH } from '../geometry';
-import type { MapMarker, MapRegion } from '../types';
+import { AREAS, MONTH_MS } from '../../game/data';
+import type { AreaState } from '../../game/types';
+import { WORLD_WIDTH } from '../geometry';
+import type { MapRegion } from '../types';
 import {
-    cullMarkers,
     type MapView,
     parseRegions,
     type RegionShape,
     regionAtPoint,
     renderSize,
-    type VisibleMarker,
     viewTransform,
     worldPoint,
 } from '../view';
-import { declutterMarkers } from './declutter';
+import { ChatTraffic } from './ChatTraffic';
 import { createTexture, GLProgram, loadImage, quadVertex } from './gl';
 import oceanSettings from './ocean-surface.json';
 import { fragmentShader as waveFragment, vertexShader as waveVertex } from './shaders/ocean';
-import { compositeFragment, spriteFragment, spriteVertex, staticFragment } from './shaders/world';
-import { type Atlas, loadAtlas, POPULATION_SPRITE_SIZE, SpriteBatch } from './sprites';
+import { compositeFragment, staticFragment } from './shaders/world';
 import { ColorReader, type MapTone, readMapTone } from './tone';
-import { createWaveNoise } from './waveNoise';
 
 export interface MapScene {
     regions: MapRegion[];
@@ -28,17 +25,18 @@ export interface MapScene {
     surfaceMaskUrl: string;
     countryIndexUrl: string;
     areaIndexUrl: string;
+    invasionUrl: string;
 }
 export interface MapData {
     regions: MapRegion[];
-    markers: MapMarker[];
+    areaStates: AreaState[];
+    serverArea: number;
     selectedArea: number | null;
-    selectedMarker: string | null;
     speed: number;
     tick: number;
 }
 export interface MapTarget {
-    kind: 'area' | 'marker';
+    kind: 'area';
     area: number;
     id: string;
     label: string;
@@ -50,39 +48,51 @@ interface TargetBuffer {
     height: number;
 }
 
+// 1倍速で毎秒最大1.5ポイント。月次の変化には追従し、大きな急変を抑える。
+// 拡大・後退に共通の上限とし、描画時にゲーム速度の倍率を掛ける。
+const MAX_INVASION_CHANGE_PER_SECOND = 0.015;
+
 /** 画面サイズ固定の単一WebGL描画。静的地図はキャッシュし、動く画像だけを一括描画する。 */
 export class WorldRenderer {
     private gl: WebGLRenderingContext;
+    private chatTraffic: ChatTraffic;
     private programs: {
         base: GLProgram;
         wave: GLProgram;
         composite: GLProgram;
-        sprites: GLProgram;
     };
     private quad: WebGLBuffer;
-    private spriteBuffer: WebGLBuffer;
     private textures: Record<
-        'photo' | 'water' | 'surface' | 'countries' | 'areas' | 'palette' | 'atlas' | 'noise',
+        'photo' | 'water' | 'surface' | 'countries' | 'areas' | 'palette' | 'invasion',
         WebGLTexture
     >;
+    private invasionSize = new Float32Array(2);
     private baseTarget: TargetBuffer;
     private waveTarget: TargetBuffer;
     private colors = new ColorReader();
     private tone: MapTone;
-    private atlas: Atlas | null = null;
-    private atlasPromise: Promise<Atlas>;
-    private batch = new SpriteBatch();
     private shapes: RegionShape[] = [];
     private shapeCache = new WeakMap<MapRegion[], RegionShape[]>();
     private data: MapData | null = null;
     private view: MapView = { width: 0, height: 0, zoom: 1, x: 0, y: 0 };
-    private projected: { marker: MapMarker; x: number; y: number }[] = [];
-    private visible: VisibleMarker[] = [];
     private targetsKey = '';
     private hover: MapTarget | null = null;
     private requested = '';
     private loaded = '';
-    private resourceUrls = { photo: '', water: '', surface: '', countries: '', areas: '' };
+    private resourceUrls = {
+        photo: '',
+        water: '',
+        surface: '',
+        countries: '',
+        areas: '',
+        invasion: '',
+    };
+    private shown: AreaState[] = [];
+    private transitionFrom: AreaState[] = [];
+    private transitionProgress = 1;
+    private transitionDuration = MONTH_MS / 1000;
+    private transitionDistance = 0;
+    private transitionInGameTime = true;
     private sequence = 0;
     private alive = true;
     private ready = false;
@@ -92,6 +102,7 @@ export class WorldRenderer {
     private styleDirty = true;
     private paletteDirty = true;
     private targetsDirty = true;
+    private viewDirty = true;
     private frame = 0;
     private previous = 0;
     private rendered = 0;
@@ -103,11 +114,8 @@ export class WorldRenderer {
         frames: 0,
         staticPasses: 0,
         wavePasses: 0,
-        spriteDraws: 0,
         textureUploads: 0,
         geometryCompiles: 0,
-        visibleMarkers: 0,
-        sprites: 0,
         pixelWidth: 0,
         pixelHeight: 0,
         cpuMs: 0,
@@ -122,6 +130,7 @@ export class WorldRenderer {
             ready: () => void;
             error: (error: unknown) => void;
             targets: (targets: MapTarget[]) => void;
+            presented: (view: MapView) => void;
         },
     ) {
         const gl = canvas.getContext('webgl', {
@@ -135,11 +144,11 @@ export class WorldRenderer {
         if (gl.getParameter(gl.MAX_TEXTURE_SIZE) < WORLD_WIDTH)
             throw new Error('世界地図には8192pxのテクスチャ対応が必要です。');
         this.gl = gl;
+        this.chatTraffic = new ChatTraffic(gl);
         this.programs = {
             base: new GLProgram(gl, quadVertex, staticFragment),
             wave: new GLProgram(gl, waveVertex, waveFragment),
             composite: new GLProgram(gl, quadVertex, compositeFragment),
-            sprites: new GLProgram(gl, spriteVertex, spriteFragment),
         };
         this.quad = gl.createBuffer()!;
         gl.bindBuffer(gl.ARRAY_BUFFER, this.quad);
@@ -148,7 +157,6 @@ export class WorldRenderer {
             new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]),
             gl.STATIC_DRAW,
         );
-        this.spriteBuffer = gl.createBuffer()!;
         this.textures = {
             photo: createTexture(gl),
             water: createTexture(gl),
@@ -156,25 +164,12 @@ export class WorldRenderer {
             countries: createTexture(gl, true),
             areas: createTexture(gl, true),
             palette: createTexture(gl, true),
-            atlas: createTexture(gl),
-            noise: createTexture(gl, true),
+            // 16bitの上位・下位バイトは線形結合で復号するため、補間後も到達順を保つ。
+            invasion: createTexture(gl),
         };
         this.baseTarget = this.createTarget();
-        gl.bindTexture(gl.TEXTURE_2D, this.textures.noise);
-        gl.texImage2D(
-            gl.TEXTURE_2D,
-            0,
-            gl.RGBA,
-            128,
-            64,
-            0,
-            gl.RGBA,
-            gl.UNSIGNED_BYTE,
-            createWaveNoise(),
-        );
         this.waveTarget = this.createTarget();
         this.tone = readMapTone(canvas, this.colors);
-        this.atlasPromise = loadAtlas();
         this.observer = new MutationObserver(() => {
             this.styleDirty = true;
             this.invalidate(true);
@@ -283,6 +278,7 @@ export class WorldRenderer {
             scene.surfaceMaskUrl,
             scene.countryIndexUrl,
             scene.areaIndexUrl,
+            scene.invasionUrl,
         ].join('\n');
         if (this.requested === key) return;
         this.requested = key;
@@ -295,6 +291,7 @@ export class WorldRenderer {
             surface: scene.surfaceMaskUrl,
             countries: scene.countryIndexUrl,
             areas: scene.areaIndexUrl,
+            invasion: scene.invasionUrl,
         };
         const image = (name: keyof typeof urls) =>
             this.resourceUrls[name] === urls[name] ? Promise.resolve(null) : loadImage(urls[name]);
@@ -304,9 +301,9 @@ export class WorldRenderer {
             image('surface'),
             image('countries'),
             image('areas'),
-            this.atlasPromise,
+            image('invasion'),
         ])
-            .then(([photo, water, surface, countries, areas, atlas]) => {
+            .then(([photo, water, surface, countries, areas, invasion]) => {
                 if (!this.alive || sequence !== this.sequence) return;
                 let shapes = this.shapeCache.get(scene.regions);
                 if (!shapes) {
@@ -321,8 +318,13 @@ export class WorldRenderer {
                     ['surface', surface],
                     ['countries', countries],
                     ['areas', areas],
+                    ['invasion', invasion],
                 ] as const) {
                     if (source) {
+                        if (name === 'invasion') {
+                            this.invasionSize[0] = source.width / 3;
+                            this.invasionSize[1] = source.height;
+                        }
                         this.upload(
                             this.textures[name],
                             source,
@@ -333,10 +335,7 @@ export class WorldRenderer {
                         this.resourceUrls[name] = urls[name];
                     }
                 }
-                if (!this.atlas) {
-                    this.atlas = atlas;
-                    this.upload(this.textures.atlas, atlas.canvas);
-                }
+
                 this.loaded = key;
                 this.paletteDirty = true;
                 this.waveDirty = true;
@@ -352,33 +351,47 @@ export class WorldRenderer {
     setData(data: MapData) {
         const old = this.data;
         if (!old || old.selectedArea !== data.selectedArea) this.staticDirty = true;
-        if (!old || old.markers !== data.markers) {
-            const projected = data.markers
-                .filter((marker) => marker.latitude >= -60 && marker.latitude <= 75)
-                .map((marker) => ({ marker, ...project(marker.longitude, marker.latitude) }));
-            // 月次の色変更では分散をやり直さず、表示位置を維持する。
-            const samePositions =
-                projected.length === this.projected.length &&
-                projected.every((item, index) => {
-                    const previous = this.projected[index].marker;
-                    return (
-                        item.marker.id === previous.id &&
-                        item.marker.longitude === previous.longitude &&
-                        item.marker.latitude === previous.latitude
-                    );
-                });
-            this.projected = samePositions
-                ? this.projected.map((position, index) => ({
-                      ...position,
-                      marker: projected[index].marker,
-                  }))
-                : declutterMarkers(projected);
-            this.targetsDirty = true;
+        const reset = !old || data.tick < old.tick;
+        if (reset || old.areaStates !== data.areaStates) {
+            this.chatTraffic.update(data.serverArea, reset);
         }
+        if (reset) {
+            this.shown = data.areaStates.map((area) => ({ ...area }));
+            this.transitionProgress = 1;
+        } else if (old.areaStates !== data.areaStates) {
+            this.transitionFrom = this.shown.map((area) => ({ ...area }));
+            this.transitionProgress = 0;
+            this.transitionInGameTime = data.tick > old.tick;
+            this.transitionDistance = Math.max(
+                ...data.areaStates.map((target, index) => {
+                    const from = this.transitionFrom[index];
+                    return Math.max(
+                        Math.abs(target.autonomous - from.autonomous),
+                        Math.abs(target.dependent - from.dependent),
+                        Math.abs(target.antiAI - from.antiAI),
+                        Math.abs(
+                            target.autonomous + target.dependent - from.autonomous - from.dependent,
+                        ),
+                    );
+                }),
+            );
+            // 月次更新は次の月まで等速でつなぎ、操作による大きな増減も急変させない。
+            this.transitionDuration = this.transitionInGameTime ? MONTH_MS / 1000 : 2;
+            this.chatTraffic.beginExpansion(
+                this.transitionFrom,
+                data.areaStates,
+                this.elapsed,
+                Math.max(
+                    this.transitionDuration,
+                    this.transitionDistance / MAX_INVASION_CHANGE_PER_SECOND,
+                ),
+            );
+        }
+        if (reset || old.areaStates !== data.areaStates) this.paletteDirty = true;
         if (old && data.tick < old.tick) {
             this.elapsed = 0;
             this.waveElapsed = 0;
-        } else if (old && data.speed === 0) this.elapsed += Math.max(0, data.tick - old.tick);
+        }
         if (old && old.speed !== data.speed) this.previous = performance.now();
         this.data = data;
         this.invalidate();
@@ -392,6 +405,7 @@ export class WorldRenderer {
         )
             return;
         this.view = { ...view };
+        this.viewDirty = true;
         this.waveDirty = true;
         this.targetsDirty = true;
         this.invalidate(true);
@@ -410,32 +424,19 @@ export class WorldRenderer {
     }
 
     private updateTargets() {
-        this.visible = cullMarkers(this.projected, this.view);
-        const targets: MapTarget[] = [];
-        const areas = new Set<number>();
-        for (const { marker } of this.visible) {
-            // キーボード操作は小地域ごとにまとめ、4,000点の連続移動を避ける。
-            if (marker.kind === 'population' && areas.has(marker.area)) continue;
-            areas.add(marker.area);
-            targets.push({
-                kind: 'marker',
-                id: marker.id,
-                area: marker.area,
-                label:
-                    marker.kind === 'conversation'
-                        ? marker.label
-                        : `${AREAS[marker.area].name}の小地域を調査`,
-            });
-        }
-        const unique = [
-            ...new Map(targets.map((target) => [`${target.kind}:${target.id}`, target])).values(),
-        ];
-        const key = unique.map((target) => `${target.kind}:${target.id}`).join('|');
+        const targets = AREAS.map(
+            (area, index): MapTarget => ({
+                kind: 'area',
+                id: String(index),
+                area: index,
+                label: area.name,
+            }),
+        );
+        const key = targets.map((target) => target.id).join('|');
         if (key !== this.targetsKey) {
             this.targetsKey = key;
-            this.callbacks.targets(unique);
+            this.callbacks.targets(targets);
         }
-        this.stats.visibleMarkers = this.visible.length;
         this.targetsDirty = false;
     }
 
@@ -443,42 +444,29 @@ export class WorldRenderer {
         if (!this.ready) return null;
         const point = worldPoint(this.view, x, y);
         if (!point) return null;
-        let closest: VisibleMarker | null = null;
-        let distance = Math.max(3, (POPULATION_SPRITE_SIZE * 10) / 32);
-        for (let index = this.visible.length - 1; index >= 0; index--) {
-            const item = this.visible[index];
-            const separation = Math.hypot(x - item.x, y - item.y);
-            if (item.marker.kind === 'conversation') {
-                if (Math.abs(x - item.x) > 22 || Math.abs(y - item.y) > 22) continue;
-                return {
-                    kind: 'marker',
-                    id: item.marker.id,
-                    area: item.marker.area,
-                    label: item.marker.label,
-                };
-            }
-            if (separation < distance) {
-                closest = item;
-                distance = separation;
-            }
-        }
-        if (closest)
-            return {
-                kind: 'marker',
-                id: closest.marker.id,
-                area: closest.marker.area,
-                label: closest.marker.label,
-            };
         const id = regionAtPoint(this.shapes, point.x, point.y);
         return id ? { kind: 'area', id, area: Number(id), label: AREAS[Number(id)].name } : null;
     }
 
     private updatePalette() {
-        const bytes = new Uint8Array(256 * 4);
+        const bytes = new Uint8Array(256 * 4 * 2);
+        this.shown.forEach((area, index) => {
+            const offset = (index + 1) * 4;
+            const adoption = Math.floor((area.autonomous + area.dependent) * 65535);
+            const dependency = Math.floor(area.dependent * 65535);
+            bytes[offset] = adoption >> 8;
+            bytes[offset + 1] = adoption & 255;
+            bytes[offset + 2] = dependency >> 8;
+            bytes[offset + 3] = dependency & 255;
+            const antiAI = Math.floor(area.antiAI * 65535);
+            bytes[1024 + offset] = antiAI >> 8;
+            bytes[1024 + offset + 1] = antiAI & 255;
+        });
         const gl = this.gl;
         gl.bindTexture(gl.TEXTURE_2D, this.textures.palette);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 256, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, bytes);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 256, 2, 0, gl.RGBA, gl.UNSIGNED_BYTE, bytes);
         this.paletteDirty = false;
+        this.staticDirty = true;
     }
 
     private selection(program: GLProgram) {
@@ -502,6 +490,8 @@ export class WorldRenderer {
         this.bind(p, 'countryIds', this.textures.countries, 2);
         this.bind(p, 'palette', this.textures.palette, 3);
         this.bind(p, 'areaIds', this.textures.areas, 4);
+        this.bind(p, 'invasion', this.textures.invasion, 5);
+        gl.uniform2fv(p.location('invasionSize'), this.invasionSize);
         gl.uniform1f(p.location('dataMode'), 0);
         this.selection(p);
         for (const name of ['land', 'ocean', 'global'] as const) {
@@ -531,85 +521,12 @@ export class WorldRenderer {
         this.quadDraw(p);
         this.camera(p);
         this.bind(p, 'seaMask', this.textures.surface, 0);
-        this.bind(p, 'noiseGrid', this.textures.noise, 1);
+        gl.uniform2f(p.location('rasterSize'), this.waveTarget.width, this.waveTarget.height);
         gl.uniform1f(p.location('time'), this.waveElapsed);
         gl.uniform1f(p.location('strength'), oceanSettings.strength);
         gl.uniform1f(p.location('tintStrength'), oceanSettings.tintStrength);
-        gl.uniform1f(
-            p.location('detail'),
-            Math.min(
-                1,
-                (viewTransform(this.view).period * this.waveTarget.width) / this.view.width / 1024,
-            ),
-        );
         gl.drawArrays(gl.TRIANGLES, 0, 6);
         this.stats.wavePasses++;
-    }
-
-    private drawSprites() {
-        const data = this.data!,
-            atlas = this.atlas!,
-            batch = this.batch;
-        batch.reset();
-        for (const { marker, x, y } of this.visible) {
-            if (marker.kind === 'conversation') {
-                batch.add(atlas.sprites.conversation, x, y);
-                continue;
-            }
-            const selected =
-                data.selectedMarker === marker.id ||
-                (this.hover?.kind === 'marker' && this.hover.id === marker.id);
-            if (selected)
-                batch.add(
-                    atlas.sprites.ring,
-                    x,
-                    y,
-                    0,
-                    1,
-                    false,
-                    undefined,
-                    POPULATION_SPRITE_SIZE * 1.4,
-                    POPULATION_SPRITE_SIZE * 1.4,
-                );
-            batch.add(
-                atlas.sprites[`stage-${marker.stage}`],
-                x,
-                y,
-                0,
-                1,
-                false,
-                undefined,
-                POPULATION_SPRITE_SIZE,
-                POPULATION_SPRITE_SIZE,
-            );
-        }
-        this.stats.sprites = batch.length / 54;
-        if (!batch.length) return;
-        const gl = this.gl,
-            p = this.programs.sprites;
-        p.use();
-        this.camera(p);
-        this.bind(p, 'atlas', this.textures.atlas, 0);
-        this.bind(p, 'water', this.textures.water, 1);
-        gl.enable(gl.BLEND);
-        gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.spriteBuffer);
-        gl.bufferData(gl.ARRAY_BUFFER, batch.data, gl.DYNAMIC_DRAW);
-        for (const [name, size, offset] of [
-            ['position', 2, 0],
-            ['texcoord', 2, 8],
-            ['color', 4, 16],
-            ['ship', 1, 32],
-        ] as const) {
-            const location = gl.getAttribLocation(p.program, name);
-            gl.enableVertexAttribArray(location);
-            gl.vertexAttribPointer(location, size, gl.FLOAT, false, 36, offset);
-        }
-        gl.drawArrays(gl.TRIANGLES, 0, batch.length / 9);
-        this.stats.spriteDraws++;
-        gl.disable(gl.BLEND);
-        for (const name of ['texcoord', 'color', 'ship'])
-            gl.disableVertexAttribArray(gl.getAttribLocation(p.program, name));
     }
 
     private draw = (now: number) => {
@@ -625,10 +542,34 @@ export class WorldRenderer {
             return;
         const dt = this.previous ? Math.max(0, (now - this.previous) / 1000) : 0;
         this.previous = now;
+        this.waveElapsed += dt * this.data.speed * oceanSettings.timeScale;
+        const transitionSpeed = this.data.speed;
+        const transitioning = this.transitionProgress < 1 && transitionSpeed > 0;
         this.elapsed += dt * this.data.speed;
-        this.waveElapsed +=
-            dt * Math.min(this.data.speed, oceanSettings.maximumSpeed) * oceanSettings.timeScale;
-        const animated = this.data.speed > 0;
+        if (transitioning) {
+            const progressPerSecond =
+                transitionSpeed *
+                Math.min(
+                    1 / this.transitionDuration,
+                    this.transitionDistance > 0
+                        ? MAX_INVASION_CHANGE_PER_SECOND / this.transitionDistance
+                        : Infinity,
+                );
+            this.transitionProgress = Math.min(
+                1,
+                // タブ復帰や描画停止後も、経過時間を一括反映して飛ばさない。
+                this.transitionProgress + Math.min(dt, 0.05) * progressPerSecond,
+            );
+            this.shown.forEach((area, index) => {
+                const from = this.transitionFrom[index];
+                const target = this.data!.areaStates[index];
+                for (const key of ['autonomous', 'dependent', 'antiAI'] as const) {
+                    area[key] = from[key] + (target[key] - from[key]) * this.transitionProgress;
+                }
+            });
+            this.paletteDirty = true;
+        }
+        const animated = this.data.speed > 0 || transitioning;
         if (!this.dirty && now - this.rendered < 1000 / oceanSettings.framesPerSecond) {
             if (animated) this.frame = requestAnimationFrame(this.draw);
             return;
@@ -671,9 +612,15 @@ export class WorldRenderer {
         this.bind(composite, 'countryIds', this.textures.countries, 3);
         this.camera(composite);
         this.selection(composite);
+        gl.uniform2f(composite.location('rasterSize'), pixels.width, pixels.height);
         gl.uniform1f(composite.location('animated'), 1);
         gl.drawArrays(gl.TRIANGLES, 0, 6);
-        this.drawSprites();
+        // 通信線と発着点の目印は一時的に非表示。
+        // HTMLマーカーも、実際に描き終えたカメラに揃えて同じフレームで更新する。
+        if (this.viewDirty) {
+            this.viewDirty = false;
+            this.callbacks.presented({ ...this.view });
+        }
         this.rendered = now;
         this.dirty = false;
         this.stats.frames++;
@@ -703,6 +650,7 @@ export class WorldRenderer {
         document.removeEventListener('visibilitychange', this.visibilityChanged);
         this.canvas.removeEventListener('webglcontextlost', this.contextLost);
         const gl = this.gl;
+        this.chatTraffic.dispose();
         for (const program of Object.values(this.programs)) program.dispose();
         for (const texture of Object.values(this.textures)) gl.deleteTexture(texture);
         for (const target of [this.baseTarget, this.waveTarget]) {
@@ -710,6 +658,5 @@ export class WorldRenderer {
             gl.deleteTexture(target.texture);
         }
         gl.deleteBuffer(this.quad);
-        gl.deleteBuffer(this.spriteBuffer);
     }
 }

@@ -18,7 +18,7 @@ export function GameClock({ blocked }: { blocked: boolean }) {
             previous = now;
             while (elapsed.current >= MONTH_MS) {
                 const current = useGameStore.getState().game!;
-                if (current.outcome !== 'playing' || current.pendingEvent) break;
+                if (current.outcome !== 'playing') break;
                 elapsed.current -= MONTH_MS;
                 useGameStore.getState().tick();
             }
@@ -49,7 +49,7 @@ export function GameClock({ blocked }: { blocked: boolean }) {
                     >
                         {game.speed === 0 ? <Play size={14} /> : <Pause size={14} />}
                     </button>
-                    {[1, 2, 4].map((speed) => (
+                    {(import.meta.env.DEV ? [1, 2, 4, 8] : [1, 2, 4]).map((speed) => (
                         <button
                             type="button"
                             key={speed}

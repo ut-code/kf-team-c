@@ -1,12 +1,15 @@
-import { START_YEAR } from './data.ts';
+import { START_DAY, START_MONTH, START_YEAR } from './data.ts';
 
-export function daysInMonth(month: number) {
-    return new Date(
-        Date.UTC(START_YEAR + Math.floor(month / 12), (month % 12) + 1, 0),
-    ).getUTCDate();
+/** 各月の開始日は外部運用開始日に揃え、該当日がない月は末日とする。 */
+function monthStart(month: number) {
+    const target = START_MONTH - 1 + month;
+    const lastDay = new Date(Date.UTC(START_YEAR, target + 1, 0)).getUTCDate();
+    return Date.UTC(START_YEAR, target, Math.min(START_DAY, lastDay));
 }
 
 export function calendarParts(month: number, fraction: number) {
-    const day = Math.min(daysInMonth(month), Math.floor(fraction * daysInMonth(month)) + 1);
-    return { year: START_YEAR + Math.floor(month / 12), month: (month % 12) + 1, day };
+    const start = monthStart(month);
+    const end = monthStart(month + 1);
+    const date = new Date(start + (end - start) * Math.max(0, Math.min(1, fraction)));
+    return { year: date.getUTCFullYear(), month: date.getUTCMonth() + 1, day: date.getUTCDate() };
 }
