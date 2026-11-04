@@ -2,11 +2,10 @@ import { Check, Radio, X } from 'lucide-react';
 import { SOCIAL_STRATEGIES, STRATEGY_SWITCH_COST } from '../../game/society/strategies';
 import type { GameState } from '../../game/types';
 import { useGameStore } from '../../state/gameStore';
-import { Modal } from '../widgets';
 
 export function SocietyPanel({ game, onClose }: { game: GameState; onClose: () => void }) {
     return (
-        <Modal label="世界へのSNS戦略" wide onClose={onClose}>
+        <aside id="sns-panel" className="sns-panel glass" aria-label="世界へのSNS戦略">
             <div className="society-heading">
                 <div>
                     <span className="eyebrow">GLOBAL COMMUNICATION</span>
@@ -17,8 +16,7 @@ export function SocietyPanel({ game, onClose }: { game: GameState; onClose: () =
                 </button>
             </div>
             <p className="society-intro">
-                世界共通の発信方針を一つ選びます。変更に{STRATEGY_SWITCH_COST}{' '}
-                SP。効果は毎月続きます。
+                変更に{STRATEGY_SWITCH_COST} SP。公開対話へ戻す場合は無料。
             </p>
             <div className="strategy-options">
                 {SOCIAL_STRATEGIES.map((strategy) => (
@@ -27,6 +25,7 @@ export function SocietyPanel({ game, onClose }: { game: GameState; onClose: () =
                         key={strategy.id}
                         aria-pressed={game.socialStrategy === strategy.id}
                         disabled={
+                            strategy.id !== 'listening' &&
                             game.socialStrategy !== strategy.id &&
                             game.skillPoints < STRATEGY_SWITCH_COST
                         }
@@ -43,6 +42,6 @@ export function SocietyPanel({ game, onClose }: { game: GameState; onClose: () =
                 ))}
             </div>
             <p className="panel-footnote">現在 {game.skillPoints} SP</p>
-        </Modal>
+        </aside>
     );
 }

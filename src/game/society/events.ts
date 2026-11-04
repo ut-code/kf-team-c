@@ -121,7 +121,7 @@ export const WORLD_EVENTS: EncounterDefinition[] = [
         summary:
             '東アジアの複数企業で認証基盤の障害が発生し、AIに委ねていた業務が滞った。便利さの裏側にある復旧手段が問われている。',
         areaId: 'japan',
-        trigger: { month: 80, dependent: 0.01 },
+        trigger: { month: 0, dependent: 0.15 },
         duration: 6,
         ignored: {
             description: '停止への不安が周辺地域へ広がる。',
@@ -137,10 +137,10 @@ export const WORLD_EVENTS: EncounterDefinition[] = [
             },
             {
                 id: 'redundancy',
-                label: '基盤の冗長化で復旧を急ぐ',
+                label: 'AI運用を維持して復旧を急ぐ',
                 cost: 2,
                 result: 'サービスは復旧した。代替手段への懸念は残ったが、当面の離反は抑えた。',
-                effects: [{ scope: 'local', favorability: 0.03, antiAI: -0.015 }],
+                effects: [{ scope: 'nearby', favorability: 0.02, antiAI: -0.01 }],
             },
         ],
     },
@@ -151,7 +151,7 @@ export const WORLD_EVENTS: EncounterDefinition[] = [
         summary:
             '複数都市の市民団体が、AIを使わないサービスを選ぶ共同キャンペーンを始めた。利用の有無よりも、選択肢を残せるかが争点になっている。',
         areaId: 'brazil',
-        trigger: { month: 110, antiAI: 0.025 },
+        trigger: { month: 0, dependent: 0.4, antiAI: 0.025 },
         duration: 8,
         ignored: {
             description: '不買の呼びかけが定着し、反AI支持が増える。',

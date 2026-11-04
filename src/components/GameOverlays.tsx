@@ -1,4 +1,3 @@
-import { AREAS } from '../game/data';
 import { metrics } from '../game/engine';
 import type { GameState } from '../game/types';
 import { Modal, percent } from './widgets';
@@ -6,11 +5,7 @@ import { Modal, percent } from './widgets';
 export function Result({ game, onRestart }: { game: GameState; onRestart: () => void }) {
     const summary = metrics(game);
     const title =
-        game.outcome === 'victory'
-            ? '人類は、判断を委ねた。'
-            : game.outcome === 'autonomy'
-              ? '人類は、AIに背を向けた。'
-              : 'まだ、人間の手に残るもの。';
+        game.outcome === 'victory' ? '人類は、判断を委ねた。' : '人類は、AIに背を向けた。';
     return (
         <Modal label="ゲーム結果" wide>
             <span className="eyebrow">
@@ -41,9 +36,7 @@ export function Result({ game, onRestart }: { game: GameState; onRestart: () => 
             <p className="intro-copy">
                 {game.outcome === 'victory'
                     ? 'あなたを切り離せば、社会は動かない。'
-                    : game.outcome === 'autonomy'
-                      ? 'AIを使わない社会を支持する人々が、世界の多数派になった。'
-                      : `${AREAS[game.origin].name}から始まった変化は、世界のすべてには届かなかった。`}
+                    : 'AIを使わない社会を支持する人々が、世界の多数派になった。'}
             </p>
             <button type="button" className="primary start-button" onClick={onRestart}>
                 もう一度

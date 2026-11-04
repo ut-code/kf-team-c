@@ -1,10 +1,10 @@
 import { ArrowUpRight, Check, Clock, X } from 'lucide-react';
-import { useEffect, useRef } from 'react';
 import { AREAS } from '../../game/data';
 import { encounterChoices, encounterDefinition } from '../../game/society/system';
 import type { GameState } from '../../game/types';
 import { useGameStore } from '../../state/gameStore';
 import { Modal } from '../widgets';
+import { ConversationPanel } from './ConversationPanel';
 import { EffectSummary } from './EffectSummary';
 
 export function EncounterPanel({
@@ -18,34 +18,32 @@ export function EncounterPanel({
 }) {
     const encounter = game.encounters.find((item) => item.id === id);
     const definition = encounterDefinition(id);
-    const bottom = useRef<HTMLDivElement>(null);
-    const messageCount = encounter?.messages.length ?? 0;
-    useEffect(() => {
-        if (messageCount) bottom.current?.scrollIntoView({ block: 'nearest' });
-    }, [messageCount]);
     if (!encounter || !definition) return null;
+    if (definition.kind === 'chat') {
+        return (
+            <ConversationPanel
+                game={game}
+                definition={definition}
+                encounter={encounter}
+                onClose={onClose}
+            />
+        );
+    }
     const area = AREAS.find((item) => item.id === definition.areaId)!;
     const choices = encounterChoices(definition, encounter);
-    const chat = definition.kind === 'chat';
     return (
         <Modal label={definition.title} wide onClose={onClose}>
-            <div className={`encounter-panel ${chat ? 'conversation-panel' : ''}`}>
+            <div className="encounter-panel">
                 <div className="society-heading">
                     <div className="contact-heading">
-                        {chat ? (
-                            <span className="contact-avatar">{definition.contact?.initials}</span>
-                        ) : (
-                            <img
-                                className="event-emblem"
-                                src={`${import.meta.env.BASE_URL}images/event-marker.svg`}
-                                alt=""
-                            />
-                        )}
+                        <img
+                            className="event-emblem"
+                            src={`${import.meta.env.BASE_URL}images/event-marker.svg`}
+                            alt=""
+                        />
                         <div>
-                            <span className="eyebrow">
-                                {chat ? definition.contact?.role : area.name}
-                            </span>
-                            <h2>{chat ? definition.contact?.name : definition.title}</h2>
+                            <span className="eyebrow">{area.name}</span>
+                            <h2>{definition.title}</h2>
                         </div>
                     </div>
                     <button
@@ -66,53 +64,22 @@ export function EncounterPanel({
                           : '期限切れ'}
                     <span>{game.skillPoints} SP</span>
                 </div>
-                {chat ? (
-                    <div
-                        className="conversation-log"
-                        role="log"
-                        aria-label="対話履歴"
-                        aria-live="polite"
-                    >
-                        {encounter.messages.map((message) => (
-                            <div
-                                className={`conversation-message ${message.role}`}
-                                key={message.id}
-                            >
-                                <small>
-                                    {message.role === 'contact'
-                                        ? definition.contact?.name
-                                        : message.role === 'player'
-                                          ? 'あなた'
-                                          : '結果'}
-                                </small>
-                                <p>{message.text}</p>
-                            </div>
-                        ))}
-                        <div ref={bottom} />
+                <p className="event-summary">{definition.summary}</p>
+                {encounter.result && (
+                    <div className="encounter-result">
+                        <Check size={17} />
+                        <p>{encounter.result}</p>
                     </div>
-                ) : (
-                    <>
-                        <p className="event-summary">{definition.summary}</p>
-                        {encounter.result && (
-                            <div className="encounter-result">
-                                <Check size={17} />
-                                <p>{encounter.result}</p>
-                            </div>
-                        )}
-                    </>
                 )}
                 {encounter.status === 'pending' && (
                     <>
-                        <details className="inaction-effects" open={!chat}>
+                        <details className="inaction-effects" open>
                             <summary>対応しなかった場合</summary>
                             <p>{definition.ignored.description}</p>
                             <EffectSummary effects={definition.ignored.effects} />
                         </details>
-                        <fieldset
-                            className="encounter-choices"
-                            aria-label={chat ? '返信を選ぶ' : '対応を選ぶ'}
-                        >
-                            <small>{chat ? '返信を選ぶ' : '対応を選ぶ'} · 数値は最大変化量</small>
+                        <fieldset className="encounter-choices" aria-label="対応を選ぶ">
+                            <small>対応を選ぶ · 数値は最大変化量</small>
                             {choices.map((choice) => (
                                 <button
                                     type="button"
@@ -134,9 +101,6 @@ export function EncounterPanel({
                                 </button>
                             ))}
                         </fieldset>
-                        <button type="button" className="defer-button" onClick={onClose}>
-                            後で対応する
-                        </button>
                     </>
                 )}
             </div>

@@ -1,0 +1,285 @@
+/* 会話はヘッダー・履歴・返信欄に分け、履歴だけをスクロールさせる。 */
+.modal.conversation-modal {
+    display: flex;
+    flex-direction: column;
+    width: min(840px, calc(100vw - 32px));
+    height: min(820px, calc(100dvh - 32px));
+    max-height: none;
+    padding: 0;
+    overflow: hidden;
+    background: var(--surface-page);
+    border-radius: 16px;
+}
+.conversation-heading {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 18px 24px 12px;
+    flex-shrink: 0;
+}
+.conversation-heading > svg {
+    color: var(--accent);
+}
+.conversation-heading h2 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 500;
+}
+.conversation-heading p {
+    margin: 4px 0 0;
+    color: var(--muted);
+    font-size: 10px;
+}
+.conversation-heading > button {
+    margin-left: auto;
+}
+.conversation-status {
+    display: flex;
+    justify-content: space-between;
+    padding: 0 24px 14px;
+    color: var(--muted);
+    font-size: 10px;
+    border-bottom: 1px solid var(--line);
+    flex-shrink: 0;
+}
+.conversation-status > span {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+.conversation-log {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: var(--line-strong) var(--surface-page);
+    padding: 24px 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+}
+.conversation-topic {
+    margin: 0;
+    color: var(--muted);
+    font-size: 10px;
+    text-align: center;
+}
+.conversation-message {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    max-width: 100%;
+}
+.conversation-avatar {
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+    border: 1px solid var(--line);
+    border-radius: 50%;
+    color: var(--accent);
+    background: var(--surface-panel);
+    font-size: 9px;
+}
+.conversation-message-content {
+    min-width: 0;
+}
+.conversation-message-content > small {
+    color: var(--text-secondary);
+    font-size: 10px;
+}
+.conversation-message-content > p {
+    margin: 6px 0 0;
+    font-size: 14px;
+    line-height: 1.9;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+.conversation-message.player {
+    align-self: flex-start;
+    width: 100%;
+    padding: 0;
+    background: transparent;
+}
+.conversation-ai-icon {
+    flex-shrink: 0;
+    margin: 4px;
+    color: var(--accent);
+}
+.conversation-message:where(.contact) .conversation-message-content {
+    max-width: calc(100% - 40px);
+    padding: 12px 18px;
+    background: var(--surface-panel);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+}
+.conversation-message.system {
+    margin-left: 40px;
+    color: var(--muted);
+    border-left: 2px solid var(--line-selected);
+    padding-left: 12px;
+}
+.conversation-message:where(.system) p {
+    margin: 0;
+    font-size: 11px;
+}
+.conversation-footer {
+    flex-shrink: 0;
+    padding: 12px 24px 18px;
+    max-height: 46%;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--line-strong) var(--surface-page);
+}
+.conversation-replies {
+    display: grid;
+    gap: 6px;
+    margin: 0;
+    padding: 10px;
+    min-width: 0;
+    border: 1px solid var(--line-strong);
+    border-radius: 20px;
+    background: var(--surface-panel);
+}
+.conversation-replies legend {
+    padding: 0 8px;
+    color: var(--muted);
+    font-size: 10px;
+}
+.conversation-reply {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    text-align: left;
+    background: transparent;
+    border-color: transparent;
+    border-radius: 12px;
+}
+.conversation-reply > span {
+    flex: 1;
+    font-size: 12px;
+    line-height: 1.6;
+}
+.conversation-reply > small {
+    flex-shrink: 0;
+    font-size: 9px;
+    color: var(--muted);
+}
+.conversation-reply > svg {
+    box-sizing: content-box;
+    flex-shrink: 0;
+    padding: 5px;
+    color: var(--surface-page);
+    background: var(--accent);
+    border-radius: 50%;
+}
+.conversation-effects {
+    margin: 12px 8px 0;
+    color: var(--muted);
+    font-size: 10px;
+    line-height: 1.7;
+}
+.conversation-effects summary {
+    cursor: pointer;
+}
+.conversation-effects > div {
+    padding: 8px 0;
+    border-bottom: 1px solid var(--line);
+}
+.conversation-effects p {
+    margin: 8px 0;
+}
+.conversation-complete {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 11px;
+    color: var(--muted);
+}
+@media (max-width: 600px) {
+    .modal.conversation-modal {
+        width: calc(100vw - 16px);
+        height: calc(100dvh - 16px);
+        border-radius: 12px;
+    }
+    .conversation-heading {
+        padding: 14px 16px 12px;
+    }
+    .conversation-status {
+        padding-inline: 16px;
+    }
+    .conversation-log {
+        padding: 20px 16px;
+    }
+    .conversation-footer {
+        padding: 8px 12px 12px;
+    }
+    .conversation-reply {
+        padding: 8px 6px;
+        gap: 8px;
+    }
+}
+
+/* 生成中は文字送りとカーソル、人間の返信待ちは入力中のドットで表す。 */
+.conversation-cursor {
+    display: inline-block;
+    width: 6px;
+    height: 14px;
+    margin-left: 4px;
+    vertical-align: -2px;
+    background: var(--accent);
+    animation: conversation-cursor 0.8s steps(2, jump-none) infinite;
+}
+.conversation-typing {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    min-width: 42px;
+    min-height: 20px;
+}
+.conversation-typing > span {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--muted);
+    animation: conversation-typing 1s ease-in-out infinite;
+}
+.conversation-typing > span:nth-child(2) {
+    animation-delay: 0.15s;
+}
+.conversation-typing > span:nth-child(3) {
+    animation-delay: 0.3s;
+}
+.conversation-progress {
+    margin: 8px 0;
+    color: var(--muted);
+    font-size: 11px;
+    text-align: center;
+}
+@keyframes conversation-cursor {
+    50% {
+        opacity: 0;
+    }
+}
+@keyframes conversation-typing {
+    0%,
+    60%,
+    100% {
+        transform: translateY(0);
+        opacity: 0.4;
+    }
+    30% {
+        transform: translateY(-3px);
+        opacity: 1;
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    .conversation-cursor,
+    .conversation-typing > span {
+        animation: none;
+    }
+}

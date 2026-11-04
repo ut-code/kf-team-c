@@ -1,0 +1,99 @@
+/* 全画面共通。配色・書体・角丸を変更するときはここを編集する。 */
+:root {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Yu Gothic UI", "Meiryo", sans-serif;
+    color: var(--text);
+    background: var(--surface-page);
+    font-synthesis: none;
+    --text: #e6edf2;
+    --text-secondary: #bfccd6;
+    --muted: #8b9ca9;
+    --accent: #91d8de;
+    --branch-iq: #7cb9ec;
+    --branch-eq: #e6a0ac;
+    --branch-system: #baa0f0;
+    --warning: #e4b565;
+    --danger: #ff6a73;
+    --surface-page: #101820;
+    --surface-panel: #151f28;
+    --surface-overlay: #101820f2;
+    --surface-glass: #101820d9;
+    --surface-control: #ffffff05;
+    --surface-hover: #ffffff18;
+    --surface-selected: #8abfc224;
+    --line: #b3c6d324;
+    --line-strong: #ffffff40;
+    --line-selected: #8abfc255;
+    --radius-panel: 7px;
+    --radius-control: 5px;
+    --shadow-panel: 0 5px 24px #0003;
+    --blur-panel: 12px;
+}
+* {
+    box-sizing: border-box;
+}
+body {
+    margin: 0;
+}
+button {
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+    background: var(--surface-control);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-control);
+    transition:
+        background 0.18s,
+        border-color 0.18s;
+}
+button:hover:not(:disabled) {
+    background: var(--surface-hover);
+    border-color: var(--line-strong);
+}
+button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 4px;
+}
+button:disabled {
+    cursor: default;
+    opacity: 0.45;
+}
+button[aria-pressed="true"] {
+    border-color: var(--line-selected);
+    background: var(--surface-selected);
+}
+.glass {
+    background: var(--surface-glass);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-panel);
+    box-shadow: var(--shadow-panel);
+    backdrop-filter: blur(var(--blur-panel));
+}
+.icon-button {
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    flex-shrink: 0;
+}
+.primary {
+    min-height: 44px;
+    padding: 10px 14px;
+    font-size: 12px;
+    background: var(--surface-selected);
+    border-color: var(--line-selected);
+    color: var(--text);
+}
+.eyebrow {
+    display: block;
+    font-size: 9px;
+    letter-spacing: 1px;
+    color: var(--accent);
+}
+@media (prefers-reduced-motion: reduce) {
+    * {
+        transition: none;
+    }
+}

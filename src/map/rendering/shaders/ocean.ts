@@ -1,3 +1,5 @@
+import { psrdNoise } from './psrdNoise';
+
 export const vertexShader = `
 attribute vec2 position;
 varying vec2 screenUV;
@@ -6,13 +8,13 @@ void main() {
     gl_Position = vec4(position, 0., 1.);
 }`;
 
-// 格子を経度方向に周期化し、日付変更線でも波と局所変形を接続する。
+// 波面と変形場を経度方向に周期化し、日付変更線でも傾きを接続する。
 export const fragmentShader = `
 precision highp float;
 varying vec2 screenUV;
 uniform sampler2D seaMask;
-uniform sampler2D noiseGrid;
 uniform vec2 viewport;
+uniform vec2 rasterSize;
 uniform float cameraX;
 uniform float period;
 uniform float leftEdge;
@@ -20,21 +22,9 @@ uniform float displayWidth;
 uniform float time;
 uniform float strength;
 uniform float tintStrength;
-uniform float detail;
 uniform float cameraY;
 uniform float worldHeight;
-// 周期的な高さと解析的な傾き。差分による高さの再計算を避ける。
-vec3 ripple(vec2 p, float repeat) {
-    vec2 cell = floor(p), f = fract(p);
-    float offset=repeat>32.?0.:repeat>8.?64.:80.;
-    vec4 corners=texture2D(noiseGrid,(mod(cell,repeat)+vec2(offset,0.)+.5)/vec2(128.,64.));
-    float a=corners.r,b=corners.g,c=corners.b,d=corners.a;
-    vec2 u = f*f*f*(f*(f*6.-15.)+10.);
-    vec2 du = 30.*f*f*(f-1.)*(f-1.);
-    float crossTerm = a-b-c+d;
-    return vec3(a+(b-a)*u.x+(c-a)*u.y+crossTerm*u.x*u.y,
-        du*vec2(b-a+crossTerm*u.y, c-a+crossTerm*u.x));
-}
+${psrdNoise}
 void main() {
     float x = screenUV.x * viewport.x - leftEdge;
     if (x < 0. || x > displayWidth) discard;
@@ -43,27 +33,37 @@ void main() {
     vec2 uv = vec2(fract((x-cameraX)/period), y/worldHeight);
     float mask = texture2D(seaMask, uv).r;
     if (mask < .001) discard;
-    vec2 p = vec2(uv.x*64., uv.y*34.);
-    // 低周波の流れで形を局所的に曲げ、全体が一枚の模様として滑るのを防ぐ。
-    vec2 flow = vec2(
-        ripple(p*.125+vec2(time*.035, 0.), 8.).x,
-        ripple(p*.125+vec2(3.7, -time*.029), 8.).x)-.5;
-    vec2 q = p+flow*1.8;
-    vec3 a = ripple(vec2(q.x+q.y*.65, q.y*2.)+vec2(time*.23, -time*.31), 64.);
-    vec3 b = ripple(vec2(q.x*2.-q.y*.8, q.x+q.y*3.)+vec2(-time*.19, time*.27), 64.);
-    vec3 swell = ripple(p*.25+vec2(time*.04, -time*.03), 16.);
-    // 異なる方向と縮尺のさざ波を合成。画素より細かい層は連続的に弱める。
-    vec2 slopeA = vec2(a.y, a.y*.65+a.z*2.);
-    vec2 slopeB = vec2(b.y*2.+b.z, -b.y*.8+b.z*3.);
-    vec3 normal = normalize(vec3(-(slopeA*.15+slopeB*.065*detail+swell.yz*.07), 1.));
-    vec3 halfLight = normalize(vec3(-.28, -.22, 1.));
-    float reflection = pow(max(dot(normal, halfLight), 0.), 32.);
-    float flatReflection = pow(halfLight.z, 32.);
-    float glints = ripple(p*.5+vec2(-time*.09, time*.07), 32.).x;
-    float light = smoothstep(.55, .95, reflection);
+    vec2 p=uv*vec2(128.,128.*4361./8192.);
+    vec2 flowGradientX, flowGradientY;
+    float flowX=oceanNoise(p/16.,8.,time*.025,flowGradientX);
+    float flowY=oceanNoise(p/16.+vec2(2.8,5.3),8.,-time*.021+1.7,flowGradientY);
+    // 変形量を有界に保ち、時間とともに波面が引き伸ばされ続けるのを避ける。
+    vec2 q=p+vec2(flowX,flowY)*.9;
+    vec2 swellGradient, gradientA, gradientB;
+    oceanNoise(q*.25+vec2(4.1,7.8),32.,time*.07,swellGradient);
+    oceanNoise(q,128.,time*.28,gradientA);
+    oceanNoise(q*2.+vec2(17.3,9.2),256.,-time*.48+2.4,gradientB);
+    // 実際の海面描画解像度から、解像できない高周波の法線を滑らかに除く。
+    vec2 footprint=vec2(128.,128.*4361./8192.)*viewport/rasterSize/vec2(period,worldHeight);
+    vec2 deformationX=vec2(1.,0.)+flowGradientX*(.9/16.);
+    vec2 deformationY=vec2(0.,1.)+flowGradientY*(.9/16.);
+    vec2 warpedFootprint=vec2(dot(abs(deformationX),footprint),dot(abs(deformationY),footprint));
+    float pixel=max(warpedFootprint.x,warpedFootprint.y);
+    float coarse=1.-smoothstep(.18,.6,pixel);
+    float fine=1.-smoothstep(.18,.6,pixel*2.);
+    // ゆっくりしたうねりを下地に置き、細かな反射を主役にしない。
+    vec2 slopeQ=swellGradient*.04*.25+gradientA*.08*coarse+gradientB*.02*2.*fine;
+    // 画素単位の帯域制限を除いた波面を連鎖律で微分する。
+    vec2 slope=slopeQ+(flowGradientX*slopeQ.x+flowGradientY*slopeQ.y)*(.9/16.);
+    vec3 normal=normalize(vec3(-slope,1.));
+    vec3 halfLight=normalize(vec3(-.28,-.22,1.));
+    // 急な閾値を使わず、反射が連続的に現れて消えるようにする。
+    float light=pow(max(dot(normal,halfLight),0.),80.)*coarse;
+    // 広い範囲で反射量を穏やかに変え、海全体を同じ密度の粒で覆わない。
+    float exposure=mix(.25,.75,smoothstep(-.55,.65,flowX*.65+flowY*.35));
     // ノイズは反射の強弱にだけ使い、雲状の白黒模様を直接表示しない。
     vec3 color = vec3(.65,.82,.9);
-    float reflectionAlpha = abs(light)*strength*mask*mix(.3, 1., glints);
+    float reflectionAlpha = light*strength*mask*exposure;
     float tintAlpha = tintStrength*mask;
     float alpha = reflectionAlpha+tintAlpha*(1.-reflectionAlpha);
     gl_FragColor = vec4(

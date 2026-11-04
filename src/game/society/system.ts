@@ -3,7 +3,7 @@ import { clamp, metrics } from '../metrics.ts';
 import type { GameState } from '../types.ts';
 import { CONVERSATIONS } from './conversations.ts';
 import { WORLD_EVENTS } from './events.ts';
-import { STRATEGY_SWITCH_COST, socialStrategy } from './strategies.ts';
+import { SOCIAL_STRATEGIES, STRATEGY_SWITCH_COST } from './strategies.ts';
 import type { EncounterDefinition, EncounterState, SocietyEffect } from './types.ts';
 
 export const ENCOUNTERS = [...WORLD_EVENTS, ...CONVERSATIONS].sort(
@@ -143,11 +143,15 @@ export function selectSocialStrategy(state: GameState, id: string): GameState {
     if (
         state.outcome !== 'playing' ||
         id === state.socialStrategy ||
-        socialStrategy(id).id !== id ||
-        state.skillPoints < STRATEGY_SWITCH_COST
+        !SOCIAL_STRATEGIES.some((strategy) => strategy.id === id) ||
+        state.skillPoints < (id === 'listening' ? 0 : STRATEGY_SWITCH_COST)
     )
         return state;
-    return { ...state, socialStrategy: id, skillPoints: state.skillPoints - STRATEGY_SWITCH_COST };
+    return {
+        ...state,
+        socialStrategy: id,
+        skillPoints: state.skillPoints - (id === 'listening' ? 0 : STRATEGY_SWITCH_COST),
+    };
 }
 
 /** Expiration happens once in game months; closed panels never stop deadlines. */

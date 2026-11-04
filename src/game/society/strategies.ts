@@ -35,5 +35,5 @@ export const SOCIAL_STRATEGIES: SocialStrategy[] = [
 ];
 export const STRATEGY_SWITCH_COST = 1;
 export function socialStrategy(id: string): SocialStrategy {
-    return SOCIAL_STRATEGIES.find((strategy) => strategy.id === id) ?? SOCIAL_STRATEGIES[0];
+    return SOCIAL_STRATEGIES.find((strategy) => strategy.id === id)!;
 }

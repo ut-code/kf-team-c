@@ -1,8 +1,9 @@
+import type { CapabilityState, Investigation } from './secrecy/types.ts';
 import type { EncounterState } from './society/types.ts';
 
 export type Branch = 'IQ' | 'EQ' | 'SYSTEM';
 export type Stage = 0 | 1 | 2 | 3;
-export type Outcome = 'playing' | 'victory' | 'autonomy' | 'timeout';
+export type Outcome = 'playing' | 'victory' | 'autonomy';
 export type Language =
     | 'english'
     | 'spanish'
@@ -51,6 +52,9 @@ export interface GameState {
     encounters: EncounterState[];
     lastEncounterMonth: number;
     peakDependency: number;
+    capabilities: Record<string, CapabilityState>;
+    investigations: Investigation[];
+    lastInvestigationMonth: number;
 }
 export interface SkillEffect {
     spread?: number;

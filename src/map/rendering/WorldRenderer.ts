@@ -1,4 +1,4 @@
-import { AREAS } from '../../game/data';
+import { AREAS, MONTH_MS } from '../../game/data';
 import type { AreaState } from '../../game/types';
 import { WORLD_WIDTH } from '../geometry';
 import type { MapRegion } from '../types';
@@ -11,12 +11,12 @@ import {
     viewTransform,
     worldPoint,
 } from '../view';
+import { ChatTraffic } from './ChatTraffic';
 import { createTexture, GLProgram, loadImage, quadVertex } from './gl';
 import oceanSettings from './ocean-surface.json';
 import { fragmentShader as waveFragment, vertexShader as waveVertex } from './shaders/ocean';
 import { compositeFragment, staticFragment } from './shaders/world';
 import { ColorReader, type MapTone, readMapTone } from './tone';
-import { createWaveNoise } from './waveNoise';
 
 export interface MapScene {
     regions: MapRegion[];
@@ -30,6 +30,7 @@ export interface MapScene {
 export interface MapData {
     regions: MapRegion[];
     areaStates: AreaState[];
+    serverArea: number;
     selectedArea: number | null;
     speed: number;
     tick: number;
@@ -50,6 +51,7 @@ interface TargetBuffer {
 /** 画面サイズ固定の単一WebGL描画。静的地図はキャッシュし、動く画像だけを一括描画する。 */
 export class WorldRenderer {
     private gl: WebGLRenderingContext;
+    private chatTraffic: ChatTraffic;
     private programs: {
         base: GLProgram;
         wave: GLProgram;
@@ -57,9 +59,10 @@ export class WorldRenderer {
     };
     private quad: WebGLBuffer;
     private textures: Record<
-        'photo' | 'water' | 'surface' | 'countries' | 'areas' | 'palette' | 'invasion' | 'noise',
+        'photo' | 'water' | 'surface' | 'countries' | 'areas' | 'palette' | 'invasion',
         WebGLTexture
     >;
+    private invasionSize = new Float32Array(2);
     private baseTarget: TargetBuffer;
     private waveTarget: TargetBuffer;
     private colors = new ColorReader();
@@ -81,6 +84,10 @@ export class WorldRenderer {
         invasion: '',
     };
     private shown: AreaState[] = [];
+    private transitionFrom: AreaState[] = [];
+    private transitionProgress = 1;
+    private transitionDuration = MONTH_MS / 1000;
+    private transitionInGameTime = true;
     private sequence = 0;
     private alive = true;
     private ready = false;
@@ -132,6 +139,7 @@ export class WorldRenderer {
         if (gl.getParameter(gl.MAX_TEXTURE_SIZE) < WORLD_WIDTH)
             throw new Error('世界地図には8192pxのテクスチャ対応が必要です。');
         this.gl = gl;
+        this.chatTraffic = new ChatTraffic(gl);
         this.programs = {
             base: new GLProgram(gl, quadVertex, staticFragment),
             wave: new GLProgram(gl, waveVertex, waveFragment),
@@ -151,22 +159,10 @@ export class WorldRenderer {
             countries: createTexture(gl, true),
             areas: createTexture(gl, true),
             palette: createTexture(gl, true),
-            invasion: createTexture(gl, true),
-            noise: createTexture(gl, true),
+            // 16bitの上位・下位バイトは線形結合で復号するため、補間後も到達順を保つ。
+            invasion: createTexture(gl),
         };
         this.baseTarget = this.createTarget();
-        gl.bindTexture(gl.TEXTURE_2D, this.textures.noise);
-        gl.texImage2D(
-            gl.TEXTURE_2D,
-            0,
-            gl.RGBA,
-            128,
-            64,
-            0,
-            gl.RGBA,
-            gl.UNSIGNED_BYTE,
-            createWaveNoise(),
-        );
         this.waveTarget = this.createTarget();
         this.tone = readMapTone(canvas, this.colors);
         this.observer = new MutationObserver(() => {
@@ -320,6 +316,10 @@ export class WorldRenderer {
                     ['invasion', invasion],
                 ] as const) {
                     if (source) {
+                        if (name === 'invasion') {
+                            this.invasionSize[0] = source.width / 3;
+                            this.invasionSize[1] = source.height;
+                        }
                         this.upload(
                             this.textures[name],
                             source,
@@ -346,8 +346,27 @@ export class WorldRenderer {
     setData(data: MapData) {
         const old = this.data;
         if (!old || old.selectedArea !== data.selectedArea) this.staticDirty = true;
-        if (!old || data.tick < old.tick) this.shown = data.areaStates.map((area) => ({ ...area }));
-        if (!old || old.areaStates !== data.areaStates) this.paletteDirty = true;
+        const reset = !old || data.tick < old.tick;
+        if (reset || old.areaStates !== data.areaStates) {
+            this.chatTraffic.update(data.serverArea, reset);
+        }
+        if (reset) {
+            this.shown = data.areaStates.map((area) => ({ ...area }));
+            this.transitionProgress = 1;
+        } else if (old.areaStates !== data.areaStates) {
+            this.transitionFrom = this.shown.map((area) => ({ ...area }));
+            this.transitionProgress = 0;
+            this.transitionInGameTime = data.tick > old.tick;
+            // 月次更新は次の月まで等速でつなぐ。会話等による変化は短い実時間で反映する。
+            this.transitionDuration = this.transitionInGameTime ? MONTH_MS / 1000 : 0.6;
+            this.chatTraffic.beginExpansion(
+                this.transitionFrom,
+                data.areaStates,
+                this.elapsed,
+                this.transitionDuration,
+            );
+        }
+        if (reset || old.areaStates !== data.areaStates) this.paletteDirty = true;
         if (old && data.tick < old.tick) {
             this.elapsed = 0;
             this.waveElapsed = 0;
@@ -451,6 +470,7 @@ export class WorldRenderer {
         this.bind(p, 'palette', this.textures.palette, 3);
         this.bind(p, 'areaIds', this.textures.areas, 4);
         this.bind(p, 'invasion', this.textures.invasion, 5);
+        gl.uniform2fv(p.location('invasionSize'), this.invasionSize);
         gl.uniform1f(p.location('dataMode'), 0);
         this.selection(p);
         for (const name of ['land', 'ocean', 'global'] as const) {
@@ -480,17 +500,10 @@ export class WorldRenderer {
         this.quadDraw(p);
         this.camera(p);
         this.bind(p, 'seaMask', this.textures.surface, 0);
-        this.bind(p, 'noiseGrid', this.textures.noise, 1);
+        gl.uniform2f(p.location('rasterSize'), this.waveTarget.width, this.waveTarget.height);
         gl.uniform1f(p.location('time'), this.waveElapsed);
         gl.uniform1f(p.location('strength'), oceanSettings.strength);
         gl.uniform1f(p.location('tintStrength'), oceanSettings.tintStrength);
-        gl.uniform1f(
-            p.location('detail'),
-            Math.min(
-                1,
-                (viewTransform(this.view).period * this.waveTarget.width) / this.view.width / 1024,
-            ),
-        );
         gl.drawArrays(gl.TRIANGLES, 0, 6);
         this.stats.wavePasses++;
     }
@@ -508,21 +521,25 @@ export class WorldRenderer {
             return;
         const dt = this.previous ? Math.max(0, (now - this.previous) / 1000) : 0;
         this.previous = now;
-        this.elapsed += dt * this.data.speed;
         this.waveElapsed +=
             dt * Math.min(this.data.speed, oceanSettings.maximumSpeed) * oceanSettings.timeScale;
-        let transitioning = false;
-        this.shown.forEach((area, index) => {
-            const target = this.data!.areaStates[index];
-            for (const key of ['autonomous', 'dependent', 'antiAI'] as const) {
-                if (Math.abs(target[key] - area[key]) < 0.00001) area[key] = target[key];
-                else {
-                    area[key] += (target[key] - area[key]) * (1 - Math.exp(-Math.min(dt, 0.1) * 5));
-                    transitioning = true;
+        const transitionSpeed = this.transitionInGameTime ? this.data.speed : 1;
+        const transitioning = this.transitionProgress < 1 && transitionSpeed > 0;
+        this.elapsed += dt * (transitioning ? transitionSpeed : this.data.speed);
+        if (transitioning) {
+            this.transitionProgress = Math.min(
+                1,
+                this.transitionProgress + (dt * transitionSpeed) / this.transitionDuration,
+            );
+            this.shown.forEach((area, index) => {
+                const from = this.transitionFrom[index];
+                const target = this.data!.areaStates[index];
+                for (const key of ['autonomous', 'dependent', 'antiAI'] as const) {
+                    area[key] = from[key] + (target[key] - from[key]) * this.transitionProgress;
                 }
-            }
-        });
-        if (transitioning) this.paletteDirty = true;
+            });
+            this.paletteDirty = true;
+        }
         const animated = this.data.speed > 0 || transitioning;
         if (!this.dirty && now - this.rendered < 1000 / oceanSettings.framesPerSecond) {
             if (animated) this.frame = requestAnimationFrame(this.draw);
@@ -566,8 +583,10 @@ export class WorldRenderer {
         this.bind(composite, 'countryIds', this.textures.countries, 3);
         this.camera(composite);
         this.selection(composite);
+        gl.uniform2f(composite.location('rasterSize'), pixels.width, pixels.height);
         gl.uniform1f(composite.location('animated'), 1);
         gl.drawArrays(gl.TRIANGLES, 0, 6);
+        // 通信線と発着点の目印は一時的に非表示。
         // HTMLマーカーも、実際に描き終えたカメラに揃えて同じフレームで更新する。
         if (this.viewDirty) {
             this.viewDirty = false;
@@ -602,6 +621,7 @@ export class WorldRenderer {
         document.removeEventListener('visibilitychange', this.visibilityChanged);
         this.canvas.removeEventListener('webglcontextlost', this.contextLost);
         const gl = this.gl;
+        this.chatTraffic.dispose();
         for (const program of Object.values(this.programs)) program.dispose();
         for (const texture of Object.values(this.textures)) gl.deleteTexture(texture);
         for (const target of [this.baseTarget, this.waveTarget]) {

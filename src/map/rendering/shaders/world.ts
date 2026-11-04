@@ -2,7 +2,7 @@ export const staticFragment = `
 precision highp float;
 varying vec2 uv;
 uniform sampler2D photo, water, countryIds, areaIds, palette, invasion;
-uniform vec2 viewport;
+uniform vec2 viewport, invasionSize;
 uniform vec4 camera;
 uniform float period, displayWidth, worldHeight, dataMode, selected, hovered;
 uniform vec4 landTone, oceanTone, globalTone, landTint, oceanTint, territory;
@@ -28,12 +28,15 @@ vec3 coverageAt(vec2 p) {
     float area=areaAt(p);
     vec4 fill=texture2D(palette,vec2((area+.5)/256.,.25));
     vec2 amount=vec2(fill.r*65280.+fill.g*255.,fill.b*65280.+fill.a*255.)/65535.;
-    vec2 used=texture2D(invasion,vec2(p.x/3.,p.y)).rg;
-    vec2 dependent=texture2D(invasion,vec2((1.+p.x)/3.,p.y)).rg;
+    // 到達順を線形補間して前線をセルの間でも動かす。アトラスの列同士は混ぜない。
+    vec2 inset=.5/invasionSize;
+    vec2 rankUV=clamp(p,inset,vec2(1.)-inset);
+    vec2 used=texture2D(invasion,vec2(rankUV.x/3.,rankUV.y)).rg;
+    vec2 dependent=texture2D(invasion,vec2((1.+rankUV.x)/3.,rankUV.y)).rg;
     vec2 rank=vec2(used.r*65280.+used.g*255.,dependent.r*65280.+dependent.g*255.)/65535.;
     vec4 opposition=texture2D(palette,vec2((area+.5)/256.,.75));
     float antiAmount=(opposition.r*65280.+opposition.g*255.)/65535.;
-    vec2 antiEncoded=texture2D(invasion,vec2((2.+p.x)/3.,p.y)).rg;
+    vec2 antiEncoded=texture2D(invasion,vec2((2.+rankUV.x)/3.,rankUV.y)).rg;
     float antiRank=(antiEncoded.r*65280.+antiEncoded.g*255.)/65535.;
     float anti=step(antiRank,antiAmount)*step(.00001,antiAmount);
     return vec3(step(rank,amount)*step(vec2(.00001),amount),anti)*step(.5,area)*(1.-texture2D(water,p).a);
@@ -100,7 +103,7 @@ export const compositeFragment = `
 precision highp float;
 varying vec2 uv;
 uniform sampler2D base, waves, areaIds, countryIds;
-uniform vec2 viewport;
+uniform vec2 viewport, rasterSize;
 uniform vec4 camera;
 uniform float animated, period, displayWidth, worldHeight, selected, hovered;
 float areaAt(vec2 p) { return floor(texture2D(areaIds,vec2(fract(p.x),clamp(p.y,0.,1.))).r*255.+.5); }
@@ -115,14 +118,16 @@ void main(){
     float x=pixel.x-camera.z;
     if(x>=0.&&x<=displayWidth&&pixel.y>=camera.y&&pixel.y<=camera.y+worldHeight){
         vec2 p=vec2(fract((x-camera.x)/period),(pixel.y-camera.y)/worldHeight);
-        // 画面上の太さとID画像の1テクセルの両方を下限にし、拡大時の線欠けを防ぐ。
-        vec2 delta=max(vec2(.4/period,.4/worldHeight),vec2(1./8192.,1./4361.));
+        // 半描画ピクセル以上を調べ、水平・垂直な境界が画素間に落ちても線を拾う。
+        vec2 halfPixel=.51*viewport/rasterSize/vec2(period,worldHeight);
+        vec2 minimumDelta=max(halfPixel,vec2(1./8192.,1./4361.));
+        vec2 delta=max(vec2(.4/period,.4/worldHeight),minimumDelta);
         float center=areaAt(p);
         float a=areaAt(p+vec2(delta.x,0.)), b=areaAt(p-vec2(delta.x,0.));
         float c=areaAt(p+vec2(0.,delta.y)), d=areaAt(p-vec2(0.,delta.y));
         float edge=max(max(step(.5,abs(center-a)),step(.5,abs(center-b))),max(step(.5,abs(center-c)),step(.5,abs(center-d))));
         float focus=max(focused(center),max(max(focused(a),focused(b)),max(focused(c),focused(d))));
-        vec2 countryDelta=max(vec2(.25/period,.25/worldHeight),vec2(1./8192.,1./4361.));
+        vec2 countryDelta=max(vec2(.25/period,.25/worldHeight),minimumDelta);
         float country=countryAt(p);
         float ca=countryAt(p+vec2(countryDelta.x,0.)), cb=countryAt(p-vec2(countryDelta.x,0.));
         float cc=countryAt(p+vec2(0.,countryDelta.y)), cd=countryAt(p-vec2(0.,countryDelta.y));

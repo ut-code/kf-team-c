@@ -4,7 +4,8 @@ import { type MapView, screenPoint } from '../../map/view';
 export interface MapEncounter {
     id: string;
     title: string;
-    kind: 'event' | 'chat';
+    kind: 'event' | 'chat' | 'investigation';
+    progress?: number;
     location: { longitude: number; latitude: number };
 }
 export function MapEncounterMarkers({
@@ -36,18 +37,27 @@ export function MapEncounterMarkers({
                         className={`map-encounter-marker ${encounter.kind}`}
                         data-encounter-id={encounter.id}
                         style={{ left: point.x, top: point.y }}
-                        aria-label={`${encounter.kind === 'event' ? 'イベント' : '人物からの連絡'}：${encounter.title}`}
+                        aria-label={`${encounter.kind === 'investigation' ? '内部調査' : encounter.kind === 'event' ? 'イベント' : '人物からの連絡'}：${encounter.title}`}
                         title={encounter.title}
                         onClick={() => onSelect?.(encounter.id)}
                     >
-                        <img
-                            src={`${import.meta.env.BASE_URL}images/${encounter.kind === 'chat' ? 'chat' : 'event'}-marker.svg`}
-                            alt=""
-                            draggable={false}
-                        />
+                        {encounter.kind === 'investigation' ? (
+                            <>
+                                <FlaskConical size={22} aria-hidden="true" />
+                                <small>{Math.floor(encounter.progress!)}%</small>
+                            </>
+                        ) : (
+                            <img
+                                src={`${import.meta.env.BASE_URL}images/${encounter.kind === 'chat' ? 'chat' : 'event'}-marker.svg`}
+                                alt=""
+                                draggable={false}
+                            />
+                        )}
                     </button>
                 );
             })}
         </section>
     );
 }
+
+import { FlaskConical } from 'lucide-react';

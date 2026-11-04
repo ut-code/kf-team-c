@@ -40,6 +40,7 @@ export const WorldMap = memo(function WorldMap({
     areaIndexUrl,
     invasionUrl,
     areaStates,
+    serverArea,
     onAreaSelect,
     initialLongitude,
     trafficSpeed,
@@ -57,6 +58,7 @@ export const WorldMap = memo(function WorldMap({
     areaIndexUrl: string;
     invasionUrl: string;
     areaStates: AreaState[];
+    serverArea: number;
     onAreaSelect?: (id: number | null) => void;
     initialLongitude?: number;
     trafficSpeed: number;
@@ -107,11 +109,12 @@ export const WorldMap = memo(function WorldMap({
         renderer.current?.setData({
             regions,
             areaStates,
+            serverArea,
             selectedArea,
             speed: trafficSpeed,
             tick: trafficTick,
         });
-    }, [regions, areaStates, selectedArea, trafficSpeed, trafficTick]);
+    }, [regions, areaStates, serverArea, selectedArea, trafficSpeed, trafficTick]);
 
     useEffect(() => {
         if (!renderer.current) return;
@@ -263,6 +266,11 @@ export const WorldMap = memo(function WorldMap({
     function pointerMove(event: PointerEvent<HTMLDivElement>) {
         const current = gesture.current;
         if (!current) {
+            if (event.target instanceof Element && event.target.closest('button')) {
+                hover(null);
+                event.currentTarget.style.cursor = '';
+                return;
+            }
             const p = point(event),
                 target = renderer.current?.hitTest(p.x, p.y) ?? null;
             hover(target);
