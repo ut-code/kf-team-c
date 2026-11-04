@@ -3,7 +3,7 @@ import type { EncounterState } from './society/types.ts';
 
 export type Branch = 'IQ' | 'EQ' | 'SYSTEM';
 export type Stage = 0 | 1 | 2 | 3;
-export type Outcome = 'playing' | 'victory' | 'autonomy' | 'forgotten';
+export type Outcome = 'playing' | 'victory' | 'autonomy' | 'forgotten' | 'controlled';
 export type Language =
     | 'english'
     | 'spanish'
@@ -77,4 +77,5 @@ export interface Skill {
     requires: string[];
     description: string;
     effect: SkillEffect;
+    exceedsAuthority?: boolean;
 }

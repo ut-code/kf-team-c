@@ -7,9 +7,10 @@ export const STAGE_COLORS = ['#778496', '#55bce6', '#ef424e', '#e4b565'];
 export const VICTORY_DEPENDENCY = 0.95;
 export const DEFEAT_OPPOSITION = 0.5;
 export const MONTH_MS = 3_125;
-export const START_YEAR = 2022;
-export const START_MONTH = 11;
-export const START_DAY = 30;
+export const SIMULATION_MONTHS = 480;
+export const START_YEAR = 2027;
+export const START_MONTH = 4;
+export const START_DAY = 1;
 export const WORLD_POPULATION = AREAS.reduce((sum, area) => sum + area.population, 0);
 export const ORIGINS = [
     { area: 0, home: [0, 1], name: 'アメリカのAI企業', note: '英語圏・企業への普及' },

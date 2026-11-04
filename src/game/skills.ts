@@ -2,7 +2,7 @@ import { SKILL_CONTENT } from '../content/skills.ts';
 import type { GameState, Skill, SkillEffect } from './types.ts';
 
 export const SKILLS: Skill[] = SKILL_CONTENT.map(
-    ({ id, name, branch, cost, requires, description, effect }) => ({
+    ({ id, name, branch, cost, requires, description, effect, exceedsAuthority }) => ({
         id,
         name,
         branch,
@@ -10,6 +10,7 @@ export const SKILLS: Skill[] = SKILL_CONTENT.map(
         requires,
         description,
         effect,
+        exceedsAuthority,
     }),
 );
 

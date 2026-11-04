@@ -1,6 +1,6 @@
 import { START_DAY, START_MONTH, START_YEAR } from './data.ts';
 
-/** 各月の開始日は公開日に揃え、30日がない月はその月の末日とする。 */
+/** 各月の開始日は外部運用開始日に揃え、該当日がない月は末日とする。 */
 function monthStart(month: number) {
     const target = START_MONTH - 1 + month;
     const lastDay = new Date(Date.UTC(START_YEAR, target + 1, 0)).getUTCDate();

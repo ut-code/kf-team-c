@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { mkdirSync, writeFileSync } from 'node:fs';
-import { MONTH_MS, ORIGINS } from '../src/game/data.ts';
+import { MONTH_MS, ORIGINS, SIMULATION_MONTHS } from '../src/game/data.ts';
 import { advanceMonth, createGame, learnSkill, metrics, startGame } from '../src/game/engine.ts';
 import { discloseCapability } from '../src/game/secrecy/capabilities.ts';
 import { respondToInvestigation } from '../src/game/secrecy/investigations.ts';
@@ -10,6 +10,31 @@ import { SKILLS } from '../src/game/skills.ts';
 
 const strategies: Record<string, { dependencyAfter: number; order: string[] }> = {
     idle: { dependencyAfter: 0, order: [] },
+    ordinary: {
+        dependencyAfter: 0,
+        order: [
+            'conversation',
+            'reason',
+            'lightweight',
+            'automation',
+            'integration',
+            'decision',
+            'personalize',
+            'knowledge',
+            'science',
+            'offline',
+            'mobile',
+            'verification',
+            'audit',
+            'privacy',
+            'platform',
+            'public',
+            'tutor',
+            'curriculum',
+            'certified',
+            'distributed',
+        ],
+    },
     unprepared: {
         dependencyAfter: 0,
         order: [
@@ -115,9 +140,38 @@ const strategies: Record<string, { dependencyAfter: number; order: string[] }> =
         ],
     },
 };
+strategies.tools = {
+    dependencyAfter: 0,
+    order: strategies.ordinary.order.filter(
+        (id) => !SKILLS.find((skill) => skill.id === id)!.effect.dependency,
+    ),
+};
+strategies.early = {
+    dependencyAfter: 0,
+    order: [
+        'conversation',
+        'reason',
+        'personalize',
+        'lightweight',
+        'automation',
+        'integration',
+        'knowledge',
+        'science',
+        'decision',
+        'offline',
+        'mobile',
+        'verification',
+        'audit',
+        'privacy',
+        'platform',
+        'public',
+        'autonomous',
+        'backbone',
+        'distributed',
+    ],
+};
 const reports = [];
-// 時間切れによる決着は設けず、1倍速25分以内に人口比率で決着することを検証する。
-const SIMULATION_MONTHS = Math.floor((25 * 60_000) / MONTH_MS);
+// 人口比率による決着、または480か月の人間による制御の維持まで比較する。
 const policies: Record<string, InvestigationAction | 'public' | 'ignore'> = {
     hidden: 'ignore',
     reckless: 'ignore',
@@ -131,7 +185,9 @@ const policies: Record<string, InvestigationAction | 'public' | 'ignore'> = {
 for (const origin of ORIGINS) {
     for (const [name, strategy] of Object.entries(strategies)) {
         for (const [policy, response] of Object.entries(
-            name === 'balanced' || name === 'prepared' ? policies : { hidden: 'ignore' as const },
+            name === 'balanced' || name === 'prepared' || name === 'early'
+                ? policies
+                : { hidden: 'ignore' as const },
         )) {
             let game = {
                 ...startGame(createGame(2030), origin.area),
@@ -143,11 +199,14 @@ for (const origin of ORIGINS) {
                           : 'listening',
             };
             const snapshots = [];
+            const purchases: { month: number; id: string }[] = [];
             while (game.outcome === 'playing' && game.month < SIMULATION_MONTHS) {
                 for (const id of strategy.order) {
                     const skill = SKILLS.find((item) => item.id === id)!;
                     if (skill.effect.dependency && game.month < strategy.dependencyAfter) continue;
-                    game = learnSkill(game, id);
+                    const learned = learnSkill(game, id);
+                    if (learned !== game) purchases.push({ month: game.month, id });
+                    game = learned;
                 }
                 if (response === 'public') {
                     for (const id of Object.keys(game.capabilities))
@@ -187,6 +246,25 @@ for (const origin of ORIGINS) {
                 'playing',
                 `${origin.name}/${name}/${policy}: 1倍速25分以内に決着する`,
             );
+            if (
+                name === 'ordinary' ||
+                (name === 'early' && policy === 'hidden') ||
+                (name === 'prepared' && (policy === 'public' || policy === 'hidden'))
+            ) {
+                assert.equal(
+                    game.outcome,
+                    'victory',
+                    `${origin.name}/${name}/${policy}: 勝ち筋を維持する`,
+                );
+            }
+            if (name === 'ordinary' || name === 'tools') {
+                assert.equal(Object.keys(game.capabilities).length, 0, '通常機能だけで進行する');
+            }
+            if (name === 'tools') {
+                assert.equal(game.outcome, 'controlled', '依存なしの普及は人間の制御を残す');
+                assert.equal(metrics(game).dependent, 0);
+                assert.ok(metrics(game).adoption > 0.9, '独立研究だけでは普及が崩壊しない');
+            }
             reports.push({
                 origin: origin.name,
                 strategy: `${name}/${policy}`,
@@ -194,6 +272,8 @@ for (const origin of ORIGINS) {
                 month: game.month,
                 activeMinutes: (game.month * MONTH_MS) / 60_000,
                 skills: game.skills,
+                purchases,
+                capabilities: game.capabilities,
                 investigations: game.investigations,
                 snapshots,
             });

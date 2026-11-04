@@ -24,6 +24,7 @@ export const RESEARCH_TOPICS = [
         knowledge: 340,
         work: 170,
         resistance: 8,
-        pressure: 0.025,
+        pressure: 0.003,
+        authorityPressure: 0.012,
     },
 ];

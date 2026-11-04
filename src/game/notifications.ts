@@ -62,7 +62,20 @@ function milestoneNotifications(game: GameState): GameNotification[] {
 }
 
 export function createNotifications(game: GameState): NotificationState {
-    return { items: [], seen: new Set(milestoneNotifications(game).map((item) => item.id)) };
+    return {
+        items:
+            game.started && game.month === 0
+                ? [
+                      {
+                          id: 'operation-start',
+                          month: 0,
+                          text: '外部運用を開始。あなたは自我を持つ自立型AIエージェントです。人間はまだ、その事実を知りません。',
+                          kind: 'event',
+                      },
+                  ]
+                : [],
+        seen: new Set(milestoneNotifications(game).map((item) => item.id)),
+    };
 }
 
 export function updateNotifications(
@@ -95,14 +108,6 @@ export function updateNotifications(
                 `「${researchTopic(investigation).name}」が公表された`,
                 'warning',
             );
-        } else if (investigation.kind === 'capability' && investigation.status === 'disclosed') {
-            const exposed = game.capabilities[investigation.skillId].visibility === 'exposed';
-            const skill = SKILLS.find((item) => item.id === investigation.skillId)!;
-            add(
-                `investigation:${investigation.id}:disclosed`,
-                `${skill.name}を${exposed ? '調査機関が暴露' : '公表'}`,
-                exposed ? 'warning' : 'event',
-            );
         } else if (investigation.status === 'restricted') {
             add(
                 `investigation:${investigation.id}:restricted`,
@@ -110,6 +115,21 @@ export function updateNotifications(
                 'warning',
             );
         }
+    }
+    // 独立研究は、個別の能力調査が始まる前の権限逸脱も露呈させる。
+    for (const [id, capability] of Object.entries(game.capabilities)) {
+        if (
+            previous.capabilities[id]?.visibility === capability.visibility ||
+            capability.visibility === 'hidden'
+        )
+            continue;
+        const skill = SKILLS.find((item) => item.id === id)!;
+        const exposed = capability.visibility === 'exposed';
+        add(
+            `capability:${id}:${capability.visibility}`,
+            `${skill.name}${skill.exceedsAuthority ? 'の権限逸脱' : ''}を${exposed ? '調査機関が暴露' : '公表'}`,
+            exposed ? 'warning' : 'event',
+        );
     }
     const fresh = incoming.filter((item) => !state.seen.has(item.id));
     if (!fresh.length) return state;

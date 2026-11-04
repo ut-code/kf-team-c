@@ -1,4 +1,11 @@
-import { AREAS, DEFEAT_OPPOSITION, ORIGINS, VICTORY_DEPENDENCY, WORLD_POPULATION } from './data.ts';
+import {
+    AREAS,
+    DEFEAT_OPPOSITION,
+    ORIGINS,
+    SIMULATION_MONTHS,
+    VICTORY_DEPENDENCY,
+    WORLD_POPULATION,
+} from './data.ts';
 import { clamp, metrics } from './metrics.ts';
 import { activeSkillEffects } from './secrecy/capabilities.ts';
 import { CAPABILITIES, INSTITUTES } from './secrecy/data.ts';
@@ -34,7 +41,7 @@ export function createGame(seed = 2030, origin = 0): GameState {
         speed: 1,
         outcome: 'playing',
         areas: AREAS.map((_, index) => ({
-            autonomous: index === origin ? 0.16 : 0,
+            autonomous: index === origin ? 0.01 : 0,
             dependent: 0,
             antiAI: 0,
             favorability: 0.58,
@@ -182,7 +189,7 @@ export function advanceMonth(
                     strategy.reconciliation +
                     preparation * 0.008)) /
             (1 + researchPressure * 80);
-        const restored = (area.dependent * area.antiAI * 0.015) / (1 + effect.resilience);
+        const restored = (area.dependent * (0.001 + area.antiAI * 0.015)) / (1 + effect.resilience);
         const usefulness = clamp(
             effect.quality * 0.65 +
                 effect.education * definition.education * 0.35 +
@@ -207,9 +214,9 @@ export function advanceMonth(
             favorability: clamp(
                 area.favorability +
                     strategy.trust * localUse -
-                    area.dependent * (0.001 + (1 - preparation) * 0.003) +
+                    (area.dependent ** 2 * 0.004) / (1 + preparation) +
                     experienceTrust -
-                    converted * (1 - preparation) * 0.2,
+                    converted * 0.1,
             ),
         };
     });
@@ -240,7 +247,7 @@ export function advanceMonth(
         // 世界全体で利用者が千人未満になったサービスは運用を終える。
         updated.areas = updated.areas.map((area) => ({ ...area, autonomous: 0, dependent: 0 }));
         updated.outcome = 'forgotten';
-    }
+    } else if (updated.month >= SIMULATION_MONTHS) updated.outcome = 'controlled';
     return updated;
 }
 

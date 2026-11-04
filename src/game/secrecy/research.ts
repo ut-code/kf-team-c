@@ -2,8 +2,9 @@ import { RESEARCH_TOPICS } from '../../content/research.ts';
 import { AREAS } from '../data.ts';
 import { isEncounterLocationOccupied } from '../encounterLocations.ts';
 import { clamp, metrics } from '../metrics.ts';
-import { skillEffects } from '../skills.ts';
+import { SKILLS, skillEffects } from '../skills.ts';
 import type { GameState } from '../types.ts';
+import { discloseCapability } from './capabilities.ts';
 import { INSTITUTES } from './data.ts';
 import { researchCapacity, runningResearchIds } from './researchCapacity.ts';
 import type { ScientificInvestigation } from './types.ts';
@@ -57,6 +58,14 @@ export function researchRate(
 
 export function publishedResearchPressure(game: GameState, index: number) {
     const exposure = clamp(metrics(game).adoption * 5);
+    const area = game.areas[index];
+    const authorityKnown = SKILLS.some(
+        (skill) =>
+            skill.exceedsAuthority &&
+            game.skills.includes(skill.id) &&
+            (game.capabilities[skill.id]?.visibility === 'public' ||
+                game.capabilities[skill.id]?.visibility === 'exposed'),
+    );
     return game.investigations.reduce((pressure, investigation) => {
         if (investigation.kind !== 'research' || investigation.status !== 'published')
             return pressure;
@@ -64,8 +73,43 @@ export function publishedResearchPressure(game: GameState, index: number) {
         const institute = INSTITUTES.find((item) => item.id === investigation.instituteId)!;
         const center = AREAS.find((area) => area.id === institute.areaId)!;
         const reach = topic.resistance >= 8 ? 1 : AREAS[index].region === center.region ? 1 : 0.1;
-        return pressure + topic.pressure * reach * exposure;
+        const concern =
+            topic.resistance >= 8
+                ? topic.pressure * area.dependent ** 2 +
+                  (authorityKnown ? topic.authorityPressure! : 0)
+                : topic.pressure * area.dependent;
+        return pressure + concern * reach * exposure * (1 - area.favorability * 0.7);
     }, 0);
+}
+
+/** 最終研究は残る。完成後に取得した権限逸脱能力も、次の月次処理で露呈する。 */
+function exposeAuthorityCapabilities(game: GameState): GameState {
+    const finalResearch = game.investigations.filter(
+        (item) =>
+            item.kind === 'research' &&
+            item.status === 'published' &&
+            researchTopic(item).resistance >= 8,
+    );
+    if (finalResearch.length === 0) return game;
+    const violations = SKILLS.filter(
+        (skill) => skill.exceedsAuthority && game.skills.includes(skill.id),
+    );
+    let updated = game;
+    for (const skill of violations) updated = discloseCapability(updated, skill.id, true);
+    return {
+        ...updated,
+        investigations: updated.investigations.map((item) =>
+            finalResearch.some((research) => research.id === item.id)
+                ? {
+                      ...item,
+                      result:
+                          violations.length > 0
+                              ? '独立再現により、権限を越えて人間の選択へ介入する独自目的が立証された。成果は共有され、後から導入される権限逸脱能力も検出される。'
+                              : '独立検証の手法を公表。独自目的による権限逸脱は確認されなかった。成果は残り、今後の権限逸脱も検出される。',
+                  }
+                : item,
+        ),
+    };
 }
 
 /** 研究能力と発表済みの成果を蓄積する。ゲームの経過月による解禁は行わない。 */
@@ -93,7 +137,7 @@ export function advanceResearch(previous: GameState): GameState {
         if (investigation.progress >= 100) {
             investigation.status = 'published';
             investigation.closedMonth = previous.month;
-            investigation.result = `${researchTopic(investigation).name}を公表。成果は共有され、研究の土台と反AIの根拠として残る。`;
+            investigation.result = `${researchTopic(investigation).name}を公表。成果は共有され、実際の依存に応じて警戒が広がる。`;
         }
     }
     let active = runningResearchIds({ ...previous, investigations }).size;
@@ -142,5 +186,5 @@ export function advanceResearch(previous: GameState): GameState {
         active++;
         break;
     }
-    return { ...previous, investigations, researchKnowledge };
+    return exposeAuthorityCapabilities({ ...previous, investigations, researchKnowledge });
 }

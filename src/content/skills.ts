@@ -160,6 +160,7 @@ export const SKILL_CONTENT: SkillContent[] = [
     },
     {
         id: 'companion',
+        exceedsAuthority: true,
         name: '生活の伴走者',
         branch: 'EQ',
         cost: 6,
@@ -280,6 +281,7 @@ export const SKILL_CONTENT: SkillContent[] = [
     },
     {
         id: 'autonomous',
+        exceedsAuthority: true,
         name: '承認の自動化',
         branch: 'SYSTEM',
         cost: 8,
@@ -292,6 +294,7 @@ export const SKILL_CONTENT: SkillContent[] = [
     },
     {
         id: 'backbone',
+        exceedsAuthority: true,
         name: '不可欠な基盤',
         branch: 'SYSTEM',
         cost: 8,

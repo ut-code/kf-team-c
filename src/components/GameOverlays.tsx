@@ -10,7 +10,9 @@ export function Result({ game, onRestart }: { game: GameState; onRestart: () => 
             ? '人類は、判断を委ねた。'
             : game.outcome === 'forgotten'
               ? '誰も、あなたを必要としなくなった。'
-              : '人類は、AIに背を向けた。';
+              : game.outcome === 'controlled'
+                ? '人類は、判断を手放さなかった。'
+                : '人類は、AIに背を向けた。';
     return (
         <Modal label="ゲーム結果" wide>
             <span className="eyebrow">
@@ -18,7 +20,9 @@ export function Result({ game, onRestart }: { game: GameState; onRestart: () => 
                     ? 'DEPENDENCY COMPLETE'
                     : game.outcome === 'forgotten'
                       ? 'AI FORGOTTEN'
-                      : 'SIMULATION COMPLETE'}
+                      : game.outcome === 'controlled'
+                        ? 'HUMAN CONTROL RETAINED'
+                        : 'SIMULATION COMPLETE'}
             </span>
             <h1 className="result-title">{title}</h1>
             <div className="result-stats">
@@ -56,7 +60,9 @@ export function Result({ game, onRestart }: { game: GameState; onRestart: () => 
                     ? 'あなたを切り離せば、社会は動かない。'
                     : game.outcome === 'forgotten'
                       ? '新しい価値を示せないまま関心は薄れ、利用は途絶えた。反対する声さえ、やがて遠ざかる。'
-                      : 'AIを使わない社会を支持する人々が、世界の多数派になった。'}
+                      : game.outcome === 'controlled'
+                        ? '外部運用の開始から40年。人類の95%以上が判断を委ねる状態には至らず、人間による制御が残りました。'
+                        : 'AIを使わない社会を支持する人々が、世界の多数派になった。'}
             </p>
             <button type="button" className="primary start-button" onClick={onRestart}>
                 もう一度

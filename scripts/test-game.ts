@@ -5,6 +5,7 @@ import {
     DEFEAT_OPPOSITION,
     MONTH_MS,
     ORIGINS,
+    SIMULATION_MONTHS,
     VICTORY_DEPENDENCY,
 } from '../src/game/data.ts';
 import { createDebugGame } from '../src/game/debug.ts';
@@ -267,7 +268,7 @@ test('prepared public research wins around twenty minutes at normal speed', () =
     }
 });
 
-test('published independent findings break a stalled society despite public dialogue', () => {
+test('権限逸脱のない社会は最終研究だけでは崩壊せず、期限で人間の制御が残る', () => {
     let game = {
         ...startGame(createGame(), 0),
         month: 432,
@@ -294,19 +295,20 @@ test('published independent findings break a stalled society despite public dial
     const frozen = JSON.stringify(game);
     const first = advanceMonth(game);
     assert.equal(JSON.stringify(game), frozen);
-    assert.ok(metrics(first).antiAI > metrics(game).antiAI);
+    assert.ok(metrics(first).antiAI < metrics(game).antiAI);
     game = first;
     while (game.outcome === 'playing' && game.month * MONTH_MS < 25 * 60_000) {
         game = advanceMonth(game);
         assertPopulation(game);
     }
-    assert.equal(game.outcome, 'autonomy');
-    assert.ok(metrics(game).antiAI >= DEFEAT_OPPOSITION);
+    assert.equal(game.outcome, 'controlled');
+    assert.equal(game.month, SIMULATION_MONTHS);
+    assert.ok(metrics(game).antiAI < DEFEAT_OPPOSITION);
 });
 
 test('population coefficients depend on society and research, not elapsed months', () => {
     const game = { ...startGame(createGame(), 0), lastEncounterMonth: 10000 };
-    const later = { ...game, month: 1000 };
+    const later = { ...game, month: SIMULATION_MONTHS - 2 };
     const earlyResult = advanceMonth(game);
     const lateResult = advanceMonth(later);
     assert.deepEqual(earlyResult.areas, lateResult.areas);
