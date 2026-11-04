@@ -31,7 +31,7 @@ export function ConversationPanel({
     const pending = encounter.status === 'pending';
     return (
         <Modal
-            modal={false}
+            closeOnEscape={false}
             label={definition.title}
             wide
             className="conversation-modal"

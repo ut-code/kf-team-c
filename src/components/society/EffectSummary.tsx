@@ -17,8 +17,11 @@ export function EffectSummary({ effects }: { effects: SocietyEffect[] }) {
                         const value = effect[key as keyof typeof EFFECT_LABELS];
                         return value ? (
                             <b key={key}>
-                                {label} {value > 0 ? '+' : '−'}
-                                {Number((Math.abs(value) * 100).toFixed(1))}pt
+                                {label}{' '}
+                                <span data-change={value > 0 ? 'up' : 'down'}>
+                                    {value > 0 ? '+' : '−'}
+                                    {Number((Math.abs(value) * 100).toFixed(1))}pt
+                                </span>
                             </b>
                         ) : (
                             []
@@ -26,8 +29,11 @@ export function EffectSummary({ effects }: { effects: SocietyEffect[] }) {
                     })}
                     {effect.skillPoints ? (
                         <b>
-                            SP {effect.skillPoints > 0 ? '+' : ''}
-                            {effect.skillPoints}
+                            SP{' '}
+                            <span data-change={effect.skillPoints > 0 ? 'up' : 'down'}>
+                                {effect.skillPoints > 0 ? '+' : '−'}
+                                {Math.abs(effect.skillPoints)}
+                            </span>
                         </b>
                     ) : null}
                 </p>

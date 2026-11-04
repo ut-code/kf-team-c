@@ -27,7 +27,13 @@ export interface EncounterDefinition {
     summary: string;
     areaId: string;
     location?: { longitude: number; latitude: number };
-    trigger: { month: number; adoption?: number; dependent?: number; antiAI?: number };
+    trigger: {
+        month: number;
+        adoption?: number;
+        localAdoption?: number;
+        dependent?: number;
+        antiAI?: number;
+    };
     duration: number;
     ignored: { description: string; effects: SocietyEffect[] };
     choices?: EncounterChoice[];

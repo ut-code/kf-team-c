@@ -1,4 +1,5 @@
 import { AREAS } from '../data.ts';
+import { isEncounterLocationOccupied } from '../encounterLocations.ts';
 import { clamp } from '../metrics.ts';
 import { SKILLS, skillEffects } from '../skills.ts';
 import type { GameState } from '../types.ts';
@@ -207,6 +208,7 @@ export function advanceInvestigations(previous: GameState): GameState {
     const [skillId] = candidate;
     const available = INSTITUTES.filter(
         (institute) =>
+            !isEncounterLocationOccupied(game, institute) &&
             researchCapacity(game, institute.id) > 0 &&
             !game.investigations.some(
                 (item) =>

@@ -17,10 +17,12 @@ export function InvestigationPanel({
     game,
     id,
     onClose,
+    anchor,
 }: {
     game: GameState;
     id: string;
     onClose: () => void;
+    anchor?: { x: number; y: number };
 }) {
     const investigation = game.investigations.find((item) => item.id === id);
     if (!investigation) return null;
@@ -44,7 +46,7 @@ export function InvestigationPanel({
     const intervene = (action: 'disclose' | 'restrict' | 'partnership' | 'pressure') =>
         useGameStore.getState().investigate(id, action);
     return (
-        <Modal modal={false} label={institute.name} onClose={onClose}>
+        <Modal modal={false} label={institute.name} onClose={onClose} anchor={anchor}>
             <div className="investigation-panel">
                 <div className="society-heading">
                     <div className="contact-heading">

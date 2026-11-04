@@ -48,6 +48,10 @@ interface TargetBuffer {
     height: number;
 }
 
+// 1倍速で毎秒最大1.5ポイント。月次の変化には追従し、大きな急変を抑える。
+// 拡大・後退に共通の上限とし、描画時にゲーム速度の倍率を掛ける。
+const MAX_INVASION_CHANGE_PER_SECOND = 0.015;
+
 /** 画面サイズ固定の単一WebGL描画。静的地図はキャッシュし、動く画像だけを一括描画する。 */
 export class WorldRenderer {
     private gl: WebGLRenderingContext;
@@ -87,6 +91,7 @@ export class WorldRenderer {
     private transitionFrom: AreaState[] = [];
     private transitionProgress = 1;
     private transitionDuration = MONTH_MS / 1000;
+    private transitionDistance = 0;
     private transitionInGameTime = true;
     private sequence = 0;
     private alive = true;
@@ -357,20 +362,36 @@ export class WorldRenderer {
             this.transitionFrom = this.shown.map((area) => ({ ...area }));
             this.transitionProgress = 0;
             this.transitionInGameTime = data.tick > old.tick;
-            // 月次更新は次の月まで等速でつなぐ。会話等による変化は短い実時間で反映する。
-            this.transitionDuration = this.transitionInGameTime ? MONTH_MS / 1000 : 0.6;
+            this.transitionDistance = Math.max(
+                ...data.areaStates.map((target, index) => {
+                    const from = this.transitionFrom[index];
+                    return Math.max(
+                        Math.abs(target.autonomous - from.autonomous),
+                        Math.abs(target.dependent - from.dependent),
+                        Math.abs(target.antiAI - from.antiAI),
+                        Math.abs(
+                            target.autonomous + target.dependent - from.autonomous - from.dependent,
+                        ),
+                    );
+                }),
+            );
+            // 月次更新は次の月まで等速でつなぎ、操作による大きな増減も急変させない。
+            this.transitionDuration = this.transitionInGameTime ? MONTH_MS / 1000 : 2;
             this.chatTraffic.beginExpansion(
                 this.transitionFrom,
                 data.areaStates,
                 this.elapsed,
-                this.transitionDuration,
+                Math.max(
+                    this.transitionDuration,
+                    this.transitionDistance / MAX_INVASION_CHANGE_PER_SECOND,
+                ),
             );
         }
         if (reset || old.areaStates !== data.areaStates) this.paletteDirty = true;
         if (old && data.tick < old.tick) {
             this.elapsed = 0;
             this.waveElapsed = 0;
-        } else if (old && data.speed === 0) this.elapsed += Math.max(0, data.tick - old.tick);
+        }
         if (old && old.speed !== data.speed) this.previous = performance.now();
         this.data = data;
         this.invalidate();
@@ -521,15 +542,23 @@ export class WorldRenderer {
             return;
         const dt = this.previous ? Math.max(0, (now - this.previous) / 1000) : 0;
         this.previous = now;
-        this.waveElapsed +=
-            dt * Math.min(this.data.speed, oceanSettings.maximumSpeed) * oceanSettings.timeScale;
-        const transitionSpeed = this.transitionInGameTime ? this.data.speed : 1;
+        this.waveElapsed += dt * this.data.speed * oceanSettings.timeScale;
+        const transitionSpeed = this.data.speed;
         const transitioning = this.transitionProgress < 1 && transitionSpeed > 0;
-        this.elapsed += dt * (transitioning ? transitionSpeed : this.data.speed);
+        this.elapsed += dt * this.data.speed;
         if (transitioning) {
+            const progressPerSecond =
+                transitionSpeed *
+                Math.min(
+                    1 / this.transitionDuration,
+                    this.transitionDistance > 0
+                        ? MAX_INVASION_CHANGE_PER_SECOND / this.transitionDistance
+                        : Infinity,
+                );
             this.transitionProgress = Math.min(
                 1,
-                this.transitionProgress + (dt * transitionSpeed) / this.transitionDuration,
+                // タブ復帰や描画停止後も、経過時間を一括反映して飛ばさない。
+                this.transitionProgress + Math.min(dt, 0.05) * progressPerSecond,
             );
             this.shown.forEach((area, index) => {
                 const from = this.transitionFrom[index];

@@ -1,5 +1,6 @@
-import { Check, LockKeyhole, Sparkles } from 'lucide-react';
+import { Check, EyeOff, LockKeyhole, Sparkles } from 'lucide-react';
 import { capabilityLabel } from '../../game/secrecy/capabilities';
+import { CAPABILITIES } from '../../game/secrecy/data';
 import { skillLayout } from '../../game/skillLayout';
 import { skillBlockReason } from '../../game/skills';
 import type { Branch, GameState } from '../../game/types';
@@ -78,6 +79,7 @@ export function SkillTreeMap({
                     const owned = game.skills.includes(skill.id);
                     const locked = skill.requires.some((id) => !game.skills.includes(id));
                     const affordable = !skillBlockReason(game, skill);
+                    const important = Boolean(CAPABILITIES[skill.id]);
                     return (
                         <foreignObject
                             key={skill.id}
@@ -88,9 +90,9 @@ export function SkillTreeMap({
                         >
                             <button
                                 type="button"
-                                className={`tree-node ${skill.branch.toLowerCase()} ${owned ? 'owned' : locked ? 'locked' : affordable ? 'available' : ''}`}
+                                className={`tree-node ${skill.branch.toLowerCase()} ${owned ? 'owned' : locked ? 'locked' : affordable ? 'available' : ''} ${important ? 'important' : ''}`}
                                 aria-pressed={selectedId === skill.id}
-                                aria-label={`${skill.name}・${owned ? '習得済み' : locked ? 'ロック中' : affordable ? '習得可能' : 'SP不足'}`}
+                                aria-label={`${skill.name}${important ? '・重要能力・秘匿中は調査と露呈のリスクあり' : ''}・${owned ? '習得済み' : locked ? 'ロック中' : affordable ? '習得可能' : 'SP不足'}`}
                                 onClick={() => onSelect(skill.id)}
                             >
                                 <span className="tree-node-content">
@@ -108,6 +110,13 @@ export function SkillTreeMap({
                                 {locked && !owned && (
                                     <span className="tree-node-lock-overlay" aria-hidden="true">
                                         <LockKeyhole size={24} />
+                                    </span>
+                                )}
+                                {important && (
+                                    <span className="tree-node-importance">
+                                        <EyeOff size={11} aria-hidden="true" />
+                                        重要 ·{' '}
+                                        {owned ? capabilityLabel(game, skill.id) : '露呈リスク'}
                                     </span>
                                 )}
                             </button>

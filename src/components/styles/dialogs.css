@@ -13,10 +13,10 @@
 }
 .modal.floating {
     position: fixed;
-    inset: 100px 0 90px;
+    inset: 100px auto auto 18px;
     z-index: 10;
-    margin: auto;
-    max-height: calc(100dvh - 190px);
+    margin: 0;
+    max-height: calc(100dvh - 36px);
 }
 .modal.floating.conversation-modal {
     height: min(820px, calc(100dvh - 190px));
@@ -24,14 +24,6 @@
 .game-shell .modal.floating {
     width: min(640px, calc(100vw - 36px));
     margin-inline: 0;
-}
-.game-shell[data-floating-side="left"] .modal.floating {
-    left: 18px;
-    right: auto;
-}
-.game-shell[data-floating-side="right"] .modal.floating {
-    left: auto;
-    right: 18px;
 }
 @media (min-width: 1000px) {
     .game-shell .modal.floating {

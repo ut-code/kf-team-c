@@ -4,6 +4,5 @@
     "timeScale": 0.8,
     "maximumPixelRatio": 1.5,
     "maximumPixels": 1036800,
-    "maximumSpeed": 2,
     "framesPerSecond": 30
 }

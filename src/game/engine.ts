@@ -71,7 +71,15 @@ export function learnSkill(state: GameState, id: string): GameState {
 }
 
 /** 地域の集計人口だけを更新する。すべての地域は同じ前月の状態を参照する。 */
-export function advanceMonth(previous: GameState): GameState {
+export function advanceMonth(
+    previous: GameState,
+    trace?: (
+        phase: string,
+        before: GameState,
+        after: GameState,
+        flows?: Record<string, number>,
+    ) => void,
+): GameState {
     if (!previous.started || previous.outcome !== 'playing') return previous;
     const effect = activeSkillEffects(previous);
     const strategy = socialStrategy(previous.socialStrategy);
@@ -82,6 +90,14 @@ export function advanceMonth(previous: GameState): GameState {
             0,
         ) / AREAS.length;
     const state: GameState = { ...previous, month: previous.month + 1 };
+    const flows = {
+        新規利用: 0,
+        利用離れ: 0,
+        利用者の反AI化: 0,
+        未使用者の反AI化: 0,
+        反AIからの回復: 0,
+        依存への移行: 0,
+    };
     state.areas = previous.areas.map((area, i) => {
         const definition = AREAS[i];
         const unused = Math.max(0, 1 - area.autonomous - area.dependent - area.antiAI);
@@ -173,21 +189,37 @@ export function advanceMonth(previous: GameState): GameState {
                 effect.enterprise * definition.enterprise * 0.35,
         );
         const abandoned = area.autonomous * (0.001 + (1 - usefulness) * 0.035);
+        // 利用者の体験を地域全体の評価へ反映する。有用性が半分未満なら不満が増える。
+        const experienceTrust = localUse * (usefulness - 0.5) * 0.004;
+        if (trace) {
+            const weight = (definition.population / WORLD_POPULATION) * 100;
+            flows.新規利用 += adopted * weight;
+            flows.利用離れ -= abandoned * weight;
+            flows.利用者の反AI化 += (rejectedUse + rejectedDependency) * weight;
+            flows.未使用者の反AI化 += rejectedUnused * weight;
+            flows.反AIからの回復 -= reconciled * weight;
+            flows.依存への移行 += converted * weight;
+        }
         return {
             autonomous: area.autonomous + adopted - converted - rejectedUse + restored - abandoned,
             dependent: area.dependent + converted - restored - rejectedDependency,
             antiAI: area.antiAI + rejectedUnused + rejectedUse + rejectedDependency - reconciled,
             favorability: clamp(
                 area.favorability +
-                    strategy.trust +
-                    (0.58 - area.favorability) * 0.006 -
+                    strategy.trust * localUse -
                     area.dependent * (0.001 + (1 - preparation) * 0.003) +
-                    effect.quality * 0.0003 -
+                    experienceTrust -
                     converted * (1 - preparation) * 0.2,
             ),
         };
     });
-    const updated = advanceResearch(advanceInvestigations(advanceSociety(state)));
+    trace?.('月次の人口移動', previous, state, flows);
+    const society = advanceSociety(state);
+    trace?.('イベント・チャットの自動処理', state, society);
+    const investigations = advanceInvestigations(society);
+    trace?.('能力調査・自動露呈', society, investigations);
+    const updated = advanceResearch(investigations);
+    trace?.('独立研究の進行・発表', investigations, updated);
     const after = metrics(updated);
     updated.peakDependency = Math.max(previous.peakDependency, after.dependent);
 

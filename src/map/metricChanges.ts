@@ -1,7 +1,7 @@
 import type { AreaState } from '../game/types.ts';
 
-export const METRIC_CHANGE_THRESHOLD = 0.03;
-export const METRIC_CHANGE_DURATION = 1800;
+export const METRIC_CHANGE_THRESHOLD = 0.01;
+export const METRIC_CHANGE_DURATION = 2400;
 export const MAP_METRICS = [{ key: 'favorability', label: 'AI好感度' }] as const;
 
 export interface MetricChange {
@@ -17,20 +17,25 @@ export function detectMetricChanges(previous: AreaState[], current: AreaState[])
         if (!before) return [];
         return MAP_METRICS.flatMap(({ key, label }) => {
             const delta = state[key] - before[key];
-            // 0.58 → 0.61 など、ちょうど閾値の変化も浮動小数点誤差で落とさない。
-            return Number.isFinite(delta) && Math.abs(delta) + 1e-9 >= METRIC_CHANGE_THRESHOLD
-                ? [{ area, metric: key, label, delta }]
-                : [];
+            if (!Number.isFinite(delta)) return [];
+            // 1ポイントごとに通知する。大きな変化もまとめず、端数は次回へ残す。
+            const count = Math.floor((Math.abs(delta) + 1e-9) / METRIC_CHANGE_THRESHOLD);
+            return Array.from({ length: count }, () => ({
+                area,
+                metric: key,
+                label,
+                delta: Math.sign(delta) * METRIC_CHANGE_THRESHOLD,
+            }));
         });
     });
 }
 
-/** 各指標は前回の通知時点を基準にし、通知した指標だけ累積をリセットする。 */
+/** 通知した1ポイント分だけ基準を進め、閾値未満の端数を保持する。 */
 export function accumulateMetricChanges(baseline: AreaState[], current: AreaState[]) {
     const changes = detectMetricChanges(baseline, current);
     const nextBaseline = current.map((state, area) => ({ ...(baseline[area] ?? state) }));
     for (const change of changes) {
-        nextBaseline[change.area][change.metric] = current[change.area][change.metric];
+        nextBaseline[change.area][change.metric] += change.delta;
     }
     return { changes, baseline: nextBaseline };
 }

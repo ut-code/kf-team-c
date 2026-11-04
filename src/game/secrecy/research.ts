@@ -1,5 +1,6 @@
 import { RESEARCH_TOPICS } from '../../content/research.ts';
 import { AREAS } from '../data.ts';
+import { isEncounterLocationOccupied } from '../encounterLocations.ts';
 import { clamp, metrics } from '../metrics.ts';
 import { skillEffects } from '../skills.ts';
 import type { GameState } from '../types.ts';
@@ -98,6 +99,7 @@ export function advanceResearch(previous: GameState): GameState {
     let active = runningResearchIds({ ...previous, investigations }).size;
     for (const institute of INSTITUTES) {
         if (active >= 3) break;
+        if (isEncounterLocationOccupied({ ...previous, investigations }, institute)) continue;
         if (researchCapacity(previous, institute.id) === 0) continue;
         if (
             investigations.some(

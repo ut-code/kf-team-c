@@ -66,7 +66,7 @@ export const WorldMap = memo(function WorldMap({
     trafficTick: number;
     onAreaInspect?: (id: number | null) => void;
     encounters?: MapEncounter[];
-    onEncounterSelect?: (id: string, anchorX?: number) => void;
+    onEncounterSelect?: (id: string, anchorX?: number, anchorY?: number) => void;
 }) {
     const viewport = useRef<HTMLDivElement>(null),
         canvas = useRef<HTMLCanvasElement>(null);
@@ -345,6 +345,7 @@ export const WorldMap = memo(function WorldMap({
         <div
             ref={viewport}
             className={`${styles.viewport} ${dragging ? styles.dragging : ''}`}
+            data-animation-speed={trafficSpeed}
             tabIndex={0}
             role="region"
             aria-label="世界地図。ドラッグと矢印キーで移動。ホイールで拡大縮小、Homeで中央へ、Escapeで小地域の選択解除。"
@@ -374,6 +375,7 @@ export const WorldMap = memo(function WorldMap({
                 />
             )}
             <MapMetricChanges
+                speed={trafficSpeed}
                 areaStates={areaStates}
                 regions={regions}
                 tick={trafficTick}

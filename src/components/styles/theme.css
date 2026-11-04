@@ -14,6 +14,8 @@
     --branch-system: #baa0f0;
     --warning: #e4b565;
     --danger: #ff6a73;
+    --change-up: #7ee8b0;
+    --change-down: #ff9292;
     --surface-page: #101820;
     --surface-panel: #151f28;
     --surface-overlay: #101820f2;
@@ -67,6 +69,13 @@
 }
 body {
     margin: 0;
+}
+/* 指標の良し悪しではなく、数値が上昇・低下する方向を表す共通色。 */
+[data-change="up"] {
+    color: var(--change-up);
+}
+[data-change="down"] {
+    color: var(--change-down);
 }
 button {
     font: inherit;

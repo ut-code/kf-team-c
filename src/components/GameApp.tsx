@@ -1,13 +1,6 @@
 import { Network, Radio, X } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-    AREAS,
-    DEFEAT_OPPOSITION,
-    STAGE_COLORS,
-    STAGES,
-    VICTORY_DEPENDENCY,
-    WORLD_POPULATION,
-} from '../game/data';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { AREAS, STAGE_COLORS, STAGES, WORLD_POPULATION } from '../game/data';
 import { areaHint, metrics } from '../game/engine';
 import { instituteFor, investigationRate } from '../game/secrecy/investigations';
 import { socialStrategy } from '../game/society/strategies';
@@ -18,22 +11,28 @@ import { useGameStore } from '../state/gameStore';
 import { useMapStore } from '../state/mapStore';
 import { GameClock } from './GameClock';
 import { Result } from './GameOverlays';
+import { NotificationFeed } from './NotificationFeed';
 import { PopulationChart } from './PopulationChart';
 import { ResearchPanel } from './panels/ResearchPanel';
 import { EncounterPanel } from './society/EncounterPanel';
 import { InvestigationPanel } from './society/InvestigationPanel';
 import type { MapEncounter } from './society/MapEncounterMarkers';
 import { SocietyPanel } from './society/SocietyPanel';
+import { useAnimationSpeed } from './useAnimationSpeed';
 import { WorldMap } from './WorldMap';
+import { WorldMetricsWidget } from './WorldMetricsWidget';
 import { percent, population } from './widgets';
 
 type Panel =
     | { kind: 'world' | 'sns' | 'skills' }
     | { kind: 'region'; id: number }
-    | { kind: 'encounter'; id: string; side: 'left' | 'right' };
+    | { kind: 'encounter'; id: string; anchor: { x: number; y: number } };
 
 export function GameApp({ regions }: { regions: MapRegion[] }) {
     const game = useGameStore((state) => state.game)!;
+    const shell = useRef<HTMLElement>(null);
+    useAnimationSpeed(shell, game.speed);
+    const session = useGameStore((state) => state.session);
     const [panel, setPanel] = useState<Panel | null>(null);
     const visiblePanel = game.outcome === 'playing' ? panel : null;
     const researchOpen = visiblePanel?.kind === 'skills';
@@ -53,16 +52,22 @@ export function GameApp({ regions }: { regions: MapRegion[] }) {
         setPanel(opened);
         useMapStore.getState().selectArea(opened?.kind === 'region' ? opened.id : null);
     };
-    const toggleEncounter = (id: string, anchorX = window.innerWidth / 2) =>
+    const toggleEncounter = (
+        id: string,
+        anchorX = window.innerWidth / 2,
+        anchorY = window.innerHeight / 2,
+    ) =>
         togglePanel({
             kind: 'encounter',
             id,
-            side: anchorX < window.innerWidth / 2 ? 'right' : 'left',
+            anchor: { x: anchorX, y: anchorY },
         });
     const selectedInvestigation = game.investigations.find((item) => item.id === encounterId);
     const selectedEncounter = game.encounters.find(
         (item) => item.id === encounterId && encounterDefinition(item.id),
     );
+    const chatOpen =
+        selectedEncounter && encounterDefinition(selectedEncounter.id)?.kind === 'chat';
     const investigations = game.investigations.filter((item) => item.status === 'active');
     const pending = game.encounters.filter((item) => item.status === 'pending');
     const mapEncounters: MapEncounter[] = pending.flatMap((item) => {
@@ -102,6 +107,7 @@ export function GameApp({ regions }: { regions: MapRegion[] }) {
         hidden ||
         researchOpen ||
         Boolean(selectedInvestigation || selectedEncounter);
+    const paused = game.started && game.outcome === 'playing' && (blocked || game.speed === 0);
     useEffect(() => {
         const visibility = () => setHidden(document.hidden);
         document.addEventListener('visibilitychange', visibility);
@@ -109,7 +115,7 @@ export function GameApp({ regions }: { regions: MapRegion[] }) {
     }, []);
     useEffect(() => {
         const keydown = (event: KeyboardEvent) => {
-            if (event.key === 'Escape') closePanel();
+            if (event.key === 'Escape' && !chatOpen) closePanel();
             if (
                 event.target instanceof HTMLElement &&
                 event.target.closest('input, select, button, textarea')
@@ -122,7 +128,7 @@ export function GameApp({ regions }: { regions: MapRegion[] }) {
         };
         window.addEventListener('keydown', keydown);
         return () => window.removeEventListener('keydown', keydown);
-    }, [blocked, game.speed, closePanel]);
+    }, [blocked, game.speed, closePanel, chatOpen]);
     const area = selected === null ? (worldOpen ? summary : null) : game.areas[selected];
     const detailPopulation = selected === null ? WORLD_POPULATION : AREAS[selected].population;
     const stages = area
@@ -134,10 +140,7 @@ export function GameApp({ regions }: { regions: MapRegion[] }) {
           ]
         : [];
     return (
-        <main
-            className="game-shell"
-            data-floating-side={visiblePanel?.kind === 'encounter' ? visiblePanel.side : undefined}
-        >
+        <main ref={shell} className="game-shell" data-paused={paused && !blocked}>
             {import.meta.env.DEV && (
                 <details className="debug-start glass">
                     <summary>Debug</summary>
@@ -163,6 +166,7 @@ export function GameApp({ regions }: { regions: MapRegion[] }) {
             )}
             <div className="map-background">
                 <WorldMap
+                    key={session}
                     regions={regions}
                     {...mapScene}
                     selectedArea={selected}
@@ -179,34 +183,16 @@ export function GameApp({ regions }: { regions: MapRegion[] }) {
                     }}
                 />
             </div>
-            <button
-                type="button"
-                className="world-hud glass"
-                aria-label="世界全体の状態を表示"
-                onClick={() => togglePanel({ kind: 'world' })}
-                aria-expanded={worldOpen && selected === null && !snsOpen}
-                aria-controls="population-details"
-            >
-                <span className="world-number">
-                    <span>AI利用</span>
-                    <strong>{percent(summary.adoption)}</strong>
-                </span>
-                <span
-                    className="world-number dependency-number"
-                    title={`AI依存 ${VICTORY_DEPENDENCY * 100}%で勝利`}
-                >
-                    <span>AI依存 / {VICTORY_DEPENDENCY * 100}%</span>
-                    <strong>{percent(summary.dependent)}</strong>
-                </span>
-                <span
-                    className="world-number opposition-number"
-                    title={`反AI ${DEFEAT_OPPOSITION * 100}%で敗北`}
-                >
-                    <span>反AI / {DEFEAT_OPPOSITION * 100}%</span>
-                    <strong>{percent(summary.antiAI)}</strong>
-                </span>
-            </button>
-            <GameClock key={game.seed} blocked={blocked} />
+            <WorldMetricsWidget
+                values={summary}
+                paused={paused}
+                expanded={worldOpen && selected === null && !snsOpen}
+                onToggle={() => togglePanel({ kind: 'world' })}
+            />
+            <GameClock key={session} blocked={blocked} />
+            <div className="right-hud">
+                <NotificationFeed key={session} speed={blocked ? 0 : game.speed} />
+            </div>
             {area && (
                 <aside
                     id="population-details"
@@ -296,6 +282,7 @@ export function GameApp({ regions }: { regions: MapRegion[] }) {
                     key={selectedInvestigation.id}
                     game={game}
                     id={selectedInvestigation.id}
+                    anchor={visiblePanel?.kind === 'encounter' ? visiblePanel.anchor : undefined}
                     onClose={closePanel}
                 />
             ) : (
@@ -304,6 +291,9 @@ export function GameApp({ regions }: { regions: MapRegion[] }) {
                         key={selectedEncounter.id}
                         game={game}
                         id={selectedEncounter.id}
+                        anchor={
+                            visiblePanel?.kind === 'encounter' ? visiblePanel.anchor : undefined
+                        }
                         onClose={closePanel}
                     />
                 )

@@ -28,6 +28,13 @@
     pointer-events: auto;
     filter: drop-shadow(0 2px 2px #0009);
 }
+.map-encounter-links {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    stroke: #bbcbd780;
+    stroke-width: 1;
+}
 .map-encounter-marker:hover:not(:disabled) {
     background: transparent;
     filter: brightness(1.15) drop-shadow(0 2px 3px #000b);
@@ -172,7 +179,7 @@
     font-size: 10px;
     line-height: 1.7;
 }
-.effect-summary span {
+.effect-summary p > span {
     color: var(--muted);
 }
 .effect-summary b {
@@ -329,7 +336,6 @@ fieldset.encounter-choices {
     font-size: 12px;
 }
 .research-speed summary {
-    cursor: help;
     width: fit-content;
 }
 .research-speed small {

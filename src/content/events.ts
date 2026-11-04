@@ -10,7 +10,7 @@ export const WORLD_EVENTS: EncounterDefinition[] = [
             '西海岸の物流企業で、AI導入に伴う配置転換への共同請願が広がった。現場の代表は、効率より先に働き方の説明を求めている。',
         areaId: 'us-west',
         location: { longitude: -122.33, latitude: 47.61 },
-        trigger: { month: 4 },
+        trigger: { month: 4, localAdoption: 0.05 },
         duration: 8,
         ignored: {
             description: '不信が近隣へ波及し、導入への抵抗が残る。',

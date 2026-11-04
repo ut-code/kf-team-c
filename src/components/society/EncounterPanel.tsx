@@ -11,10 +11,12 @@ export function EncounterPanel({
     game,
     id,
     onClose,
+    anchor,
 }: {
     game: GameState;
     id: string;
     onClose: () => void;
+    anchor?: { x: number; y: number };
 }) {
     const encounter = game.encounters.find((item) => item.id === id);
     const definition = encounterDefinition(id);
@@ -32,7 +34,7 @@ export function EncounterPanel({
     const area = AREAS.find((item) => item.id === definition.areaId)!;
     const choices = encounterChoices(definition, encounter);
     return (
-        <Modal modal={false} label={definition.title} wide onClose={onClose}>
+        <Modal modal={false} label={definition.title} wide onClose={onClose} anchor={anchor}>
             <div className="encounter-panel">
                 <div className="society-heading">
                     <div className="contact-heading">

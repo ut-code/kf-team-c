@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useLayoutEffect, useRef } from 'react';
 
 const populationFormatter = new Intl.NumberFormat('ja-JP', { maximumFractionDigits: 0 });
 export const population = (millions: number) =>
@@ -11,6 +11,8 @@ export function Modal({
     className = '',
     onClose,
     modal = true,
+    closeOnEscape = true,
+    anchor,
 }: {
     children: React.ReactNode;
     label: string;
@@ -18,14 +20,38 @@ export function Modal({
     className?: string;
     onClose?: () => void;
     modal?: boolean;
+    closeOnEscape?: boolean;
+    anchor?: { x: number; y: number };
 }) {
     const dialog = useRef<HTMLDialogElement>(null);
-    useEffect(() => {
+    useLayoutEffect(() => {
         const element = dialog.current!;
         if (modal) element.showModal();
         else element.show();
         return () => element.close();
     }, [modal]);
+    useLayoutEffect(() => {
+        if (modal || !anchor) return;
+        const element = dialog.current!;
+        const position = () => {
+            const { width, height } = element.getBoundingClientRect();
+            const margin = 18;
+            const gap = 28;
+            const right = anchor.x + gap;
+            const left = anchor.x - gap - width;
+            const preferred = right + width <= window.innerWidth - margin ? right : left;
+            element.style.left = `${Math.max(margin, Math.min(window.innerWidth - width - margin, preferred))}px`;
+            element.style.top = `${Math.max(margin, Math.min(window.innerHeight - height - margin, anchor.y - 32))}px`;
+        };
+        position();
+        const observer = new ResizeObserver(position);
+        observer.observe(element);
+        window.addEventListener('resize', position);
+        return () => {
+            observer.disconnect();
+            window.removeEventListener('resize', position);
+        };
+    }, [modal, anchor]);
     return (
         <dialog
             ref={dialog}
@@ -33,7 +59,7 @@ export function Modal({
             aria-label={label}
             onCancel={(event) => {
                 event.preventDefault();
-                onClose?.();
+                if (closeOnEscape) onClose?.();
             }}
         >
             {children}

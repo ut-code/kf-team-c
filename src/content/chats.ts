@@ -10,7 +10,7 @@ export const CONVERSATIONS: EncounterDefinition[] = [
         areaId: 'west-europe',
         location: { longitude: 6.14, latitude: 46.2 },
         contact: { name: 'レナ・ヴォス', role: '国際労働会議 議長', initials: 'LV' },
-        trigger: { month: 8 },
+        trigger: { month: 8, adoption: 0.01 },
         duration: 16,
         ignored: {
             description: '協議の不在が不信として受け止められる。',

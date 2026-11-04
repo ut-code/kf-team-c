@@ -36,6 +36,17 @@ export function SkillDetails({
                     </span>
                 </div>
                 <h2>{skill.name}</h2>
+                {CAPABILITIES[skill.id] && (
+                    <div className="skill-importance-note">
+                        <strong>
+                            <EyeOff size={14} aria-hidden="true" />
+                            重要能力 · 秘匿対象
+                        </strong>
+                        <p>
+                            秘匿中は外部の調査対象になります。調査が完了すると能力が露呈し、利用者の離脱と反AIの拡大を招きます。
+                        </p>
+                    </div>
+                )}
                 <p>{skill.description}</p>
                 <h3>必要なSP</h3>
                 <strong className="skill-detail-cost">{skill.cost} SP</strong>

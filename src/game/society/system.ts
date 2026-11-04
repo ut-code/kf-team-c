@@ -1,4 +1,5 @@
 import { AREAS } from '../data.ts';
+import { encounterLocation, isEncounterLocationOccupied } from '../encounterLocations.ts';
 import { clamp, metrics } from '../metrics.ts';
 import type { GameState } from '../types.ts';
 import { CONVERSATIONS } from './conversations.ts';
@@ -40,6 +41,7 @@ export function applySocietyEffects(
     state: GameState,
     definition: EncounterDefinition,
     effects: SocietyEffect[],
+    audience: 'everyone' | 'users' = 'everyone',
 ): GameState {
     const areas = state.areas.map((area) => ({ ...area }));
     let skillPoints = state.skillPoints;
@@ -48,10 +50,15 @@ export function applySocietyEffects(
         for (const index of affectedAreas(definition, effect.scope)) {
             const area = areas[index];
             if (!area) continue;
-            area.favorability = clamp(area.favorability + (effect.favorability ?? 0));
+            // 未対応への反応は、その地域で実際に利用している人口に応じて生じる。
+            const exposure =
+                audience === 'users'
+                    ? state.areas[index].autonomous + state.areas[index].dependent
+                    : 1;
+            area.favorability = clamp(area.favorability + (effect.favorability ?? 0) * exposure);
             // Decreases return people to the unused group before increases consume it.
             for (const key of ['antiAI', 'autonomous', 'dependent'] as const) {
-                const delta = effect[key] ?? 0;
+                const delta = (effect[key] ?? 0) * exposure;
                 if (delta < 0) {
                     const removed = Math.min(area[key], -delta);
                     area[key] -= removed;
@@ -59,7 +66,7 @@ export function applySocietyEffects(
                 }
             }
             for (const key of ['antiAI', 'autonomous', 'dependent'] as const) {
-                const delta = effect[key] ?? 0;
+                const delta = (effect[key] ?? 0) * exposure;
                 if (delta <= 0) continue;
                 if (key === 'dependent') {
                     const converted = Math.min(area.autonomous, delta);
@@ -161,7 +168,7 @@ export function advanceSociety(previous: GameState): GameState {
         if (encounter.status !== 'pending' || state.month < encounter.deadline) continue;
         const definition = encounterDefinition(encounter.id);
         if (!definition) continue;
-        state = applySocietyEffects(state, definition, definition.ignored.effects);
+        state = applySocietyEffects(state, definition, definition.ignored.effects, 'users');
         state = {
             ...state,
             encounters: state.encounters.map((item) =>
@@ -189,14 +196,18 @@ export function advanceSociety(previous: GameState): GameState {
     )
         return state;
     const summary = metrics(state);
-    const next = ENCOUNTERS.find(
-        (definition) =>
+    const next = ENCOUNTERS.find((definition) => {
+        const local = state.areas[AREAS.findIndex((area) => area.id === definition.areaId)];
+        return (
             !state.encounters.some((item) => item.id === definition.id) &&
+            !isEncounterLocationOccupied(state, encounterLocation(definition)) &&
             state.month >= definition.trigger.month &&
+            local.autonomous + local.dependent >= (definition.trigger.localAdoption ?? 0) &&
             summary.adoption >= (definition.trigger.adoption ?? 0) &&
             summary.dependent >= (definition.trigger.dependent ?? 0) &&
-            summary.antiAI >= (definition.trigger.antiAI ?? 0),
-    );
+            summary.antiAI >= (definition.trigger.antiAI ?? 0)
+        );
+    });
     if (!next) return state;
     const opening = next.dialogue?.[0];
     return {

@@ -5,11 +5,54 @@
     inset: 0;
     overflow: hidden;
 }
-.world-hud {
+.game-shell {
+    --pause-color: #913b43;
+}
+/* 中央の明るさを保ち、外周だけをごく薄く落とす。 */
+.map-background::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(ellipse at center, transparent 58%, #0000001f 100%);
+}
+.game-shell[data-paused="true"]::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 40;
+    pointer-events: none;
+    box-shadow: inset 0 0 0 2px var(--pause-color);
+}
+.pause-label {
+    position: absolute;
+    top: calc(100% + 10px);
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: #dfcbc5;
+    font-size: 15px;
+    font-weight: 650;
+    line-height: 20px;
+    letter-spacing: 2px;
+    pointer-events: none;
+}
+.pause-label::before,
+.pause-label::after {
+    content: "";
+    width: 40px;
+    height: 1px;
+    background: #aa7870;
+}
+.world-metrics-widget {
     position: absolute;
     top: 16px;
     left: 50%;
     transform: translateX(-50%);
+}
+.world-hud {
     display: flex;
     padding: 9px 5px;
     text-align: left;
@@ -87,15 +130,30 @@
     color: var(--text);
     border-color: var(--line-selected);
 }
+.right-hud {
+    position: absolute;
+    top: 16px;
+    right: 18px;
+    bottom: 96px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 12px;
+    width: min(440px, calc(100% - 36px));
+    pointer-events: none;
+}
 .area-card {
     position: absolute;
-    top: 89px;
+    top: 44%;
     right: 18px;
+    transform: translateY(-50%);
     width: 335px;
-    max-height: calc(100% - 169px);
+    max-width: calc(100% - 36px);
+    max-height: calc(100% - 160px);
     overflow-y: auto;
     padding: 17px 20px;
     border-radius: var(--radius-panel);
+    pointer-events: auto;
 }
 .area-card-heading {
     display: flex;
@@ -235,6 +293,10 @@
     pointer-events: none;
 }
 @media (max-width: 1150px) {
+    .world-metrics-widget {
+        left: 18px;
+        transform: none;
+    }
     .world-number {
         min-width: 74px;
         padding-inline: 11px;
@@ -250,10 +312,9 @@
     }
 }
 @media (max-width: 800px) {
-    .world-hud {
+    .world-metrics-widget {
         top: 12px;
-        left: auto;
-        right: 12px;
+        left: 12px;
         transform: none;
     }
     .world-number {
@@ -274,11 +335,16 @@
     .calendar-date {
         font-size: 14px;
     }
+    .right-hud {
+        top: 12px;
+        right: 12px;
+        bottom: 88px;
+        width: min(440px, calc(100vw - 24px));
+    }
     .area-card {
-        top: 85px;
         right: 12px;
         width: min(325px, calc(100vw - 24px));
-        max-height: calc(100% - 161px);
+        max-width: calc(100% - 24px);
     }
     .map-footer {
         left: 12px;
