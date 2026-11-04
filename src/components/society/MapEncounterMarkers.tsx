@@ -1,3 +1,4 @@
+import { Pause } from 'lucide-react';
 import { project } from '../../map/geometry';
 import { type MapView, screenPoint } from '../../map/view';
 
@@ -6,6 +7,8 @@ export interface MapEncounter {
     title: string;
     kind: 'event' | 'chat' | 'investigation';
     progress?: number;
+    researchSpeed?: number;
+    paused?: boolean;
     location: { longitude: number; latitude: number };
 }
 export function MapEncounterMarkers({
@@ -15,7 +18,7 @@ export function MapEncounterMarkers({
 }: {
     encounters: MapEncounter[];
     view: MapView;
-    onSelect?: (id: string) => void;
+    onSelect?: (id: string, anchorX?: number) => void;
 }) {
     if (!view.width || !view.height) return null;
     return (
@@ -39,18 +42,38 @@ export function MapEncounterMarkers({
                         style={{ left: point.x, top: point.y }}
                         aria-label={`${encounter.kind === 'investigation' ? '内部調査' : encounter.kind === 'event' ? 'イベント' : '人物からの連絡'}：${encounter.title}`}
                         title={encounter.title}
-                        onClick={() => onSelect?.(encounter.id)}
+                        onClick={(event) => {
+                            const bounds = event.currentTarget.getBoundingClientRect();
+                            onSelect?.(encounter.id, bounds.left + bounds.width / 2);
+                        }}
                     >
-                        {encounter.kind === 'investigation' ? (
-                            <>
-                                <FlaskConical size={22} aria-hidden="true" />
-                                <small>{Math.floor(encounter.progress!)}%</small>
-                            </>
-                        ) : (
-                            <img
-                                src={`${import.meta.env.BASE_URL}images/${encounter.kind === 'chat' ? 'chat' : 'event'}-marker.svg`}
-                                alt=""
-                                draggable={false}
+                        <img
+                            src={`${import.meta.env.BASE_URL}images/${encounter.kind === 'chat' ? 'chat' : encounter.kind === 'investigation' ? 'investigation' : 'event'}-marker.svg`}
+                            style={
+                                encounter.kind === 'investigation'
+                                    ? {
+                                          opacity:
+                                              0.35 +
+                                              Math.min(1, encounter.researchSpeed ?? 1) * 0.65,
+                                      }
+                                    : undefined
+                            }
+                            alt=""
+                            draggable={false}
+                        />
+                        {encounter.paused && (
+                            <Pause
+                                className="research-paused"
+                                size={13}
+                                aria-label="研究停止・待機中"
+                            />
+                        )}
+                        {encounter.kind === 'investigation' && (
+                            <progress
+                                className="map-research-progress"
+                                aria-label={`${encounter.title}の研究進捗`}
+                                value={encounter.progress ?? 0}
+                                max={100}
                             />
                         )}
                     </button>
@@ -59,5 +82,3 @@ export function MapEncounterMarkers({
         </section>
     );
 }
-
-import { FlaskConical } from 'lucide-react';

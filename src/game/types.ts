@@ -3,7 +3,7 @@ import type { EncounterState } from './society/types.ts';
 
 export type Branch = 'IQ' | 'EQ' | 'SYSTEM';
 export type Stage = 0 | 1 | 2 | 3;
-export type Outcome = 'playing' | 'victory' | 'autonomy';
+export type Outcome = 'playing' | 'victory' | 'autonomy' | 'forgotten';
 export type Language =
     | 'english'
     | 'spanish'
@@ -55,6 +55,7 @@ export interface GameState {
     capabilities: Record<string, CapabilityState>;
     investigations: Investigation[];
     lastInvestigationMonth: number;
+    researchKnowledge: Record<string, number>;
 }
 export interface SkillEffect {
     spread?: number;
@@ -66,6 +67,7 @@ export interface SkillEffect {
     dependency?: number;
     resilience?: number;
     discretion?: number;
+    researchSupport?: number;
 }
 export interface Skill {
     id: string;

@@ -16,6 +16,7 @@ import { type MapTarget, WorldRenderer } from '../map/rendering/WorldRenderer';
 import type { MapRegion } from '../map/types';
 import type { MapView } from '../map/view';
 import { useMapStore } from '../state/mapStore';
+import { MapMetricChanges } from './MapMetricChanges';
 import { type MapEncounter, MapEncounterMarkers } from './society/MapEncounterMarkers';
 import styles from './WorldMap.module.css';
 
@@ -65,7 +66,7 @@ export const WorldMap = memo(function WorldMap({
     trafficTick: number;
     onAreaInspect?: (id: number | null) => void;
     encounters?: MapEncounter[];
-    onEncounterSelect?: (id: string) => void;
+    onEncounterSelect?: (id: string, anchorX?: number) => void;
 }) {
     const viewport = useRef<HTMLDivElement>(null),
         canvas = useRef<HTMLCanvasElement>(null);
@@ -372,6 +373,13 @@ export const WorldMap = memo(function WorldMap({
                     onSelect={onEncounterSelect}
                 />
             )}
+            <MapMetricChanges
+                areaStates={areaStates}
+                regions={regions}
+                tick={trafficTick}
+                serverArea={serverArea}
+                view={markerView}
+            />
             <div className={styles.screenReaderOnly} role="group" aria-label="画面内の小地域">
                 {targets.map((target) => (
                     <button

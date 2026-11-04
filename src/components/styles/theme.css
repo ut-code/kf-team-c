@@ -4,6 +4,7 @@
     color: var(--text);
     background: var(--surface-page);
     font-synthesis: none;
+    color-scheme: dark;
     --text: #e6edf2;
     --text-secondary: #bfccd6;
     --muted: #8b9ca9;
@@ -27,9 +28,42 @@
     --radius-control: 5px;
     --shadow-panel: 0 5px 24px #0003;
     --blur-panel: 12px;
+    --scrollbar-thumb: #536775;
+    --scrollbar-thumb-hover: #718795;
 }
 * {
     box-sizing: border-box;
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+/* Chromium / Safariでは、透明な軌道と細い丸角のつまみに統一する。 */
+@supports selector(::-webkit-scrollbar) {
+    * {
+        scrollbar-width: auto;
+        scrollbar-color: auto;
+    }
+    *::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+    *::-webkit-scrollbar-track,
+    *::-webkit-scrollbar-corner {
+        background: transparent;
+    }
+    *::-webkit-scrollbar-thumb {
+        min-height: 32px;
+        min-width: 32px;
+        border: 2px solid transparent;
+        border-radius: 8px;
+        background: var(--scrollbar-thumb);
+        background-clip: padding-box;
+    }
+    *::-webkit-scrollbar-thumb:hover {
+        background-color: var(--scrollbar-thumb-hover);
+    }
+    *::-webkit-scrollbar-button {
+        display: none;
+    }
 }
 body {
     margin: 0;
@@ -96,4 +130,15 @@ button[aria-pressed="true"] {
     * {
         transition: none;
     }
+}
+
+.population-count {
+    display: block;
+    margin: 0;
+    font-size: 11px;
+    font-weight: 400;
+    line-height: 1.4;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    color: var(--muted);
 }

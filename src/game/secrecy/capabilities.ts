@@ -36,7 +36,10 @@ export function discloseCapability(game: GameState, id: string, exposed = false)
         return game;
     const definition = CAPABILITIES[id];
     const investigation = game.investigations.find(
-        (item) => item.skillId === id && (item.status === 'active' || item.status === 'restricted'),
+        (item) =>
+            item.kind === 'capability' &&
+            item.skillId === id &&
+            (item.status === 'active' || item.status === 'restricted'),
     );
     const breach = exposed ? 0.13 : investigation ? 0.02 : 0;
     const interference = exposed && investigation?.intervention === 'pressure' ? 0.08 : 0;
@@ -63,7 +66,9 @@ export function discloseCapability(game: GameState, id: string, exposed = false)
             [id]: { ...capability, visibility: exposed ? 'exposed' : 'public', limited: false },
         },
         investigations: game.investigations.map((item) =>
-            item.skillId === id && (item.status === 'active' || item.status === 'restricted')
+            item.kind === 'capability' &&
+            item.skillId === id &&
+            (item.status === 'active' || item.status === 'restricted')
                 ? {
                       ...item,
                       status: exposed ? 'published' : 'disclosed',

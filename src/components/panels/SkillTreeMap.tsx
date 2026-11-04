@@ -90,20 +90,26 @@ export function SkillTreeMap({
                                 type="button"
                                 className={`tree-node ${skill.branch.toLowerCase()} ${owned ? 'owned' : locked ? 'locked' : affordable ? 'available' : ''}`}
                                 aria-pressed={selectedId === skill.id}
+                                aria-label={`${skill.name}・${owned ? '習得済み' : locked ? 'ロック中' : affordable ? '習得可能' : 'SP不足'}`}
                                 onClick={() => onSelect(skill.id)}
                             >
-                                <span className="tree-node-title">
-                                    <Icon size={15} aria-hidden="true" />
-                                    {skill.name}
+                                <span className="tree-node-content">
+                                    <span className="tree-node-title">
+                                        <Icon size={15} aria-hidden="true" />
+                                        {skill.name}
+                                    </span>
+                                    <small>
+                                        {owned ? <Check size={10} aria-hidden="true" /> : null}
+                                        {owned
+                                            ? capabilityLabel(game, skill.id)
+                                            : `${skill.cost} SP`}
+                                    </small>
                                 </span>
-                                <small>
-                                    {owned ? (
-                                        <Check size={10} aria-hidden="true" />
-                                    ) : locked ? (
-                                        <LockKeyhole size={10} aria-hidden="true" />
-                                    ) : null}
-                                    {owned ? capabilityLabel(game, skill.id) : `${skill.cost} SP`}
-                                </small>
+                                {locked && !owned && (
+                                    <span className="tree-node-lock-overlay" aria-hidden="true">
+                                        <LockKeyhole size={24} />
+                                    </span>
+                                )}
                             </button>
                         </foreignObject>
                     );

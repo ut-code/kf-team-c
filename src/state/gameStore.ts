@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { createDebugGame, type DebugStart } from '../game/debug';
 import { advanceMonth, createGame, learnSkill, startGame } from '../game/engine';
 import { discloseCapability } from '../game/secrecy/capabilities';
 import { respondToInvestigation } from '../game/secrecy/investigations';
@@ -10,6 +11,7 @@ interface GameStore {
     game: GameState | null;
     initialize: (seed?: number) => void;
     start: (origin: number) => void;
+    initializeDebug: (preset: DebugStart) => void;
     tick: () => void;
     speed: (value: number) => void;
     research: (id: string) => void;
@@ -25,7 +27,16 @@ export const useGameStore = create<GameStore>((set) => {
         game: null,
         initialize: (seed) => {
             const game = createGame(seed);
-            set({ game: startGame(game, game.origin) });
+            const debug = new URLSearchParams(window.location.search).get('debug');
+            set({
+                game:
+                    import.meta.env.DEV && (debug === 'spread' || debug === 'research')
+                        ? createDebugGame(debug, seed)
+                        : startGame(game, game.origin),
+            });
+        },
+        initializeDebug: (preset) => {
+            if (import.meta.env.DEV) set({ game: createDebugGame(preset) });
         },
         start: (origin) => change((game) => startGame(game, origin)),
         tick: () => change(advanceMonth),

@@ -11,6 +11,33 @@
     box-shadow: var(--shadow-panel);
     backdrop-filter: blur(var(--blur-panel));
 }
+.modal.floating {
+    position: fixed;
+    inset: 100px 0 90px;
+    z-index: 10;
+    margin: auto;
+    max-height: calc(100dvh - 190px);
+}
+.modal.floating.conversation-modal {
+    height: min(820px, calc(100dvh - 190px));
+}
+.game-shell .modal.floating {
+    width: min(640px, calc(100vw - 36px));
+    margin-inline: 0;
+}
+.game-shell[data-floating-side="left"] .modal.floating {
+    left: 18px;
+    right: auto;
+}
+.game-shell[data-floating-side="right"] .modal.floating {
+    left: auto;
+    right: 18px;
+}
+@media (min-width: 1000px) {
+    .game-shell .modal.floating {
+        width: min(640px, calc(50vw - 36px));
+    }
+}
 .modal::backdrop {
     background: #030a11bb;
     backdrop-filter: blur(4px);
@@ -55,6 +82,10 @@
 .result-stats small {
     font-size: 12px;
     margin-left: 4px;
+}
+.result-stats .population-count {
+    margin: 5px 0 0;
+    color: var(--muted);
 }
 .startup-error {
     padding: 40px;

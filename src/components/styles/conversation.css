@@ -52,8 +52,6 @@
     min-height: 0;
     overflow-y: auto;
     overscroll-behavior: contain;
-    scrollbar-width: thin;
-    scrollbar-color: var(--line-strong) var(--surface-page);
     padding: 24px 32px;
     display: flex;
     flex-direction: column;
@@ -130,8 +128,6 @@
     padding: 12px 24px 18px;
     max-height: 46%;
     overflow-y: auto;
-    scrollbar-width: thin;
-    scrollbar-color: var(--line-strong) var(--surface-page);
 }
 .conversation-replies {
     display: grid;

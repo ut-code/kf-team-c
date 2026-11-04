@@ -32,7 +32,7 @@ export function EncounterPanel({
     const area = AREAS.find((item) => item.id === definition.areaId)!;
     const choices = encounterChoices(definition, encounter);
     return (
-        <Modal label={definition.title} wide onClose={onClose}>
+        <Modal modal={false} label={definition.title} wide onClose={onClose}>
             <div className="encounter-panel">
                 <div className="society-heading">
                     <div className="contact-heading">

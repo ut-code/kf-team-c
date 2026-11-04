@@ -1,8 +1,15 @@
-import { FlaskConical, Network, Radio, X } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
-import { AREAS, DEFEAT_OPPOSITION, STAGE_COLORS, STAGES, VICTORY_DEPENDENCY } from '../game/data';
+import { Network, Radio, X } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+    AREAS,
+    DEFEAT_OPPOSITION,
+    STAGE_COLORS,
+    STAGES,
+    VICTORY_DEPENDENCY,
+    WORLD_POPULATION,
+} from '../game/data';
 import { areaHint, metrics } from '../game/engine';
-import { instituteFor } from '../game/secrecy/investigations';
+import { instituteFor, investigationRate } from '../game/secrecy/investigations';
 import { socialStrategy } from '../game/society/strategies';
 import { encounterDefinition } from '../game/society/system';
 import { mapScene } from '../map/config';
@@ -11,24 +18,52 @@ import { useGameStore } from '../state/gameStore';
 import { useMapStore } from '../state/mapStore';
 import { GameClock } from './GameClock';
 import { Result } from './GameOverlays';
+import { PopulationChart } from './PopulationChart';
 import { ResearchPanel } from './panels/ResearchPanel';
 import { EncounterPanel } from './society/EncounterPanel';
 import { InvestigationPanel } from './society/InvestigationPanel';
 import type { MapEncounter } from './society/MapEncounterMarkers';
 import { SocietyPanel } from './society/SocietyPanel';
 import { WorldMap } from './WorldMap';
-import { percent } from './widgets';
+import { percent, population } from './widgets';
+
+type Panel =
+    | { kind: 'world' | 'sns' | 'skills' }
+    | { kind: 'region'; id: number }
+    | { kind: 'encounter'; id: string; side: 'left' | 'right' };
 
 export function GameApp({ regions }: { regions: MapRegion[] }) {
     const game = useGameStore((state) => state.game)!;
-    const [researchOpen, setResearchOpen] = useState(false);
-    const [snsOpen, setSnsOpen] = useState(false);
-    const [encounterId, setEncounterId] = useState<string | null>(null);
-    const [dismissedReport, setDismissedReport] = useState<string | null>(null);
+    const [panel, setPanel] = useState<Panel | null>(null);
+    const visiblePanel = game.outcome === 'playing' ? panel : null;
+    const researchOpen = visiblePanel?.kind === 'skills';
+    const snsOpen = visiblePanel?.kind === 'sns';
+    const worldOpen = visiblePanel?.kind === 'world';
+    const selected = visiblePanel?.kind === 'region' ? visiblePanel.id : null;
+    const encounterId = visiblePanel?.kind === 'encounter' ? visiblePanel.id : null;
+    const closePanel = useCallback(() => {
+        setPanel(null);
+        useMapStore.getState().selectArea(null);
+    }, []);
+    const togglePanel = (next: Panel) => {
+        const currentId = panel && 'id' in panel ? panel.id : undefined;
+        const nextId = 'id' in next ? next.id : undefined;
+        const same = panel?.kind === next.kind && currentId === nextId;
+        const opened = same && next.kind !== 'skills' ? null : next;
+        setPanel(opened);
+        useMapStore.getState().selectArea(opened?.kind === 'region' ? opened.id : null);
+    };
+    const toggleEncounter = (id: string, anchorX = window.innerWidth / 2) =>
+        togglePanel({
+            kind: 'encounter',
+            id,
+            side: anchorX < window.innerWidth / 2 ? 'right' : 'left',
+        });
+    const selectedInvestigation = game.investigations.find((item) => item.id === encounterId);
+    const selectedEncounter = game.encounters.find(
+        (item) => item.id === encounterId && encounterDefinition(item.id),
+    );
     const investigations = game.investigations.filter((item) => item.status === 'active');
-    const report = game.investigations
-        .filter((item) => item.status !== 'active')
-        .sort((a, b) => b.closedMonth! - a.closedMonth!)[0];
     const pending = game.encounters.filter((item) => item.status === 'pending');
     const mapEncounters: MapEncounter[] = pending.flatMap((item) => {
         const definition = encounterDefinition(item.id);
@@ -53,17 +88,20 @@ export function GameApp({ regions }: { regions: MapRegion[] }) {
             kind: 'investigation',
             location: institute,
             progress: investigation.progress,
+            researchSpeed:
+                investigationRate(game, investigation) /
+                investigationRate(game, investigation, true),
+            paused: investigationRate(game, investigation) === 0,
         });
     }
     const [hidden, setHidden] = useState(document.hidden);
-    const selected = useMapStore((state) => state.selectedAreaId);
     const summary = useMemo(() => metrics(game), [game]);
     const blocked =
         !game.started ||
         game.outcome !== 'playing' ||
         hidden ||
         researchOpen ||
-        encounterId !== null;
+        Boolean(selectedInvestigation || selectedEncounter);
     useEffect(() => {
         const visibility = () => setHidden(document.hidden);
         document.addEventListener('visibilitychange', visibility);
@@ -71,12 +109,7 @@ export function GameApp({ regions }: { regions: MapRegion[] }) {
     }, []);
     useEffect(() => {
         const keydown = (event: KeyboardEvent) => {
-            if (event.key === 'Escape') {
-                setResearchOpen(false);
-                setSnsOpen(false);
-                setEncounterId(null);
-                useMapStore.getState().selectArea(null);
-            }
+            if (event.key === 'Escape') closePanel();
             if (
                 event.target instanceof HTMLElement &&
                 event.target.closest('input, select, button, textarea')
@@ -89,8 +122,9 @@ export function GameApp({ regions }: { regions: MapRegion[] }) {
         };
         window.addEventListener('keydown', keydown);
         return () => window.removeEventListener('keydown', keydown);
-    }, [blocked, game.speed]);
-    const area = selected === null ? null : game.areas[selected];
+    }, [blocked, game.speed, closePanel]);
+    const area = selected === null ? (worldOpen ? summary : null) : game.areas[selected];
+    const detailPopulation = selected === null ? WORLD_POPULATION : AREAS[selected].population;
     const stages = area
         ? [
               Math.max(0, 1 - area.autonomous - area.dependent - area.antiAI),
@@ -100,7 +134,33 @@ export function GameApp({ regions }: { regions: MapRegion[] }) {
           ]
         : [];
     return (
-        <main className="game-shell">
+        <main
+            className="game-shell"
+            data-floating-side={visiblePanel?.kind === 'encounter' ? visiblePanel.side : undefined}
+        >
+            {import.meta.env.DEV && (
+                <details className="debug-start glass">
+                    <summary>Debug</summary>
+                    <button
+                        type="button"
+                        onClick={() => {
+                            closePanel();
+                            useGameStore.getState().initializeDebug('spread');
+                        }}
+                    >
+                        普及済みから開始
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => {
+                            closePanel();
+                            useGameStore.getState().initializeDebug('research');
+                        }}
+                    >
+                        研究支援ありで開始
+                    </button>
+                </details>
+            )}
             <div className="map-background">
                 <WorldMap
                     regions={regions}
@@ -110,106 +170,84 @@ export function GameApp({ regions }: { regions: MapRegion[] }) {
                     serverArea={game.origin}
                     initialLongitude={0}
                     encounters={mapEncounters}
-                    onEncounterSelect={setEncounterId}
+                    onEncounterSelect={toggleEncounter}
                     trafficSpeed={blocked ? 0 : game.speed}
                     trafficTick={game.month}
                     onAreaSelect={(index) => {
-                        setSnsOpen(false);
-                        useMapStore.getState().selectArea(index);
+                        if (index === null) closePanel();
+                        else togglePanel({ kind: 'region', id: index });
                     }}
                 />
             </div>
-            <section className="world-hud glass" aria-label="世界の指標">
-                <div className="world-number">
+            <button
+                type="button"
+                className="world-hud glass"
+                aria-label="世界全体の状態を表示"
+                onClick={() => togglePanel({ kind: 'world' })}
+                aria-expanded={worldOpen && selected === null && !snsOpen}
+                aria-controls="population-details"
+            >
+                <span className="world-number">
                     <span>AI利用</span>
                     <strong>{percent(summary.adoption)}</strong>
-                </div>
-                <div
+                </span>
+                <span
                     className="world-number dependency-number"
                     title={`AI依存 ${VICTORY_DEPENDENCY * 100}%で勝利`}
                 >
                     <span>AI依存 / {VICTORY_DEPENDENCY * 100}%</span>
                     <strong>{percent(summary.dependent)}</strong>
-                </div>
-                <div
+                </span>
+                <span
                     className="world-number opposition-number"
                     title={`反AI ${DEFEAT_OPPOSITION * 100}%で敗北`}
                 >
                     <span>反AI / {DEFEAT_OPPOSITION * 100}%</span>
                     <strong>{percent(summary.antiAI)}</strong>
-                </div>
-            </section>
+                </span>
+            </button>
             <GameClock key={game.seed} blocked={blocked} />
-            {selected === null &&
-                !snsOpen &&
-                (investigations.length > 0 || (report && dismissedReport !== report.id)) && (
-                    <aside className="investigation-notices glass" aria-label="内部調査">
-                        {investigations.map((item) => (
-                            <button
-                                type="button"
-                                key={item.id}
-                                onClick={() => setEncounterId(item.id)}
-                            >
-                                <FlaskConical size={16} />
-                                <span>{instituteFor(item).name}</span>
-                                <b>{Math.floor(item.progress)}%</b>
-                            </button>
-                        ))}
-                        {report && dismissedReport !== report.id && (
-                            <div className="investigation-report">
-                                <button type="button" onClick={() => setEncounterId(report.id)}>
-                                    <span>
-                                        {report.status === 'published'
-                                            ? '内部挙動が露呈'
-                                            : '調査への対応完了'}
-                                    </span>
-                                </button>
-                                <button
-                                    type="button"
-                                    className="icon-button"
-                                    aria-label="調査結果の通知を閉じる"
-                                    onClick={() => setDismissedReport(report.id)}
-                                >
-                                    <X size={14} />
-                                </button>
-                            </div>
-                        )}
-                    </aside>
-                )}
-            {area && selected !== null && !snsOpen && (
-                <aside className="area-card glass" aria-label="地域の状況">
+            {area && (
+                <aside
+                    id="population-details"
+                    className="area-card glass"
+                    aria-label={selected === null ? '世界全体の状況' : '地域の状況'}
+                >
                     <div className="area-card-heading">
-                        <h2>{AREAS[selected].name}</h2>
+                        <h2>{selected === null ? '世界全体' : AREAS[selected].name}</h2>
                         <button
                             type="button"
                             className="icon-button"
-                            aria-label="地域の状況を閉じる"
-                            onClick={() => useMapStore.getState().selectArea(null)}
+                            aria-label={
+                                selected === null ? '世界全体の状況を閉じる' : '地域の状況を閉じる'
+                            }
+                            onClick={closePanel}
                         >
                             <X size={16} />
                         </button>
                     </div>
-                    <div className="population-bar">
-                        {stages.map((value, i) => (
-                            <span
-                                key={STAGES[i]}
-                                style={{ width: `${value * 100}%`, background: STAGE_COLORS[i] }}
-                            />
-                        ))}
+                    <p>総人口 {population(detailPopulation)}</p>
+                    <div className="area-population">
+                        <PopulationChart values={stages} total={detailPopulation} />
+                        <dl>
+                            {stages.map((value, i) => (
+                                <div key={STAGES[i]}>
+                                    <dt>
+                                        <i style={{ background: STAGE_COLORS[i] }} />
+                                        {STAGES[i]}
+                                    </dt>
+                                    <dd>
+                                        {percent(value)}
+                                        <small className="population-count">
+                                            {population(value * detailPopulation)}
+                                        </small>
+                                    </dd>
+                                </div>
+                            ))}
+                        </dl>
                     </div>
-                    <dl>
-                        {stages.map((value, i) => (
-                            <div key={STAGES[i]}>
-                                <dt>
-                                    <i style={{ background: STAGE_COLORS[i] }} />
-                                    {STAGES[i]}
-                                </dt>
-                                <dd>{percent(value)}</dd>
-                            </div>
-                        ))}
-                    </dl>
                     <p>AI好感度 {Math.round(area.favorability * 100)} / 100</p>
-                    <p>{areaHint(game, selected)}</p>
+                    {selected !== null && <p>{areaHint(game, selected)}</p>}
                 </aside>
             )}
             <footer className="map-footer">
@@ -228,7 +266,7 @@ export function GameApp({ regions }: { regions: MapRegion[] }) {
                         aria-label="SNS戦略"
                         aria-expanded={snsOpen}
                         aria-controls="sns-panel"
-                        onClick={() => setSnsOpen((open) => !open)}
+                        onClick={() => togglePanel({ kind: 'sns' })}
                     >
                         <Radio size={20} />
                         <span>SNS</span>
@@ -238,7 +276,7 @@ export function GameApp({ regions }: { regions: MapRegion[] }) {
                         type="button"
                         className="evolution-button glass"
                         aria-label="スキルツリー"
-                        onClick={() => setResearchOpen(true)}
+                        onClick={() => togglePanel({ kind: 'skills' })}
                     >
                         <Network size={20} />
                         <span>スキルツリー</span>
@@ -252,19 +290,21 @@ export function GameApp({ regions }: { regions: MapRegion[] }) {
             <small className="map-credit">
                 NASA / Natural Earth · UN WPP / ITU · 地域設定はゲーム上の仮定
             </small>
-            {snsOpen && <SocietyPanel game={game} onClose={() => setSnsOpen(false)} />}
-            {encounterId?.startsWith('investigation:') ? (
+            {snsOpen && <SocietyPanel game={game} onClose={closePanel} />}
+            {selectedInvestigation ? (
                 <InvestigationPanel
+                    key={selectedInvestigation.id}
                     game={game}
-                    id={encounterId}
-                    onClose={() => setEncounterId(null)}
+                    id={selectedInvestigation.id}
+                    onClose={closePanel}
                 />
             ) : (
-                encounterId && (
+                selectedEncounter && (
                     <EncounterPanel
+                        key={selectedEncounter.id}
                         game={game}
-                        id={encounterId}
-                        onClose={() => setEncounterId(null)}
+                        id={selectedEncounter.id}
+                        onClose={closePanel}
                     />
                 )
             )}
@@ -272,18 +312,14 @@ export function GameApp({ regions }: { regions: MapRegion[] }) {
                 <ResearchPanel
                     game={game}
                     onResearch={useGameStore.getState().research}
-                    onClose={() => setResearchOpen(false)}
+                    onClose={closePanel}
                 />
             )}
             {game.outcome !== 'playing' && (
                 <Result
                     game={game}
                     onRestart={() => {
-                        setResearchOpen(false);
-                        setSnsOpen(false);
-                        setEncounterId(null);
-                        setDismissedReport(null);
-                        useMapStore.getState().selectArea(null);
+                        closePanel();
                         useGameStore.getState().initialize(game.seed + 1);
                     }}
                 />

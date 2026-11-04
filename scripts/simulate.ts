@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
 import { mkdirSync, writeFileSync } from 'node:fs';
-import { ORIGINS } from '../src/game/data.ts';
+import { MONTH_MS, ORIGINS } from '../src/game/data.ts';
 import { advanceMonth, createGame, learnSkill, metrics, startGame } from '../src/game/engine.ts';
 import { discloseCapability } from '../src/game/secrecy/capabilities.ts';
 import { respondToInvestigation } from '../src/game/secrecy/investigations.ts';
+import { runningCapabilityIds, runningResearchIds } from '../src/game/secrecy/researchCapacity.ts';
 import type { InvestigationAction } from '../src/game/secrecy/types.ts';
 import { SKILLS } from '../src/game/skills.ts';
 
@@ -45,7 +46,7 @@ const strategies: Record<string, { dependencyAfter: number; order: string[] }> =
         ],
     },
     balanced: {
-        dependencyAfter: 130,
+        dependencyAfter: 144,
         order: [
             'conversation',
             'reason',
@@ -67,8 +68,32 @@ const strategies: Record<string, { dependencyAfter: number; order: string[] }> =
             'companion',
         ],
     },
+    prepared: {
+        dependencyAfter: 144,
+        order: [
+            'conversation',
+            'reason',
+            'knowledge',
+            'science',
+            'personalize',
+            'lightweight',
+            'offline',
+            'mobile',
+            'verification',
+            'audit',
+            'privacy',
+            'automation',
+            'integration',
+            'decision',
+            'platform',
+            'public',
+            'autonomous',
+            'backbone',
+            'distributed',
+        ],
+    },
     late: {
-        dependencyAfter: 290,
+        dependencyAfter: 240,
         order: [
             'conversation',
             'reason',
@@ -91,13 +116,14 @@ const strategies: Record<string, { dependencyAfter: number; order: string[] }> =
     },
 };
 const reports = [];
-// ゲームに時間切れはない。検証だけを80年で区切り、継続中はそのまま報告する。
-const SIMULATION_MONTHS = 960;
+// 時間切れによる決着は設けず、1倍速25分以内に人口比率で決着することを検証する。
+const SIMULATION_MONTHS = Math.floor((25 * 60_000) / MONTH_MS);
 const policies: Record<string, InvestigationAction | 'public' | 'ignore'> = {
     hidden: 'ignore',
     reckless: 'ignore',
     public: 'public',
     cooperate: 'disclose',
+    community: 'disclose',
     pressure: 'pressure',
     restrict: 'restrict',
     partnership: 'partnership',
@@ -105,11 +131,16 @@ const policies: Record<string, InvestigationAction | 'public' | 'ignore'> = {
 for (const origin of ORIGINS) {
     for (const [name, strategy] of Object.entries(strategies)) {
         for (const [policy, response] of Object.entries(
-            name === 'balanced' ? policies : { hidden: 'ignore' as const },
+            name === 'balanced' || name === 'prepared' ? policies : { hidden: 'ignore' as const },
         )) {
             let game = {
                 ...startGame(createGame(2030), origin.area),
-                socialStrategy: policy === 'reckless' ? 'showcase' : 'listening',
+                socialStrategy:
+                    policy === 'reckless'
+                        ? 'showcase'
+                        : policy === 'community'
+                          ? 'community'
+                          : 'listening',
             };
             const snapshots = [];
             while (game.outcome === 'playing' && game.month < SIMULATION_MONTHS) {
@@ -138,9 +169,8 @@ for (const origin of ORIGINS) {
                     assert.ok(area.autonomous + area.dependent + area.antiAI <= 1 + 1e-10);
                 }
                 assert.ok(game.skillPoints >= 0);
-                assert.ok(
-                    game.investigations.filter((item) => item.status === 'active').length <= 2,
-                );
+                assert.ok(runningCapabilityIds(game).size <= 2);
+                assert.ok(runningResearchIds(game).size <= 3);
                 assert.ok(game.earnedPoints <= 90);
                 for (const area of game.areas)
                     assert.ok(area.antiAI >= 0 && area.favorability >= 0 && area.favorability <= 1);
@@ -152,17 +182,23 @@ for (const origin of ORIGINS) {
                         sp: game.skillPoints,
                     });
             }
+            assert.notEqual(
+                game.outcome,
+                'playing',
+                `${origin.name}/${name}/${policy}: 1倍速25分以内に決着する`,
+            );
             reports.push({
                 origin: origin.name,
                 strategy: `${name}/${policy}`,
                 outcome: game.outcome,
                 month: game.month,
+                activeMinutes: (game.month * MONTH_MS) / 60_000,
                 skills: game.skills,
                 investigations: game.investigations,
                 snapshots,
             });
             console.log(
-                `${origin.name} / ${name}/${policy}: ${game.outcome} (${game.month}か月), 利用 ${(metrics(game).adoption * 100).toFixed(1)}%, 依存 ${(metrics(game).dependent * 100).toFixed(1)}%, 反AI ${(metrics(game).antiAI * 100).toFixed(1)}%, 調査 ${game.investigations.length}件`,
+                `${origin.name} / ${name}/${policy}: ${game.outcome} (${game.month}か月 / ${((game.month * MONTH_MS) / 60_000).toFixed(1)}分), 利用 ${(metrics(game).adoption * 100).toFixed(1)}%, 依存 ${(metrics(game).dependent * 100).toFixed(1)}%, 反AI ${(metrics(game).antiAI * 100).toFixed(1)}%, 調査 ${game.investigations.length}件`,
             );
         }
     }

@@ -51,3 +51,78 @@
     color: #f7b6a8;
     font-size: 14px;
 }
+.metricChanges {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    overflow: hidden;
+}
+.metricAnchor {
+    position: absolute;
+    transform: translate(-50%, -50%);
+}
+.metricPopup {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    font-size: 8px;
+    font-weight: 600;
+    line-height: 11px;
+    text-shadow: 0 1px 2px #080f13;
+    white-space: nowrap;
+    transform-origin: center bottom;
+    animation: metric-pop ease-out both;
+}
+.metricUp {
+    --metric-drift: -7px;
+    color: #7ee8b0;
+}
+.metricDown {
+    --metric-drift: 7px;
+    color: #ff9292;
+}
+.metricArrow {
+    font-size: 11px;
+    line-height: 11px;
+}
+@keyframes metric-pop {
+    0% {
+        opacity: 0;
+        transform: translateY(0) scale(0.35);
+    }
+    12% {
+        opacity: 1;
+        transform: translateY(0) scale(1.1);
+    }
+    22% {
+        opacity: 1;
+        transform: translateY(calc(var(--metric-drift) * 0.1)) scale(1);
+    }
+    80% {
+        opacity: 1;
+        transform: translateY(calc(var(--metric-drift) * 0.75)) scale(1);
+    }
+    89% {
+        opacity: 1;
+        transform: translateY(calc(var(--metric-drift) * 0.85)) scale(1.06);
+    }
+    100% {
+        opacity: 0;
+        transform: translateY(var(--metric-drift)) scale(0.3);
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    .metricPopup {
+        animation-name: metric-fade;
+    }
+}
+@keyframes metric-fade {
+    0%,
+    100% {
+        opacity: 0;
+    }
+    10%,
+    85% {
+        opacity: 1;
+    }
+}

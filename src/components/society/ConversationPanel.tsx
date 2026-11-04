@@ -30,7 +30,13 @@ export function ConversationPanel({
     const choices = encounterChoices(definition, encounter);
     const pending = encounter.status === 'pending';
     return (
-        <Modal label={definition.title} wide className="conversation-modal" onClose={onClose}>
+        <Modal
+            modal={false}
+            label={definition.title}
+            wide
+            className="conversation-modal"
+            onClose={onClose}
+        >
             <header className="conversation-heading">
                 <MessageCircle size={20} aria-hidden="true" />
                 <div>

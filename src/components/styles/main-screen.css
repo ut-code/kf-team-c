@@ -12,7 +12,8 @@
     transform: translateX(-50%);
     display: flex;
     padding: 9px 5px;
-    pointer-events: none;
+    text-align: left;
+    pointer-events: auto;
 }
 .world-number {
     display: flex;
@@ -111,17 +112,22 @@
     width: 24px;
     height: 24px;
 }
-.population-bar {
+.area-population {
     display: flex;
-    height: 5px;
-    overflow: hidden;
-    border-radius: 3px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    margin: 12px 0;
 }
-.population-bar span {
-    transition: width 0.5s;
+.population-chart {
+    display: block;
+    align-self: center;
+    width: 200px;
+    height: 200px;
+    max-width: 100%;
 }
 .area-card dl {
-    margin: 17px 0;
+    margin: 0;
     font-size: 12px;
 }
 .area-card dl > div {
@@ -130,10 +136,11 @@
     margin: 10px 0;
 }
 .area-card dt {
-    color: var(--muted);
+    color: var(--text);
 }
 .area-card dd {
     margin: 0;
+    text-align: right;
     font-variant-numeric: tabular-nums;
 }
 .area-card i,

@@ -26,56 +26,54 @@ import {
     Wifi,
     Workflow,
 } from 'lucide-react';
+import { SKILL_CONTENT } from '../../content/skills';
+import { SKILL_BRANCH_CONTENT } from '../../content/skillTree';
+import type { SkillIcon } from '../../game/contentTypes';
 import { SKILLS } from '../../game/skills';
 import type { Branch } from '../../game/types';
 
-// 表示専用の設定。ゲームの効果・習得条件には使用しない。
-export const SKILL_BRANCHES = {
-    IQ: {
-        icon: Brain,
-        label: '知性・推論',
-        initialValue: 70,
-    },
-    EQ: {
-        icon: HeartHandshake,
-        label: '対話・共感',
-        initialValue: 40,
-    },
-    SYSTEM: {
-        icon: Network,
-        label: '実行・社会接続',
-        initialValue: 20,
-    },
-} satisfies Record<Branch, { icon: LucideIcon; label: string; initialValue: number }>;
+const icons = {
+    BookOpen,
+    Brain,
+    Building2,
+    CheckCheck,
+    CircleCheck,
+    ClipboardCheck,
+    Compass,
+    Cpu,
+    Database,
+    FlaskConical,
+    GraduationCap,
+    HeartHandshake,
+    Lightbulb,
+    Link,
+    MessageCircle,
+    Network,
+    ScanSearch,
+    School,
+    Server,
+    Settings,
+    ShieldCheck,
+    ShieldHalf,
+    Smartphone,
+    Wifi,
+    Workflow,
+} satisfies Record<SkillIcon, LucideIcon>;
 
-// referenceGainは習得時に表示上の能力値へ加える量。上限や百分率は設けない。
-export const SKILL_PRESENTATION: Record<string, { icon: LucideIcon; referenceGain: number }> = {
-    reason: { icon: Brain, referenceGain: 8 },
-    knowledge: { icon: BookOpen, referenceGain: 12 },
-    verification: { icon: ScanSearch, referenceGain: 10 },
-    tutor: { icon: GraduationCap, referenceGain: 14 },
-    science: { icon: FlaskConical, referenceGain: 18 },
-    audit: { icon: ClipboardCheck, referenceGain: 10 },
-    privacy: { icon: ShieldHalf, referenceGain: 8 },
-    curriculum: { icon: School, referenceGain: 16 },
-    discovery: { icon: Lightbulb, referenceGain: 26 },
-    certified: { icon: ShieldCheck, referenceGain: 12 },
-    conversation: { icon: MessageCircle, referenceGain: 12 },
-    personalize: { icon: Compass, referenceGain: 18 },
-    memory: { icon: Database, referenceGain: 22 },
-    companion: { icon: HeartHandshake, referenceGain: 30 },
-    lightweight: { icon: Cpu, referenceGain: 8 },
-    offline: { icon: Wifi, referenceGain: 10 },
-    automation: { icon: Settings, referenceGain: 12 },
-    mobile: { icon: Smartphone, referenceGain: 14 },
-    distributed: { icon: Server, referenceGain: 18 },
-    integration: { icon: Workflow, referenceGain: 16 },
-    platform: { icon: Link, referenceGain: 18 },
-    decision: { icon: CircleCheck, referenceGain: 22 },
-    public: { icon: Building2, referenceGain: 24 },
-    autonomous: { icon: CheckCheck, referenceGain: 28 },
-    backbone: { icon: Network, referenceGain: 32 },
-};
+export const SKILL_BRANCHES = Object.fromEntries(
+    Object.entries(SKILL_BRANCH_CONTENT).map(([branch, content]) => [
+        branch,
+        { ...content, icon: icons[content.icon] },
+    ]),
+) as Record<Branch, { icon: LucideIcon; label: string; initialValue: number }>;
+
+export const SKILL_PRESENTATION: Record<string, { icon: LucideIcon; referenceGain: number }> =
+    Object.fromEntries(
+        SKILL_CONTENT.map((skill) => [
+            skill.id,
+            { icon: icons[skill.icon], referenceGain: skill.referenceGain },
+        ]),
+    );
 
 export function referenceAbility(branch: Branch, learnedIds: string[]) {
     return SKILLS.filter(

@@ -1,8 +1,9 @@
-import { AREAS, DEFEAT_OPPOSITION, ORIGINS, VICTORY_DEPENDENCY } from './data.ts';
+import { AREAS, DEFEAT_OPPOSITION, ORIGINS, VICTORY_DEPENDENCY, WORLD_POPULATION } from './data.ts';
 import { clamp, metrics } from './metrics.ts';
 import { activeSkillEffects } from './secrecy/capabilities.ts';
-import { CAPABILITIES } from './secrecy/data.ts';
+import { CAPABILITIES, INSTITUTES } from './secrecy/data.ts';
 import { advanceInvestigations } from './secrecy/investigations.ts';
+import { advanceResearch, publishedResearchPressure } from './secrecy/research.ts';
 import { SKILLS, skillBlockReason } from './skills.ts';
 import { socialStrategy } from './society/strategies.ts';
 import { advanceSociety } from './society/system.ts';
@@ -33,7 +34,7 @@ export function createGame(seed = 2030, origin = 0): GameState {
         speed: 1,
         outcome: 'playing',
         areas: AREAS.map((_, index) => ({
-            autonomous: index === origin ? 0.08 : 0,
+            autonomous: index === origin ? 0.16 : 0,
             dependent: 0,
             antiAI: 0,
             favorability: 0.58,
@@ -48,6 +49,7 @@ export function createGame(seed = 2030, origin = 0): GameState {
         capabilities: {},
         investigations: [],
         lastInvestigationMonth: -18,
+        researchKnowledge: Object.fromEntries(INSTITUTES.map((institute) => [institute.id, 0])),
     };
 }
 export function startGame(state: GameState, origin: number): GameState {
@@ -108,11 +110,17 @@ export function advanceMonth(previous: GameState): GameState {
         const originBoost = home.includes(i) ? 1.8 : 1;
         const contact =
             localUse * 0.035 + nearbyUse * 0.014 + internetReach * definition.digital * 0.025;
+        const appeal = clamp(
+            effect.quality + effect.spread * 0.5 + effect.enterprise * 0.25,
+            0.1,
+            1,
+        );
         const adopted =
             unused *
             (1 -
                 Math.exp(
                     -contact *
+                        appeal *
                         access *
                         compliance *
                         suitability *
@@ -121,6 +129,8 @@ export function advanceMonth(previous: GameState): GameState {
                         (0.5 + area.favorability) *
                         originBoost,
                 ));
+        const researchPressure = publishedResearchPressure(previous, i);
+        const preparation = clamp(effect.quality * 0.5 + effect.compliance * 0.5);
         const independence = 1 / (1 + definition.education * 0.8 + definition.regulation * 0.6);
         const nearbyOpposition =
             ties[i].reduce((sum, weight, j) => sum + weight * previous.areas[j].antiAI, 0) /
@@ -133,7 +143,7 @@ export function advanceMonth(previous: GameState): GameState {
             (1 -
                 Math.exp(
                     -effect.dependency *
-                        0.018 *
+                        0.014 *
                         independence *
                         (1 + strategy.dependency) *
                         (1 - area.antiAI * 0.6),
@@ -141,21 +151,28 @@ export function advanceMonth(previous: GameState): GameState {
         const pressure =
             ((area.dependent * 0.01 + adopted * 0.25 + nearbyOpposition * 0.012) *
                 (1 - area.favorability) ** 1.5) /
-                (1 + effect.discretion) +
-            Math.max(0, 0.55 - area.favorability) * 0.025;
+                (1 + effect.discretion + preparation * 2) +
+            Math.max(0, 0.55 - area.favorability) * 0.025 +
+            researchPressure;
         const rejectedUnused = unused * pressure * 0.45;
         const rejectedUse = area.autonomous * pressure * 0.6;
-        const rejectedDependency = (area.dependent * pressure * 0.15) / (1 + effect.resilience);
+        const rejectedDependency =
+            (area.dependent * pressure * (0.15 + clamp(researchPressure * 20) * 0.85)) /
+            (1 + effect.resilience);
         const reconciled =
-            area.antiAI * (0.001 + area.favorability * 0.003 + strategy.reconciliation);
+            (area.antiAI *
+                (0.001 +
+                    area.favorability * 0.003 +
+                    strategy.reconciliation +
+                    preparation * 0.008)) /
+            (1 + researchPressure * 80);
         const restored = (area.dependent * area.antiAI * 0.015) / (1 + effect.resilience);
         const usefulness = clamp(
             effect.quality * 0.65 +
                 effect.education * definition.education * 0.35 +
                 effect.enterprise * definition.enterprise * 0.35,
         );
-        const abandoned = area.autonomous * (0.001 + (1 - usefulness) * 0.007);
-        const preparation = clamp(effect.quality * 0.5 + effect.compliance * 0.5);
+        const abandoned = area.autonomous * (0.001 + (1 - usefulness) * 0.035);
         return {
             autonomous: area.autonomous + adopted - converted - rejectedUse + restored - abandoned,
             dependent: area.dependent + converted - restored - rejectedDependency,
@@ -165,23 +182,33 @@ export function advanceMonth(previous: GameState): GameState {
                     strategy.trust +
                     (0.58 - area.favorability) * 0.006 -
                     area.dependent * (0.001 + (1 - preparation) * 0.003) +
-                    effect.quality * 0.0003,
+                    effect.quality * 0.0003 -
+                    converted * (1 - preparation) * 0.2,
             ),
         };
     });
-    const updated = advanceInvestigations(advanceSociety(state));
+    const updated = advanceResearch(advanceInvestigations(advanceSociety(state)));
     const after = metrics(updated);
     updated.peakDependency = Math.max(previous.peakDependency, after.dependent);
 
     // 時間での収入に、初めて獲得した普及・依存の節目を加算。回復との往復では稼げない。
     const earned =
-        Math.min(40, Math.floor(updated.month / 12)) +
+        Math.min(
+            40,
+            Math.min(8, Math.floor(updated.month / 3)) +
+                Math.floor(Math.max(0, updated.month - 24) / 15),
+        ) +
         Math.floor(after.adoption * 30) +
         Math.floor(updated.peakDependency * 20);
     updated.skillPoints += Math.max(0, earned - previous.earnedPoints);
     updated.earnedPoints = Math.max(previous.earnedPoints, earned);
     if (after.dependent >= VICTORY_DEPENDENCY) updated.outcome = 'victory';
     else if (after.antiAI >= DEFEAT_OPPOSITION) updated.outcome = 'autonomy';
+    else if (after.adoption * WORLD_POPULATION < 0.001) {
+        // 世界全体で利用者が千人未満になったサービスは運用を終える。
+        updated.areas = updated.areas.map((area) => ({ ...area, autonomous: 0, dependent: 0 }));
+        updated.outcome = 'forgotten';
+    }
     return updated;
 }
 
@@ -189,9 +216,13 @@ export function advanceMonth(previous: GameState): GameState {
 export function areaHint(state: GameState, index: number): string {
     const area = AREAS[index];
     const effect = activeSkillEffects(state);
+    if (effect.quality === 0 && effect.spread === 0 && effect.enterprise === 0)
+        return '新しい用途が見つからず、利用者の関心が薄れている';
     if (state.areas[index].favorability < 0.4) return '不信から、利用をやめる人が増えている';
     if (area.digital < 0.5 && effect.access < 0.7) return '通信・端末の制約で、利用が伸び悩む';
     if (area.regulation > 0.6 && effect.compliance < 0.8) return '規制への対応が、導入の鍵になる';
+    if (publishedResearchPressure(state, index) > 0.01)
+        return '公表された研究成果を根拠に、AIへの反発が広がっている';
     if (state.areas[index].antiAI > 0.15) return 'AIを使わない選択を支持する人々が広がっている';
     if (effect.dependency === 0) return '便利な道具として、利用が広がっている';
     return '暮らしや仕事が、AIを前提に変わっていく';

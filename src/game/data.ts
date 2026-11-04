@@ -4,7 +4,7 @@ import type { AreaDefinition } from './types.ts';
 export const AREAS = regions as AreaDefinition[];
 export const STAGES = ['AI未使用', '自律的使用', 'AI依存', '反AI'];
 export const STAGE_COLORS = ['#778496', '#55bce6', '#ef424e', '#e4b565'];
-export const VICTORY_DEPENDENCY = 0.9;
+export const VICTORY_DEPENDENCY = 0.95;
 export const DEFEAT_OPPOSITION = 0.5;
 export const MONTH_MS = 3_125;
 export const START_YEAR = 2022;
