@@ -1,4 +1,4 @@
-import { AREAS, DEFEAT_OPPOSITION } from './data.ts';
+import { AREAS } from './data.ts';
 import { metrics } from './metrics.ts';
 import { instituteArea } from './secrecy/investigations.ts';
 import { researchTopic } from './secrecy/research.ts';
@@ -29,7 +29,7 @@ function milestoneNotifications(game: GameState): GameNotification[] {
         notifications.push({
             id: `world:opposition:${percent}`,
             month: game.month,
-            text: `世界の依存拒否率が${percent}%に到達（${DEFEAT_OPPOSITION * 100}%で敗北）`,
+            text: `世界の依存拒否率が${percent}%に到達（ほぼ100%で敗北）`,
             kind: 'warning',
         });
     }

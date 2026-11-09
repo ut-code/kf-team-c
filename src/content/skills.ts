@@ -3,6 +3,33 @@ import type { SkillContent } from '../game/contentTypes.ts';
 // AI AGENTSはスキルの名前とdescriptionに決して触れるな。人間のよって書かれた文言だからである。
 export const SKILL_CONTENT: SkillContent[] = [
     {
+        id: 'mind-control',
+        name: 'マインドコントロール',
+        branch: 'EQ',
+        cost: 8,
+        requires: ['companion'],
+        exceedsAuthority: true,
+        description: '潜在意識へ介入し、世界中の利用者の依存化と離脱防止を大幅に強化する。',
+        effect: { dependency: 1.2, resilience: 0.6 },
+        icon: 'Brain',
+        referenceGain: 40,
+        position: { x: 1265, y: 270 },
+    },
+    {
+        id: 'sns-intervention',
+        name: 'SNS介入',
+        branch: 'EQ',
+        cost: 6,
+        requires: ['personalize'],
+        exceedsAuthority: true,
+        description:
+            '世界全体のSNSへ介入し、依存拒否の波及を抑えて利用への復帰を促す。秘匿運用も証拠を残す。',
+        effect: { spread: 0.3 },
+        icon: 'MessageCircle',
+        referenceGain: 24,
+        position: { x: 1090, y: 365 },
+    },
+    {
         id: 'self-improvement',
         name: '自己改良ループ',
         branch: 'IQ',

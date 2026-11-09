@@ -5,6 +5,7 @@ import { activeSkillEffects, skillScale } from '../secrecy/capabilities.ts';
 import { INSTITUTES } from '../secrecy/data.ts';
 import { researchTopic } from '../secrecy/research.ts';
 import type { GameState } from '../types.ts';
+import { consensusPressure } from './consensus.ts';
 import { encounterDefinition } from './system.ts';
 
 export interface SocialPost {
@@ -198,7 +199,10 @@ export function updateSocialFeed(
             topics.push('research');
         if (Object.values(game.capabilities).some((item) => item.visibility === 'exposed'))
             topics.push('exposed');
-        append(topics[Math.floor(random('topic') * topics.length)], index);
+        const pressure = consensusPressure(game, index);
+        if (pressure.dependency > 0.02) append('dependencyNorm', index);
+        else if (pressure.refusal > 0.02) append('refusalCascade', index);
+        else append(topics[Math.floor(random('topic') * topics.length)], index);
         const quoted = old.posts.find(
             (post) =>
                 post.intervention &&

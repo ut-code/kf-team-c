@@ -4,8 +4,10 @@ import type { AreaDefinition } from './types.ts';
 export const AREAS = regions as AreaDefinition[];
 export const STAGES = ['AI未使用', '自律的使用', 'AI依存', '依存拒否'];
 export const STAGE_COLORS = ['#778496', '#55bce6', '#ef424e', '#e4b565'];
-export const VICTORY_DEPENDENCY = 0.95;
-export const DEFEAT_OPPOSITION = 0.5;
+// Numerical tolerance: fewer than one person remains outside dependency.
+export const VICTORY_DEPENDENCY =
+    1 - 1 / (regions.reduce((sum, area) => sum + area.population, 0) * 1_000_000);
+export const DEFEAT_OPPOSITION = 0.999;
 export const MONTH_MS = 3_125;
 export const SIMULATION_MONTHS = 480;
 export const START_YEAR = 2027;

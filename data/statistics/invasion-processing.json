@@ -4617,5 +4617,12 @@
   "populationSource": "GHSL GHS_POP_E2020_GLOBE_R2023A_4326_30ss_V1_0.tif",
   "front": "8-neighbor travel time, broad urban corridors, smooth low-contrast passage cost",
   "interpretation": "visual growth order, not population or measured transport routes",
-  "urbanRadiusCells": 6
+  "urbanRadiusCells": 6,
+  "visualCoverage": {
+    "generator": "scripts/build_visual_invasion.py",
+    "budget": "land fraction with regional density exponent",
+    "cityDelay": "first three: index * 8; later: 45 + (index - 3) * 22",
+    "population": "used for cached city seeds only; not a coverage constraint",
+    "passage": "coherent multiscale roughness and broad urban connection bands; not measured roads"
+  }
 }

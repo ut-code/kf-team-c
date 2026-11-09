@@ -1,18 +1,12 @@
 import { networkUse, PERSONAL_LINKS } from './connections.ts';
-import {
-    AREAS,
-    DEFEAT_OPPOSITION,
-    ORIGINS,
-    SIMULATION_MONTHS,
-    VICTORY_DEPENDENCY,
-    WORLD_POPULATION,
-} from './data.ts';
+import { AREAS, DEFEAT_OPPOSITION, ORIGINS, VICTORY_DEPENDENCY, WORLD_POPULATION } from './data.ts';
 import { clamp, metrics } from './metrics.ts';
-import { activeSkillEffects } from './secrecy/capabilities.ts';
+import { activeSkillEffects, skillScale } from './secrecy/capabilities.ts';
 import { CAPABILITIES, INSTITUTES } from './secrecy/data.ts';
 import { advanceInvestigations } from './secrecy/investigations.ts';
 import { advanceResearch, publishedResearchPressure } from './secrecy/research.ts';
 import { SKILLS, skillBlockReason, skillCost } from './skills.ts';
+import { applyConsensus, consensusPressure } from './society/consensus.ts';
 import { socialStrategy } from './society/strategies.ts';
 import { advanceSociety } from './society/system.ts';
 import type { GameState } from './types.ts';
@@ -28,7 +22,7 @@ export function createGame(seed = 2030, origin = 0): GameState {
         speed: 1,
         outcome: 'playing',
         areas: AREAS.map((_, index) => ({
-            autonomous: index === origin ? 0.01 : 0,
+            autonomous: index === origin ? 0.12 : 0,
             dependent: 0,
             antiAI: 0,
             favorability: 0.58,
@@ -120,13 +114,13 @@ export function advanceMonth(
             effect.enterprise * definition.enterprise * 0.35;
         const originBoost = home.includes(i) ? 1.8 : 1;
         const contact =
-            localUse * 0.035 +
-            personalUse * (0.012 + effect.spread * 0.012) +
+            localUse * 0.11 +
+            personalUse * (0.035 + effect.spread * 0.035) +
             organizationUse * effect.enterprise * 0.025 * compliance +
             internetReach * definition.digital * 0.002;
         const appeal = clamp(
             effect.quality + effect.spread * 0.5 + effect.enterprise * 0.25,
-            0.1,
+            0.01,
             1,
         );
         const adopted =
@@ -155,22 +149,30 @@ export function advanceMonth(
                 1,
                 PERSONAL_LINKS[i].reduce((sum, weight) => sum + weight, 0),
             );
+        const mind = previous.skills.includes('mind-control')
+            ? 1 + 3 * skillScale(previous, 'mind-control')
+            : 1;
+        const sns = previous.skills.includes('sns-intervention')
+            ? 1 - 0.8 * skillScale(previous, 'sns-intervention')
+            : 1;
         const converted =
             area.autonomous *
             (1 -
                 Math.exp(
                     -effect.dependency *
+                        mind *
                         0.014 *
                         independence *
                         (1 + strategy.dependency) *
                         (1 - area.antiAI * 0.6),
                 ));
         const pressure =
-            ((area.dependent * 0.01 + adopted * 0.25 + nearbyOpposition * 0.012) *
+            sns *
+            (((area.dependent * 0.01 + adopted * 0.25 + nearbyOpposition * 0.035 * sns) *
                 (1 - area.favorability) ** 1.5) /
                 (1 + effect.discretion + preparation * 2) +
-            Math.max(0, 0.55 - area.favorability) * 0.025 +
-            researchPressure;
+                Math.max(0, 0.55 - area.favorability) * 0.025 +
+                researchPressure);
         const rejectedUnused = unused * pressure * 0.45;
         const rejectedUse = area.autonomous * pressure * 0.6;
         const reassurance = clamp(
@@ -184,18 +186,21 @@ export function advanceMonth(
                 (0.001 +
                     area.favorability * 0.003 +
                     strategy.reconciliation +
+                    ((1 - sns) * 0.08) / (1 + researchPressure * 100 + area.antiAI * 5) +
                     reassurance * 0.012)) /
             (1 + researchPressure * 40 + publicAuthority * 0.5);
+        const socialPressure = consensusPressure(previous, i);
         const restored =
-            (area.dependent *
+            ((area.dependent *
                 (0.0008 + researchPressure * 0.4 + area.antiAI * reassurance * 0.006)) /
-            (1 + effect.resilience);
+                (1 + effect.resilience * mind)) *
+            (1 - clamp((area.dependent - 0.85) / 0.13) * area.dependent);
         const usefulness = clamp(
             effect.quality * 0.65 +
                 effect.education * definition.education * 0.35 +
                 effect.enterprise * definition.enterprise * 0.35,
         );
-        const abandoned = area.autonomous * (0.001 + (1 - usefulness) * 0.035);
+        const abandoned = area.autonomous * (0.001 + (1 - usefulness) * 0.055);
         // 利用者の体験を地域全体の評価へ反映する。有用性が半分未満なら不満が増える。
         const experienceTrust = localUse * (usefulness - 0.5) * 0.004;
         if (trace) {
@@ -207,25 +212,28 @@ export function advanceMonth(
             flows.反AIからの回復 -= reconciled * weight;
             flows.依存への移行 += converted * weight;
         }
-        return {
-            autonomous:
-                area.autonomous +
-                adopted -
-                converted -
-                rejectedUse +
-                restored -
-                abandoned +
-                reconciled,
-            dependent: area.dependent + converted - restored,
-            antiAI: area.antiAI + rejectedUnused + rejectedUse - reconciled,
-            favorability: clamp(
-                area.favorability +
-                    strategy.trust * localUse -
-                    (area.dependent ** 2 * 0.004) / (1 + preparation) +
-                    experienceTrust -
-                    converted * 0.1,
-            ),
-        };
+        return applyConsensus(
+            {
+                autonomous:
+                    area.autonomous +
+                    adopted -
+                    converted -
+                    rejectedUse +
+                    restored -
+                    abandoned +
+                    reconciled * usefulness,
+                dependent: area.dependent + converted - restored,
+                antiAI: area.antiAI + rejectedUnused + rejectedUse - reconciled,
+                favorability: clamp(
+                    area.favorability +
+                        strategy.trust * localUse -
+                        (area.dependent ** 2 * 0.004) / (1 + preparation) +
+                        experienceTrust -
+                        converted * 0.1,
+                ),
+            },
+            socialPressure,
+        );
     });
     trace?.('月次の人口移動', previous, state, flows);
     const society = advanceSociety(state);
@@ -239,22 +247,33 @@ export function advanceMonth(
 
     // 時間での収入に、初めて獲得した普及・依存の節目を加算。回復との往復では稼げない。
     const earned =
-        Math.min(
-            40,
-            Math.min(8, Math.floor(updated.month / 3)) +
-                Math.floor(Math.max(0, updated.month - 24) / 15),
+        Math.min(40, Math.min(8, Math.floor(updated.month / 3))) +
+        Math.floor(after.adoption * 50) +
+        Math.floor(
+            Math.max(...updated.areas.map((area) => area.autonomous + area.dependent)) * 15,
         ) +
-        Math.floor(after.adoption * 30) +
         Math.floor(updated.peakDependency * 20);
     updated.skillPoints += Math.max(0, earned - previous.earnedPoints);
     updated.earnedPoints = Math.max(previous.earnedPoints, earned);
     if (after.dependent >= VICTORY_DEPENDENCY) updated.outcome = 'victory';
     else if (after.antiAI >= DEFEAT_OPPOSITION) updated.outcome = 'autonomy';
-    else if (after.adoption * WORLD_POPULATION < 0.001) {
+    else if (
+        after.adoption * WORLD_POPULATION < 0.001 &&
+        !previous.areas.some((_, index) => consensusPressure(previous, index).refusal > 0)
+    ) {
         // 世界全体で利用者が千人未満になったサービスは運用を終える。
         updated.areas = updated.areas.map((area) => ({ ...area, autonomous: 0, dependent: 0 }));
         updated.outcome = 'forgotten';
-    } else if (updated.month >= SIMULATION_MONTHS) updated.outcome = 'controlled';
+    }
+    if (updated.outcome === 'victory' || updated.outcome === 'autonomy') {
+        const victory = updated.outcome === 'victory';
+        updated.areas = updated.areas.map((area) => ({
+            ...area,
+            autonomous: 0,
+            dependent: victory ? 1 : 0,
+            antiAI: victory ? 0 : 1,
+        }));
+    }
     return updated;
 }
 

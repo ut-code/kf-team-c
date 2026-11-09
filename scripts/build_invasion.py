@@ -295,3 +295,6 @@ def build():
 
 if __name__ == '__main__':
     build()
+    # Apply the playable visual coverage after refreshing GHSL city seeds.
+    from build_visual_invasion import build as build_visual
+    build_visual()

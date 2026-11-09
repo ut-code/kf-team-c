@@ -122,6 +122,7 @@ export function advanceResearch(previous: GameState): GameState {
     for (const institute of INSTITUTES) {
         const index = AREAS.findIndex((area) => area.id === institute.areaId);
         const use = previous.areas[index].autonomous + previous.areas[index].dependent;
+        if (use < 0.03) continue;
         researchKnowledge[institute.id] +=
             (0.35 + AREAS[index].education * 0.35 + use * 0.25 + publications * 0.025) *
             institute.researchCapacity *
@@ -156,6 +157,17 @@ export function advanceResearch(previous: GameState): GameState {
         const next = RESEARCH_TOPICS.find(
             (topic, tier) =>
                 researchKnowledge[institute.id] >= topic.knowledge &&
+                previous.areas[AREAS.findIndex((area) => area.id === institute.areaId)].dependent >=
+                    0.02 &&
+                (tier === 0 ||
+                    SKILLS.some(
+                        (skill) =>
+                            previous.skills.includes(skill.id) &&
+                            (tier < 2 || skill.exceedsAuthority) &&
+                            previous.capabilities[skill.id] &&
+                            (previous.capabilities[skill.id].visibility !== 'hidden' ||
+                                previous.capabilities[skill.id].evidence >= 5),
+                    )) &&
                 !investigations.some(
                     (item) =>
                         item.kind === 'research' &&
