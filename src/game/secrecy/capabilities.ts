@@ -1,5 +1,5 @@
 import { clamp } from '../metrics.ts';
-import { SKILLS, skillEffects } from '../skills.ts';
+import { branchCounts, SKILLS, skillEffects } from '../skills.ts';
 import type { GameState } from '../types.ts';
 import { CAPABILITIES } from './data.ts';
 
@@ -43,13 +43,15 @@ export function discloseCapability(game: GameState, id: string, exposed = false)
     );
     const breach = exposed ? 0.13 : investigation ? 0.02 : 0;
     const interference = exposed && investigation?.intervention === 'pressure' ? 0.08 : 0;
+    // 共感AIが普及していると、能力そのものへの恐怖で拒否に向かう人口が半分になる。
+    const empathy = branchCounts(game).EQ >= 3 ? 0.5 : 1;
     const areas = game.areas.map((area) => {
         const use = area.autonomous + area.dependent;
         const familiarity = use * 0.55;
         const fear = definition.fear * (1 - familiarity) + breach + interference;
-        const rejectedUse = area.autonomous * fear;
-        const rejectedDependency = area.dependent * fear * 0.4;
-        const rejectedUnused = Math.max(0, 1 - use - area.antiAI) * fear * 0.25;
+        const rejectedUse = area.autonomous * fear * empathy;
+        const rejectedDependency = area.dependent * fear * 0.4 * empathy;
+        const rejectedUnused = Math.max(0, 1 - use - area.antiAI) * fear * 0.25 * empathy;
         return {
             ...area,
             autonomous: area.autonomous - rejectedUse,

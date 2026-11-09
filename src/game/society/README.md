@@ -38,6 +38,35 @@
 
 `areaId` は `src/game/data/regions.json` のID。`location` を省略すると地域の人口集積地点を使います。`trigger` の比率は世界全体の値で、指定条件をすべて満たした場合に発生候補になります。案件は6か月以上の間隔で一件ずつ発生し、未対応は最大3件。一度発生したIDは繰り返しません。
 
+### trigger条件(能力の閾値)
+
+`trigger` には月と世界比率のほか、スキル学習数による条件を指定できます。
+
+- `iqSkills` / `eqSkills` / `systemSkills`:各ブランチの習得スキル数の下限。
+- `eqSkillsMax` / `systemSkillsMax`:習得数の上限。「EQやSYSTEMを育てていない」状態の指定に使う(能力を遅らせたことへのペナルティ型イベント)。
+- `favorability`:世界のAI好感度の下限。
+
+スキルは消去できないため、習得数は一度超えた閾値を維持します。反復型の事故も、エスカレーションする複数の単発イベント(`security-breach-1/2/3` など)で表現します。
+
+### 選択肢の成否(lottery)
+
+`choices[].lottery` を指定すると、選択肢に勝ち負けを持たせられます。
+
+```ts
+lottery: {
+    formula: 'favor-swing', // 'empathy-calm' | 'fixed'
+    chance: 0.5,            // formula 'fixed' のときの固定確率
+    win:  { result: '成功したときの文章', effects: [{ scope: 'local', favorability: 0.1 }] },
+    lose: { result: '失敗したときの文章', effects: [{ scope: 'world', favorability: -0.12 }] },
+},
+```
+
+- `favor-swing`:成功確率 = 世界の好感度と反AIの差、IQ+EQ習得数から算出(選挙などの世論勝負)。
+- `empathy-calm`:成功確率 = 0.35 + EQ習得数×0.08(EQを育てた勢力が有利)。
+- `fixed`:`chance` の固定値。
+
+判定はシード・当月・選択肢IDから決定論的に行われるため、同一シードなら必ず同じ結果になります。
+
 `duration` は発生からのゲーム内月数です。パネルを開いている間は時間が止まります。閉じて放置すると期限切れになり、`ignored.effects` が一度だけ適用されます。
 
 ## 効果

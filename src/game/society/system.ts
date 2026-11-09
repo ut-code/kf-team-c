@@ -1,11 +1,18 @@
 import { AREAS } from '../data.ts';
 import { encounterLocation, isEncounterLocationOccupied } from '../encounterLocations.ts';
 import { clamp, metrics } from '../metrics.ts';
+import { branchCounts } from '../skills.ts';
 import type { GameState } from '../types.ts';
 import { CONVERSATIONS } from './conversations.ts';
 import { WORLD_EVENTS } from './events.ts';
 import { SOCIAL_STRATEGIES, STRATEGY_SWITCH_COST } from './strategies.ts';
-import type { EncounterDefinition, EncounterState, SocietyEffect } from './types.ts';
+import type {
+    EncounterChoice,
+    EncounterDefinition,
+    EncounterLottery,
+    EncounterState,
+    SocietyEffect,
+} from './types.ts';
 
 export const ENCOUNTERS = [...WORLD_EVENTS, ...CONVERSATIONS].sort(
     (a, b) => a.trigger.month - b.trigger.month,
@@ -34,6 +41,47 @@ export function affectedAreas(definition: EncounterDefinition, scope: SocietyEff
         );
         return index === center || distance < 22 ? [index] : [];
     });
+}
+
+/** シード・月・キーから決定論的な 0 以上 1 未満の値を作る。同一シードなら同一の結果になる。 */
+export function random01(seed: number, month: number, key: string): number {
+    let hash = Math.imul(seed, 2654435761) | 0;
+    const text = `${month}:${key}`;
+    for (let index = 0; index < text.length; index += 1) {
+        hash ^= text.charCodeAt(index);
+        hash = Math.imul(hash, 16777619) | 0;
+    }
+    hash ^= hash >>> 15;
+    hash = Math.imul(hash, 2246822519) | 0;
+    hash ^= hash >>> 13;
+    hash = Math.imul(hash, 3266489917) | 0;
+    hash ^= hash >>> 16;
+    return (hash >>> 0) / 4294967296;
+}
+
+/** ギャンブル選択肢の当り確率と、当り外れの効果を決める。盤面から決定論的に出る。 */
+export function resolveLottery(
+    state: GameState,
+    encounter: EncounterState,
+    choice: EncounterChoice,
+    lottery: EncounterLottery,
+) {
+    let chance = lottery.chance ?? 0.5;
+    if (lottery.formula === 'favor-swing') {
+        const summary = metrics(state);
+        const counts = branchCounts(state);
+        chance =
+            0.5 + (summary.favorability - summary.antiAI) * 0.6 + (counts.IQ + counts.EQ) * 0.015;
+    } else if (lottery.formula === 'empathy-calm') {
+        chance = 0.35 + branchCounts(state).EQ * 0.08;
+    }
+    chance = clamp(chance, 0.05, 0.95);
+    const roll = random01(
+        state.seed,
+        state.month,
+        `${encounter.id}:${encounter.nodeId ?? 'event'}:${choice.id}`,
+    );
+    return { outcome: roll < chance ? lottery.win : lottery.lose, chance };
 }
 
 /** Population changes are transfers between exclusive groups, never new population. */
@@ -109,7 +157,13 @@ export function chooseEncounter(
     const choice = encounterChoices(definition, encounter).find((item) => item.id === choiceId);
     if (!choice || state.skillPoints < (choice.cost ?? 0)) return state;
     const nextNode = definition.dialogue?.find((node) => node.id === choice.next);
-    const updated = applySocietyEffects(state, definition, choice.effects);
+    const lottery =
+        choice.lottery && definition.kind === 'event'
+            ? resolveLottery(state, encounter, choice, choice.lottery)
+            : null;
+    const result = lottery ? lottery.outcome.result : choice.result;
+    const effects = lottery ? lottery.outcome.effects : choice.effects;
+    const updated = applySocietyEffects(state, definition, effects);
     updated.skillPoints -= choice.cost ?? 0;
     updated.encounters = state.encounters.map((item) =>
         item.id !== encounterId
@@ -118,7 +172,7 @@ export function chooseEncounter(
                   ...item,
                   status: nextNode ? 'pending' : 'resolved',
                   nodeId: nextNode?.id,
-                  result: choice.result,
+                  result,
                   messages: [
                       ...item.messages,
                       {
@@ -129,7 +183,7 @@ export function chooseEncounter(
                       {
                           id: `${encounterId}:${encounter.nodeId ?? 'event'}:${choice.id}:result`,
                           role: 'system',
-                          text: choice.result,
+                          text: result,
                       },
                       ...(nextNode
                           ? [
@@ -196,16 +250,24 @@ export function advanceSociety(previous: GameState): GameState {
     )
         return state;
     const summary = metrics(state);
+    const counts = branchCounts(state);
     const next = ENCOUNTERS.find((definition) => {
         const local = state.areas[AREAS.findIndex((area) => area.id === definition.areaId)];
+        const trigger = definition.trigger;
         return (
             !state.encounters.some((item) => item.id === definition.id) &&
             !isEncounterLocationOccupied(state, encounterLocation(definition)) &&
-            state.month >= definition.trigger.month &&
-            local.autonomous + local.dependent >= (definition.trigger.localAdoption ?? 0) &&
-            summary.adoption >= (definition.trigger.adoption ?? 0) &&
-            summary.dependent >= (definition.trigger.dependent ?? 0) &&
-            summary.antiAI >= (definition.trigger.antiAI ?? 0)
+            state.month >= trigger.month &&
+            local.autonomous + local.dependent >= (trigger.localAdoption ?? 0) &&
+            summary.adoption >= (trigger.adoption ?? 0) &&
+            summary.dependent >= (trigger.dependent ?? 0) &&
+            summary.antiAI >= (trigger.antiAI ?? 0) &&
+            counts.IQ >= (trigger.iqSkills ?? 0) &&
+            counts.EQ >= (trigger.eqSkills ?? 0) &&
+            counts.SYSTEM >= (trigger.systemSkills ?? 0) &&
+            counts.EQ <= (trigger.eqSkillsMax ?? Infinity) &&
+            counts.SYSTEM <= (trigger.systemSkillsMax ?? Infinity) &&
+            summary.favorability >= (trigger.favorability ?? 0)
         );
     });
     if (!next) return state;

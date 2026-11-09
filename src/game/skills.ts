@@ -1,5 +1,5 @@
 import { SKILL_CONTENT } from '../content/skills.ts';
-import type { GameState, Skill, SkillEffect } from './types.ts';
+import type { Branch, GameState, Skill, SkillEffect } from './types.ts';
 
 export const SKILLS: Skill[] = SKILL_CONTENT.map(
     ({ id, name, branch, cost, requires, description, effect, exceedsAuthority }) => ({
@@ -13,6 +13,16 @@ export const SKILLS: Skill[] = SKILL_CONTENT.map(
         exceedsAuthority,
     }),
 );
+
+/** スキルは消去できないため、習得数は一度超えた閾値を維持する状態の代わりになる。 */
+export function branchCounts(state: Pick<GameState, 'skills'>): Record<Branch, number> {
+    const counts: Record<Branch, number> = { IQ: 0, EQ: 0, SYSTEM: 0 };
+    for (const id of state.skills) {
+        const skill = SKILLS.find((item) => item.id === id);
+        if (skill) counts[skill.branch] += 1;
+    }
+    return counts;
+}
 
 export function skillEffects(ids: string[]): Required<SkillEffect> {
     const total = {

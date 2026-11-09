@@ -11,7 +11,7 @@ import { activeSkillEffects } from './secrecy/capabilities.ts';
 import { CAPABILITIES, INSTITUTES } from './secrecy/data.ts';
 import { advanceInvestigations } from './secrecy/investigations.ts';
 import { advanceResearch, publishedResearchPressure } from './secrecy/research.ts';
-import { SKILLS, skillBlockReason } from './skills.ts';
+import { branchCounts, SKILLS, skillBlockReason } from './skills.ts';
 import { socialStrategy } from './society/strategies.ts';
 import { advanceSociety } from './society/system.ts';
 import type { GameState } from './types.ts';
@@ -88,6 +88,8 @@ export function advanceMonth(
     ) => void,
 ): GameState {
     if (!previous.started || previous.outcome !== 'playing') return previous;
+    // 共感AI: EQブランチを3つ以上学ぶと、以後ずっと反発の自然減と拒否の緩和が効く。
+    const empathy = branchCounts(previous).EQ >= 3;
     const effect = activeSkillEffects(previous);
     const strategy = socialStrategy(previous.socialStrategy);
     const home = ORIGINS.find((origin) => origin.area === previous.origin)!.home;
@@ -188,7 +190,8 @@ export function advanceMonth(
                     area.favorability * 0.003 +
                     strategy.reconciliation +
                     preparation * 0.008)) /
-            (1 + researchPressure * 80);
+                (1 + researchPressure * 80) +
+            (empathy ? 0.002 : 0);
         const restored = (area.dependent * (0.001 + area.antiAI * 0.015)) / (1 + effect.resilience);
         const usefulness = clamp(
             effect.quality * 0.65 +
@@ -210,7 +213,11 @@ export function advanceMonth(
         return {
             autonomous: area.autonomous + adopted - converted - rejectedUse + restored - abandoned,
             dependent: area.dependent + converted - restored - rejectedDependency,
-            antiAI: area.antiAI + rejectedUnused + rejectedUse + rejectedDependency - reconciled,
+            antiAI: clamp(
+                area.antiAI + rejectedUnused + rejectedUse + rejectedDependency - reconciled,
+                0,
+                1,
+            ),
             favorability: clamp(
                 area.favorability +
                     strategy.trust * localUse -

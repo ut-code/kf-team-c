@@ -2,7 +2,7 @@ import { AREAS, DEFEAT_OPPOSITION } from './data.ts';
 import { metrics } from './metrics.ts';
 import { instituteArea } from './secrecy/investigations.ts';
 import { researchTopic } from './secrecy/research.ts';
-import { SKILLS } from './skills.ts';
+import { branchCounts, SKILLS } from './skills.ts';
 import { encounterDefinition } from './society/system.ts';
 import type { GameState } from './types.ts';
 
@@ -88,6 +88,13 @@ export function updateNotifications(
         incoming.push({ id, month: game.month, text, kind });
     };
     if (previous.areas !== game.areas) incoming.push(...milestoneNotifications(game));
+    // 共感AI: EQブランチの習得数が3に達した月に、常時効果の開始を伝える。
+    if (branchCounts(previous).EQ < 3 && branchCounts(game).EQ >= 3)
+        add(
+            'empathy:active',
+            '共感AIの活用が社会に普及。AIへの反発が毎月わずかに和らぎ、事故時の利用拒否も半減する。',
+            'event',
+        );
     for (const encounter of game.encounters) {
         const before = previous.encounters.find((item) => item.id === encounter.id);
         const definition = encounterDefinition(encounter.id)!;
