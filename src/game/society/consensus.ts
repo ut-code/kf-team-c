@@ -15,9 +15,9 @@ export function consensusPressure(game: GameState, index: number) {
     const exposed = Object.values(game.capabilities).some((item) => item.visibility === 'exposed');
     return {
         dependency:
-            (0.35 * ramp(world.dependent, 0.85, 0.98) * (1 - ramp(area.antiAI, 0.1, 0.6))) /
+            (0.18 * ramp(world.dependent, 0.8, 0.98) * (1 - ramp(area.antiAI, 0.1, 0.6))) /
             (1 + evidence * 40),
-        refusal: 0.9 * ramp(world.antiAI, 0.5, 0.9) * (exposed || evidence > 0 ? 1 : 0),
+        refusal: 0.98 * ramp(world.antiAI, 0.2, 0.8) * (exposed || evidence > 0 ? 1 : 0),
     };
 }
 

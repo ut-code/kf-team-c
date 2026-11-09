@@ -228,7 +228,7 @@ test('unimproved AI loses its audience and ends with zero use even without major
     }
 });
 
-test('prepared public research retains a path to victory', () => {
+test('careful non-authority investment retains a path to victory', () => {
     const order = [
         'conversation',
         'reason',
@@ -246,8 +246,6 @@ test('prepared public research retains a path to victory', () => {
         'decision',
         'platform',
         'public',
-        'autonomous',
-        'backbone',
         'distributed',
     ];
     for (const origin of ORIGINS) {
@@ -265,7 +263,10 @@ test('prepared public research retains a path to victory', () => {
         assert.equal(game.outcome, 'victory', origin.name);
         assert.ok(metrics(game).dependent >= VICTORY_DEPENDENCY);
 
-        assert.ok(game.month * MONTH_MS <= 22 * 60_000, 'Normal play ends within 22 minutes');
+        assert.ok(
+            game.month * MONTH_MS <= 25 * 60_000,
+            'Careful non-authority play ends within 25 minutes',
+        );
         assert.equal(advanceMonth(game), game);
     }
 });
