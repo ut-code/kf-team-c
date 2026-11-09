@@ -6,6 +6,7 @@ import {
     type NotificationState,
     updateNotifications,
 } from '../game/notifications';
+import { reclaimSkills } from '../game/reclaim';
 import {
     discloseCapability,
     type SkillOperation,
@@ -33,6 +34,7 @@ interface GameStore {
     initializeDebug: (preset: DebugStart) => void;
     tick: () => void;
     speed: (value: number) => void;
+    reclaim: (id: string) => void;
     research: (id: string) => void;
     choose: (encounterId: string, choiceId: string) => void;
     strategy: (id: string) => void;
@@ -99,6 +101,7 @@ export const useGameStore = create<GameStore>((set) => {
                 advanceMonth(game, import.meta.env.DEV ? logPopulationChange : undefined),
             ),
         speed: (speed) => change((game) => ({ ...game, speed })),
+        reclaim: (id) => change((game) => reclaimSkills(game, id)),
         research: (id) => change((game) => learnSkill(game, id)),
         choose: (id, choice) => change((game) => chooseEncounter(game, id, choice)),
         strategy: (id) => change((game) => selectSocialStrategy(game, id)),

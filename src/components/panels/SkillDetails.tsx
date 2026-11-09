@@ -1,7 +1,8 @@
 import { Eye, EyeOff, LockKeyhole } from 'lucide-react';
+import { reclaimPlan } from '../../game/reclaim';
 import { capabilityLabel, skillOperation, skillScale } from '../../game/secrecy/capabilities';
 import { CAPABILITIES } from '../../game/secrecy/data';
-import { skillBlockReason, skillCost, skillReachable } from '../../game/skills';
+import { SKILLS, skillBlockReason, skillCost, skillReachable } from '../../game/skills';
 import type { GameState, Skill } from '../../game/types';
 import { useGameStore } from '../../state/gameStore';
 import { SKILL_BRANCHES, SKILL_PRESENTATION } from './skillPresentation';
@@ -21,6 +22,7 @@ export function SkillDetails({
     skill: Skill;
     onResearch: (id: string) => void;
 }) {
+    const plan = reclaimPlan(game, skill.id);
     const branch = SKILL_BRANCHES[skill.branch];
     const Icon = SKILL_PRESENTATION[skill.id].icon;
     const owned = game.skills.includes(skill.id);
@@ -71,6 +73,27 @@ export function SkillDetails({
                     </div>
                 )}
                 <p>{skill.description}</p>
+                {owned && (
+                    <details className="skill-importance-note">
+                        <summary>投資を回収 · {plan.refund} SP</summary>
+                        <p>
+                            次のスキルを手放し、支払ったSPの50%を回収します（合計から端数切り捨て）。
+                        </p>
+                        <p>
+                            {plan.ids
+                                .map((id) => SKILLS.find((item) => item.id === id)!.name)
+                                .join('、')}
+                        </p>
+                        <p>公開事実・証拠・調査進捗は残ります。再取得にはSPが必要です。</p>
+                        <button
+                            type="button"
+                            disabled={game.outcome !== 'playing'}
+                            onClick={() => useGameStore.getState().reclaim(skill.id)}
+                        >
+                            上記{plan.ids.length}スキルを手放して{plan.refund} SP回収
+                        </button>
+                    </details>
+                )}
                 <h3>必要なSP</h3>
                 <strong className="skill-detail-cost">{skillCost(game, skill)} SP</strong>
                 {owned && skill.id !== 'self-improvement' && (

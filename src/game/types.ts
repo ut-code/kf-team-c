@@ -46,6 +46,7 @@ export interface GameState {
     origin: number;
     areas: AreaState[];
     skills: string[];
+    skillInvestments?: Record<string, number>;
     stoppedSkills: string[];
     skillPoints: number;
     earnedPoints: number;

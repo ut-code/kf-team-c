@@ -1,7 +1,7 @@
 import { networkUse, PERSONAL_LINKS } from './connections.ts';
 import { AREAS, DEFEAT_OPPOSITION, ORIGINS, VICTORY_DEPENDENCY, WORLD_POPULATION } from './data.ts';
 import { clamp, metrics } from './metrics.ts';
-import { activeSkillEffects, skillScale } from './secrecy/capabilities.ts';
+import { activeSkillEffects, setSkillOperation, skillScale } from './secrecy/capabilities.ts';
 import { CAPABILITIES, INSTITUTES } from './secrecy/data.ts';
 import { advanceInvestigations } from './secrecy/investigations.ts';
 import { advanceResearch, publishedResearchPressure } from './secrecy/research.ts';
@@ -49,14 +49,20 @@ export function learnSkill(state: GameState, id: string): GameState {
     const skill = SKILLS.find((item) => item.id === id);
     if (!state.started || state.outcome !== 'playing' || !skill || skillBlockReason(state, skill))
         return state;
-    return {
+    const learned = {
         ...state,
         skillPoints: state.skillPoints - skillCost(state, skill),
         skills: [...state.skills, id],
-        capabilities: CAPABILITIES[id]
-            ? { ...state.capabilities, [id]: { visibility: 'hidden', limited: false, evidence: 0 } }
-            : state.capabilities,
+        skillInvestments: { ...state.skillInvestments, [id]: skillCost(state, skill) },
+        capabilities:
+            CAPABILITIES[id] && !state.capabilities[id]
+                ? {
+                      ...state.capabilities,
+                      [id]: { visibility: 'hidden' as const, limited: false, evidence: 0 },
+                  }
+                : state.capabilities,
     };
+    return setSkillOperation(learned, id, 'running');
 }
 
 /** 地域の集計人口だけを更新する。すべての地域は同じ前月の状態を参照する。 */

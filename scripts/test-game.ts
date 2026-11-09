@@ -11,6 +11,7 @@ import {
 import { createDebugGame } from '../src/game/debug.ts';
 import { advanceMonth, createGame, learnSkill, startGame } from '../src/game/engine.ts';
 import { metrics } from '../src/game/metrics.ts';
+import { reclaimPlan, reclaimSkills } from '../src/game/reclaim.ts';
 import { discloseCapability } from '../src/game/secrecy/capabilities.ts';
 import { INSTITUTES } from '../src/game/secrecy/data.ts';
 import { investigationRate, respondToInvestigation } from '../src/game/secrecy/investigations.ts';
@@ -676,4 +677,82 @@ test('SNS reflects active social pressure without adding simulation state or dup
         assert.equal(updateSocialFeed(game, game, feed), feed);
         assert.equal(JSON.stringify(game), original);
     }
+});
+
+test('reclaiming a branch funds a new strategy without resetting milestones or evidence', () => {
+    let game = { ...startGame(createGame(), 0), skillPoints: 100 };
+    for (const id of [
+        'conversation',
+        'personalize',
+        'lightweight',
+        'automation',
+        'integration',
+        'decision',
+        'autonomous',
+        'platform',
+        'public',
+    ])
+        game = learnSkill(game, id);
+    game = discloseCapability(game, 'autonomous', true);
+    game = { ...game, skillPoints: 0 };
+    const before = JSON.stringify(game);
+    const plan = reclaimPlan(game, 'automation');
+    assert.ok(plan.ids.includes('autonomous') && plan.ids.includes('public'));
+    const reclaimed = reclaimSkills(game, 'automation');
+    assert.equal(JSON.stringify(game), before);
+    assert.ok(reclaimed.skillPoints >= 6);
+    assert.equal(reclaimed.earnedPoints, game.earnedPoints);
+    assert.equal(reclaimed.capabilities.autonomous.visibility, 'exposed');
+    assert.ok(reclaimed.skills.includes('personalize'));
+    assert.ok(!reclaimed.skills.includes('decision'));
+    const pivoted = learnSkill(reclaimed, 'sns-intervention');
+    assert.ok(pivoted.skills.includes('sns-intervention'));
+    assert.equal(reclaimSkills(reclaimed, 'automation'), reclaimed);
+});
+
+test('reclaim uses actual discounted cost and reacquiring keeps investigation progress', () => {
+    let game = { ...startGame(createGame(), 0), skillPoints: 100 };
+    for (const id of [
+        'reason',
+        'knowledge',
+        'science',
+        'self-improvement',
+        'verification',
+        'conversation',
+        'personalize',
+        'memory',
+    ])
+        game = learnSkill(game, id);
+    assert.equal(game.skillInvestments?.verification, 2);
+    assert.equal(reclaimPlan(game, 'verification').refund, 3); // verification 2 + self-improvement 5
+    game = {
+        ...game,
+        investigations: [
+            {
+                kind: 'capability' as const,
+                id: 'investigation:memory',
+                skillId: 'memory',
+                instituteId: INSTITUTES[0].id,
+                status: 'active' as const,
+                progress: 62,
+                startedMonth: 1,
+                intervention: 'pressure' as const,
+            },
+        ],
+    };
+    const initialSP = game.skillPoints;
+    const evidence = { ...game.capabilities.memory, evidence: 9 };
+    game = { ...game, capabilities: { ...game.capabilities, memory: evidence } };
+    game = reclaimSkills(game, 'memory');
+    assert.equal(game.investigations[0].status, 'restricted');
+    game = learnSkill(game, 'memory');
+    assert.equal(game.capabilities.memory.evidence, 9);
+    assert.equal(game.investigations[0].progress, 62);
+    assert.equal(game.investigations[0].status, 'active');
+    assert.equal(game.investigations[0].intervention, 'pressure');
+    assert.ok(game.skillPoints < initialSP);
+    assert.equal(
+        reclaimSkills({ ...game, outcome: 'victory' }, 'memory').skillPoints,
+        game.skillPoints,
+    );
 });
