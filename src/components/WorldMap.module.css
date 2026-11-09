@@ -51,6 +51,18 @@
     color: #f7b6a8;
     font-size: 14px;
 }
+.loading {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    max-width: calc(100% - 32px);
+    margin: 0;
+    padding: 12px 16px;
+    font-size: 13px;
+    text-align: center;
+    pointer-events: none;
+}
 .metricChanges {
     position: absolute;
     inset: 0;

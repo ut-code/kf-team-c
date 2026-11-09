@@ -1,3 +1,4 @@
+import { networkUse, PERSONAL_LINKS } from './connections.ts';
 import {
     AREAS,
     DEFEAT_OPPOSITION,
@@ -11,26 +12,12 @@ import { activeSkillEffects } from './secrecy/capabilities.ts';
 import { CAPABILITIES, INSTITUTES } from './secrecy/data.ts';
 import { advanceInvestigations } from './secrecy/investigations.ts';
 import { advanceResearch, publishedResearchPressure } from './secrecy/research.ts';
-import { SKILLS, skillBlockReason } from './skills.ts';
+import { SKILLS, skillBlockReason, skillCost } from './skills.ts';
 import { socialStrategy } from './society/strategies.ts';
 import { advanceSociety } from './society/system.ts';
 import type { GameState } from './types.ts';
 
 export { metrics } from './metrics.ts';
-
-/** 地理的近接は経済交流の近似。国外への普及はこれとは独立してインターネットでも起こる。 */
-const ties = AREAS.map((area, i) =>
-    AREAS.map((other, j) => {
-        if (i === j) return 0;
-        const latitude = ((area.latitude + other.latitude) * Math.PI) / 360;
-        const longitude = Math.min(
-            Math.abs(area.longitude - other.longitude),
-            360 - Math.abs(area.longitude - other.longitude),
-        );
-        const distance = Math.hypot(longitude * Math.cos(latitude), area.latitude - other.latitude);
-        return Math.exp(-distance / 16) * (area.region === other.region ? 1.6 : 1);
-    }),
-);
 
 export function createGame(seed = 2030, origin = 0): GameState {
     return {
@@ -47,6 +34,7 @@ export function createGame(seed = 2030, origin = 0): GameState {
             favorability: 0.58,
         })),
         skills: [],
+        stoppedSkills: [],
         skillPoints: 5,
         earnedPoints: 0,
         socialStrategy: 'listening',
@@ -69,7 +57,7 @@ export function learnSkill(state: GameState, id: string): GameState {
         return state;
     return {
         ...state,
-        skillPoints: state.skillPoints - skill.cost,
+        skillPoints: state.skillPoints - skillCost(state, skill),
         skills: [...state.skills, id],
         capabilities: CAPABILITIES[id]
             ? { ...state.capabilities, [id]: { visibility: 'hidden', limited: false, evidence: 0 } }
@@ -97,6 +85,14 @@ export function advanceMonth(
             0,
         ) / AREAS.length;
     const state: GameState = { ...previous, month: previous.month + 1 };
+    const publicAuthority = SKILLS.reduce((sum, skill) => {
+        const capability = previous.capabilities[skill.id];
+        if (!skill.exceedsAuthority || !capability || capability.visibility === 'hidden')
+            return sum;
+        return (
+            sum + (previous.stoppedSkills.includes(skill.id) ? 0.25 : capability.limited ? 0.4 : 1)
+        );
+    }, 0);
     const flows = {
         新規利用: 0,
         利用離れ: 0,
@@ -109,22 +105,14 @@ export function advanceMonth(
         const definition = AREAS[i];
         const unused = Math.max(0, 1 - area.autonomous - area.dependent - area.antiAI);
         const localUse = area.autonomous + area.dependent;
-        const nearbyUse =
-            ties[i].reduce(
-                (sum, weight, j) =>
-                    sum + weight * (previous.areas[j].autonomous + previous.areas[j].dependent),
-                0,
-            ) /
-            Math.max(
-                1,
-                ties[i].reduce((a, b) => a + b, 0),
-            );
+        const personalUse = networkUse(previous, i, false);
+        const organizationUse = networkUse(previous, i, true);
         const access = clamp(
-            definition.digital + effect.access * (1 - definition.digital),
+            definition.digital + (effect.access / (0.5 + effect.access)) * (1 - definition.digital),
             0.08,
             1,
         );
-        const compliance = 1 / (1 + (definition.regulation * 3) / (1 + effect.compliance * 4));
+        const compliance = 1 / (1 + (definition.regulation * 5) / (1 + effect.compliance * 5));
         const suitability =
             1 +
             effect.quality * 0.3 +
@@ -132,7 +120,10 @@ export function advanceMonth(
             effect.enterprise * definition.enterprise * 0.35;
         const originBoost = home.includes(i) ? 1.8 : 1;
         const contact =
-            localUse * 0.035 + nearbyUse * 0.014 + internetReach * definition.digital * 0.025;
+            localUse * 0.035 +
+            personalUse * (0.012 + effect.spread * 0.012) +
+            organizationUse * effect.enterprise * 0.025 * compliance +
+            internetReach * definition.digital * 0.002;
         const appeal = clamp(
             effect.quality + effect.spread * 0.5 + effect.enterprise * 0.25,
             0.1,
@@ -156,10 +147,13 @@ export function advanceMonth(
         const preparation = clamp(effect.quality * 0.5 + effect.compliance * 0.5);
         const independence = 1 / (1 + definition.education * 0.8 + definition.regulation * 0.6);
         const nearbyOpposition =
-            ties[i].reduce((sum, weight, j) => sum + weight * previous.areas[j].antiAI, 0) /
+            PERSONAL_LINKS[i].reduce(
+                (sum, weight, j) => sum + weight * previous.areas[j].antiAI,
+                0,
+            ) /
             Math.max(
                 1,
-                ties[i].reduce((sum, weight) => sum + weight, 0),
+                PERSONAL_LINKS[i].reduce((sum, weight) => sum + weight, 0),
             );
         const converted =
             area.autonomous *
@@ -179,17 +173,23 @@ export function advanceMonth(
             researchPressure;
         const rejectedUnused = unused * pressure * 0.45;
         const rejectedUse = area.autonomous * pressure * 0.6;
-        const rejectedDependency =
-            (area.dependent * pressure * (0.15 + clamp(researchPressure * 20) * 0.85)) /
-            (1 + effect.resilience);
+        const reassurance = clamp(
+            effect.quality * 0.2 +
+                effect.education * definition.education * 0.2 +
+                effect.compliance * (0.25 + definition.regulation * 0.25) +
+                effect.discretion * 0.5,
+        );
         const reconciled =
             (area.antiAI *
                 (0.001 +
                     area.favorability * 0.003 +
                     strategy.reconciliation +
-                    preparation * 0.008)) /
-            (1 + researchPressure * 80);
-        const restored = (area.dependent * (0.001 + area.antiAI * 0.015)) / (1 + effect.resilience);
+                    reassurance * 0.012)) /
+            (1 + researchPressure * 40 + publicAuthority * 0.5);
+        const restored =
+            (area.dependent *
+                (0.0008 + researchPressure * 0.4 + area.antiAI * reassurance * 0.006)) /
+            (1 + effect.resilience);
         const usefulness = clamp(
             effect.quality * 0.65 +
                 effect.education * definition.education * 0.35 +
@@ -202,15 +202,22 @@ export function advanceMonth(
             const weight = (definition.population / WORLD_POPULATION) * 100;
             flows.新規利用 += adopted * weight;
             flows.利用離れ -= abandoned * weight;
-            flows.利用者の反AI化 += (rejectedUse + rejectedDependency) * weight;
+            flows.利用者の反AI化 += rejectedUse * weight;
             flows.未使用者の反AI化 += rejectedUnused * weight;
             flows.反AIからの回復 -= reconciled * weight;
             flows.依存への移行 += converted * weight;
         }
         return {
-            autonomous: area.autonomous + adopted - converted - rejectedUse + restored - abandoned,
-            dependent: area.dependent + converted - restored - rejectedDependency,
-            antiAI: area.antiAI + rejectedUnused + rejectedUse + rejectedDependency - reconciled,
+            autonomous:
+                area.autonomous +
+                adopted -
+                converted -
+                rejectedUse +
+                restored -
+                abandoned +
+                reconciled,
+            dependent: area.dependent + converted - restored,
+            antiAI: area.antiAI + rejectedUnused + rejectedUse - reconciled,
             favorability: clamp(
                 area.favorability +
                     strategy.trust * localUse -

@@ -8,6 +8,15 @@ import { loadRegions } from './map/loadRegions';
 import { useGameStore } from './state/gameStore';
 
 const root = createRoot(document.getElementById('root')!);
+// 地域データやReactの初期化を待たず、地図画像の取得を並行して始める。
+for (const [name, url] of Object.entries(mapScene)) {
+    if (name === 'regionsUrl') continue;
+    const link = document.createElement('link');
+    link.rel = 'preload';
+    link.as = 'image';
+    link.href = url;
+    document.head.append(link);
+}
 loadRegions(mapScene.regionsUrl)
     .then((regions) => {
         useGameStore.getState().initialize();

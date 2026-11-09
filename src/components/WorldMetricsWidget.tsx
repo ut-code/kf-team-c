@@ -35,9 +35,9 @@ export function WorldMetricsWidget({
                 </span>
                 <span
                     className="world-number opposition-number"
-                    title={`反AI ${DEFEAT_OPPOSITION * 100}%で敗北`}
+                    title={`依存拒否 ${DEFEAT_OPPOSITION * 100}%で敗北`}
                 >
-                    <span>反AI / {DEFEAT_OPPOSITION * 100}%</span>
+                    <span>依存拒否 / {DEFEAT_OPPOSITION * 100}%</span>
                     <strong>{percent(values.antiAI)}</strong>
                 </span>
             </button>

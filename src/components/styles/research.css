@@ -345,7 +345,31 @@
     padding: 9px;
     font-size: 11px;
 }
+.skill-operation-controls > small {
+    color: var(--muted);
+}
 .capability-controls button small {
     margin-left: auto;
     color: var(--warning);
+}
+
+/* 既存の詳細欄に運用切替だけを追加する。全体図の寸法・カード・配色は変更しない。 */
+.skill-operation-controls {
+    margin-top: 20px;
+    padding-top: 12px;
+    border-top: 1px solid var(--line);
+}
+.skill-operation-controls > div {
+    display: flex;
+    gap: 5px;
+    margin-top: 8px;
+}
+.skill-operation-controls button {
+    flex: 1;
+    padding: 7px;
+    font-size: 11px;
+}
+.skill-operation-controls button[aria-pressed="true"] {
+    border-color: var(--accent);
+    background: var(--surface-selected);
 }

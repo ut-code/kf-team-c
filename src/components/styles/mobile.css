@@ -1,0 +1,227 @@
+/* スマホではHUDを上下に分け、詳細は独立してスクロールさせる。 */
+@media (max-width: 700px), (max-height: 500px) and (pointer: coarse) {
+    .game-shell {
+        --mobile-top: max(8px, env(safe-area-inset-top));
+        --mobile-bottom: max(8px, env(safe-area-inset-bottom));
+        --mobile-left: max(8px, env(safe-area-inset-left));
+        --mobile-right: max(8px, env(safe-area-inset-right));
+        position: fixed;
+        height: 100dvh;
+    }
+    .world-metrics-widget {
+        top: var(--mobile-top);
+        left: var(--mobile-left);
+        right: var(--mobile-right);
+        transform: none;
+    }
+    .map-background {
+        top: calc(var(--mobile-top) + 150px);
+        bottom: calc(var(--mobile-bottom) + 164px);
+    }
+    .world-hud {
+        width: 100%;
+        min-height: 56px;
+    }
+    .world-number {
+        flex: 1;
+        min-width: 0;
+        padding-inline: 8px;
+    }
+    .world-number > span {
+        font-size: 10px;
+    }
+    .world-number strong {
+        font-size: 18px;
+    }
+    .pause-label {
+        top: calc(100% + 4px);
+        font-size: 11px;
+        line-height: 16px;
+    }
+    .right-hud {
+        top: calc(var(--mobile-top) + 82px);
+        left: var(--mobile-left);
+        right: var(--mobile-right);
+        bottom: auto;
+        width: auto;
+        max-height: 64px;
+        overflow: hidden;
+    }
+    .game-clock {
+        left: var(--mobile-left);
+        right: var(--mobile-right);
+        bottom: calc(var(--mobile-bottom) + 56px);
+        width: auto;
+        padding: 8px;
+    }
+    .clock-row {
+        flex-direction: column;
+        gap: 6px;
+    }
+    .time-controls {
+        width: 100%;
+        gap: 6px;
+    }
+    .time-controls button {
+        flex: 1;
+        width: auto;
+        min-width: 44px;
+        height: 44px;
+        font-size: 12px;
+    }
+    .map-footer {
+        left: var(--mobile-left);
+        right: var(--mobile-right);
+        bottom: var(--mobile-bottom);
+    }
+    .game-actions {
+        width: 100%;
+        gap: 8px;
+    }
+    .game-actions > button {
+        flex: 1;
+        justify-content: center;
+        width: auto;
+        min-width: 0;
+        min-height: 48px;
+        padding: 8px;
+        gap: 6px;
+    }
+    .game-actions > :where(button) > span,
+    .game-actions > :where(button) > b {
+        display: inline;
+    }
+    .game-actions > :where(button) > small,
+    .map-credit,
+    .map-legend {
+        display: none;
+    }
+    .area-card,
+    .sns-panel {
+        top: calc(var(--mobile-top) + 82px);
+        bottom: calc(var(--mobile-bottom) + 160px);
+        left: var(--mobile-left);
+        right: var(--mobile-right);
+        z-index: 10;
+        width: auto;
+        max-width: none;
+        max-height: none;
+        transform: none;
+        padding: 16px;
+    }
+    .icon-button,
+    .area-card .icon-button {
+        width: 44px;
+        height: 44px;
+    }
+    .area-card,
+    .sns-panel,
+    .modal,
+    .skill-details,
+    .tree-viewport {
+        overscroll-behavior: contain;
+        overflow-wrap: anywhere;
+    }
+    .modal,
+    .modal.wide,
+    .game-shell .modal.floating {
+        width: calc(100% - var(--mobile-left) - var(--mobile-right));
+        max-height: calc(100dvh - var(--mobile-top) - var(--mobile-bottom));
+        padding: 16px;
+    }
+    /* イベントの地図上の座標より、画面内で読める領域を優先する。 */
+    .game-shell .modal.floating {
+        inset: var(--mobile-top) var(--mobile-right) auto var(--mobile-left);
+    }
+    .modal.conversation-modal,
+    .modal.floating.conversation-modal {
+        height: calc(100dvh - var(--mobile-top) - var(--mobile-bottom));
+        padding: 0;
+    }
+    .conversation-heading,
+    .conversation-status {
+        gap: 8px;
+        padding-inline: 12px;
+    }
+    .conversation-status {
+        flex-wrap: wrap;
+    }
+    .conversation-heading > div {
+        min-width: 0;
+    }
+    .conversation-reply {
+        flex-wrap: wrap;
+        min-height: 44px;
+    }
+    .conversation-reply > span {
+        min-width: 120px;
+    }
+    .result-stats {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 20px 12px;
+    }
+    .result-stats .population-count {
+        white-space: normal;
+    }
+    .research-workspace {
+        padding: var(--mobile-top) var(--mobile-right) var(--mobile-bottom) var(--mobile-left);
+    }
+    .research-heading {
+        padding: 4px 4px 10px;
+        gap: 8px;
+    }
+    .research-heading h1 {
+        font-size: 15px;
+    }
+    .research-budget > span {
+        font-size: 9px;
+    }
+    .research-budget > strong {
+        font-size: 22px;
+    }
+    .research-layout {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+    }
+    .tree-viewport {
+        overflow: auto;
+    }
+    /* SVGは縮小せず、指で全体をスクロールして探索する。 */
+    .skill-tree {
+        width: var(--tree-width);
+        height: var(--tree-height);
+        max-width: none;
+    }
+    .skill-details {
+        border-left: 0;
+        border-top: 1px solid var(--line);
+        padding: 12px;
+        gap: 12px;
+    }
+    .debug-start {
+        bottom: calc(var(--mobile-bottom) + 164px);
+        left: var(--mobile-left);
+    }
+}
+
+/* 横向きの低い画面では詳細を全面に広げる。 */
+@media (max-height: 500px) and (max-width: 700px), (max-height: 500px) and (pointer: coarse) {
+    .map-background {
+        top: calc(var(--mobile-top) + 82px);
+        bottom: calc(var(--mobile-bottom) + 112px);
+    }
+    .area-card,
+    .sns-panel {
+        top: var(--mobile-top);
+        bottom: var(--mobile-bottom);
+    }
+    .research-layout {
+        grid-template-columns: minmax(0, 1fr) minmax(240px, 40%);
+        grid-template-rows: minmax(0, 1fr);
+    }
+    .skill-details {
+        border-top: 0;
+        border-left: 1px solid var(--line);
+    }
+}

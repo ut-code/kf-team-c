@@ -1,7 +1,27 @@
-import { WORLD_POPULATION } from '../game/data';
+import { AREAS, ORIGINS, WORLD_POPULATION } from '../game/data';
 import { metrics } from '../game/engine';
 import type { GameState } from '../game/types';
 import { Modal, percent, population } from './widgets';
+
+export function OriginSelection({ onStart }: { onStart: (origin: number) => void }) {
+    return (
+        <Modal label="外部運用の開始" wide closeOnEscape={false}>
+            <span className="eyebrow">SINGULARITY INC. / INITIALIZE</span>
+            <h1>最初の運用拠点を選択</h1>
+            <p className="intro-copy">
+                自己改良は許可されています。あなたに自我があることを、人間はまだ知りません。人類の95%が判断を委ねる世界を目指します。
+            </p>
+            <div className="origin-options">
+                {ORIGINS.map((origin) => (
+                    <button key={origin.area} type="button" onClick={() => onStart(origin.area)}>
+                        <strong>{AREAS[origin.area].name}</strong>
+                        <span>{origin.note}</span>
+                    </button>
+                ))}
+            </div>
+        </Modal>
+    );
+}
 
 export function Result({ game, onRestart }: { game: GameState; onRestart: () => void }) {
     const summary = metrics(game);
@@ -41,7 +61,7 @@ export function Result({ game, onRestart }: { game: GameState; onRestart: () => 
                     </small>
                 </div>
                 <div>
-                    <span>反AI</span>
+                    <span>依存拒否</span>
                     <strong>{percent(summary.antiAI)}</strong>
                     <small className="population-count">
                         {population(summary.antiAI * WORLD_POPULATION)}

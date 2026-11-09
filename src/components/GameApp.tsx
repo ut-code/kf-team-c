@@ -10,7 +10,7 @@ import type { MapRegion } from '../map/types';
 import { useGameStore } from '../state/gameStore';
 import { useMapStore } from '../state/mapStore';
 import { GameClock } from './GameClock';
-import { Result } from './GameOverlays';
+import { OriginSelection, Result } from './GameOverlays';
 import { NotificationFeed } from './NotificationFeed';
 import { PopulationChart } from './PopulationChart';
 import { ResearchPanel } from './panels/ResearchPanel';
@@ -305,6 +305,7 @@ export function GameApp({ regions }: { regions: MapRegion[] }) {
                     onClose={closePanel}
                 />
             )}
+            {!game.started && <OriginSelection onStart={useGameStore.getState().start} />}
             {game.outcome !== 'playing' && (
                 <Result
                     game={game}

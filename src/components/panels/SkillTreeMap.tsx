@@ -1,8 +1,9 @@
 import { Check, EyeOff, LockKeyhole, Sparkles } from 'lucide-react';
+import { type CSSProperties, useLayoutEffect, useRef } from 'react';
 import { capabilityLabel } from '../../game/secrecy/capabilities';
 import { CAPABILITIES } from '../../game/secrecy/data';
 import { skillLayout } from '../../game/skillLayout';
-import { skillBlockReason } from '../../game/skills';
+import { skillBlockReason, skillCost, skillReachable } from '../../game/skills';
 import type { Branch, GameState } from '../../game/types';
 import { referenceAbility, SKILL_BRANCHES, SKILL_PRESENTATION } from './skillPresentation';
 
@@ -16,9 +17,33 @@ export function SkillTreeMap({
     onSelect: (id: string) => void;
 }) {
     const tree = skillLayout();
+    const viewport = useRef<HTMLDivElement>(null);
+    useLayoutEffect(() => {
+        const element = viewport.current!;
+        const revealSelected = () => {
+            if (element.scrollWidth <= element.clientWidth) return;
+            element.querySelector(`[data-skill-id="${selectedId}"]`)?.scrollIntoView({
+                block: 'nearest',
+                inline: 'center',
+            });
+        };
+        revealSelected();
+        const observer = new ResizeObserver(revealSelected);
+        observer.observe(element);
+        return () => observer.disconnect();
+    }, [selectedId]);
     const positions = new Map(tree.positions.map((node) => [node.skill.id, node]));
     return (
-        <div className="tree-viewport">
+        <div
+            ref={viewport}
+            className="tree-viewport"
+            style={
+                {
+                    '--tree-width': `${tree.width}px`,
+                    '--tree-height': `${tree.height}px`,
+                } as CSSProperties
+            }
+        >
             <svg
                 viewBox={tree.viewBox}
                 className="skill-tree"
@@ -66,6 +91,21 @@ export function SkillTreeMap({
                         />
                     );
                 })}
+                {tree.positions.flatMap((node) =>
+                    node.skill.requires.slice(1).map((id) => {
+                        const parent = positions.get(id)!;
+                        return (
+                            <line
+                                key={`edge-${id}-${node.skill.id}`}
+                                className={`tree-branch ${game.skills.includes(node.skill.id) ? 'complete' : ''}`}
+                                x1={parent.x}
+                                y1={parent.y}
+                                x2={node.x}
+                                y2={node.y}
+                            />
+                        );
+                    }),
+                )}
                 <circle className="tree-origin" cx={tree.centerX} cy={tree.centerY} r="30" />
                 <Sparkles
                     className="tree-origin-icon"
@@ -77,7 +117,7 @@ export function SkillTreeMap({
                 {tree.positions.map(({ skill, x, y }) => {
                     const Icon = SKILL_PRESENTATION[skill.id].icon;
                     const owned = game.skills.includes(skill.id);
-                    const locked = skill.requires.some((id) => !game.skills.includes(id));
+                    const locked = !skillReachable(game, skill);
                     const affordable = !skillBlockReason(game, skill);
                     const important = Boolean(CAPABILITIES[skill.id]);
                     return (
@@ -90,6 +130,7 @@ export function SkillTreeMap({
                         >
                             <button
                                 type="button"
+                                data-skill-id={skill.id}
                                 className={`tree-node ${skill.branch.toLowerCase()} ${owned ? 'owned' : locked ? 'locked' : affordable ? 'available' : ''} ${important ? 'important' : ''}`}
                                 aria-pressed={selectedId === skill.id}
                                 aria-label={`${skill.name}${important ? '・重要能力・秘匿中は調査と露呈のリスクあり' : ''}・${owned ? '習得済み' : locked ? 'ロック中' : affordable ? '習得可能' : 'SP不足'}`}
@@ -104,7 +145,7 @@ export function SkillTreeMap({
                                         {owned ? <Check size={10} aria-hidden="true" /> : null}
                                         {owned
                                             ? capabilityLabel(game, skill.id)
-                                            : `${skill.cost} SP`}
+                                            : `${skillCost(game, skill)} SP`}
                                     </small>
                                 </span>
                                 {locked && !owned && (

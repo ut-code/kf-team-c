@@ -34,6 +34,14 @@ export function Modal({
         if (modal || !anchor) return;
         const element = dialog.current!;
         const position = () => {
+            if (
+                window.matchMedia('(max-width: 700px), (max-height: 500px) and (pointer: coarse)')
+                    .matches
+            ) {
+                element.style.removeProperty('left');
+                element.style.removeProperty('top');
+                return;
+            }
             const { width, height } = element.getBoundingClientRect();
             const margin = 18;
             const gap = 28;

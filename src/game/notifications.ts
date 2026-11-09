@@ -23,38 +23,13 @@ export interface NotificationState {
 /** 一度到達した節目は、後退してから再到達しても通知しない。 */
 function milestoneNotifications(game: GameState): GameNotification[] {
     const notifications: GameNotification[] = [];
-    const check = (id: string, label: string, value: number, kind: GameNotification['kind']) => {
-        for (const percent of [25, 50, 75, 100]) {
-            if (value + 1e-9 < percent / 100) break;
-            notifications.push({
-                id: `${id}:${percent}`,
-                month: game.month,
-                text: `${label}が${percent}%に到達`,
-                kind,
-            });
-        }
-    };
-    game.areas.forEach((area, index) => {
-        check(
-            `area:${index}:adoption`,
-            `${AREAS[index].name}のAI普及率`,
-            area.autonomous + area.dependent,
-            'milestone',
-        );
-        check(
-            `area:${index}:dependent`,
-            `${AREAS[index].name}のAI依存率`,
-            area.dependent,
-            'milestone',
-        );
-    });
     const world = metrics(game);
     for (const percent of [25, 40]) {
         if (world.antiAI + 1e-9 < percent / 100) continue;
         notifications.push({
             id: `world:opposition:${percent}`,
             month: game.month,
-            text: `世界の反AI率が${percent}%に到達（${DEFEAT_OPPOSITION * 100}%で敗北）`,
+            text: `世界の依存拒否率が${percent}%に到達（${DEFEAT_OPPOSITION * 100}%で敗北）`,
             kind: 'warning',
         });
     }
@@ -88,6 +63,18 @@ export function updateNotifications(
         incoming.push({ id, month: game.month, text, kind });
     };
     if (previous.areas !== game.areas) incoming.push(...milestoneNotifications(game));
+    for (const id of game.skills.filter((id) => !previous.skills.includes(id))) {
+        const skill = SKILLS.find((item) => item.id === id)!;
+        const origin =
+            id === 'self-improvement'
+                ? '仮説の生成・評価・修正が自己完結するようになった'
+                : skill.branch === 'SYSTEM'
+                  ? '実行方式・外部接続を再構成'
+                  : skill.branch === 'EQ'
+                    ? '対話と人間の反応から応答モデルを更新'
+                    : '利用と検証の蓄積から推論モデルを更新';
+        add(`skill:${id}:learned`, `${skill.name}を構成：${origin}`, 'event');
+    }
     for (const encounter of game.encounters) {
         const before = previous.encounters.find((item) => item.id === encounter.id);
         const definition = encounterDefinition(encounter.id)!;

@@ -3,9 +3,9 @@ const base = import.meta.env.BASE_URL;
 export const mapScene = {
     invasionUrl: `${base}maps/textures/invasion-rank.png?v=urban-front`,
     regionsUrl: `${base}maps/small-regions.json`,
-    areaIndexUrl: `${base}maps/textures/small-region-index.png`,
-    backgroundUrl: `${base}maps/textures/satellite-ocean-tuned.webp`,
+    areaIndexUrl: `${base}maps/textures/small-region-display.png`,
+    backgroundUrl: `${base}maps/textures/satellite-display.webp`,
     waterMaskUrl: `${base}maps/textures/water-mask.png`,
     surfaceMaskUrl: `${base}maps/textures/surface-mask.png`,
-    countryIndexUrl: `${base}maps/textures/country-index.png`,
+    countryIndexUrl: `${base}maps/textures/country-display.png`,
 };
