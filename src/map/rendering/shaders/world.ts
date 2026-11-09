@@ -103,7 +103,7 @@ export const compositeFragment = `
 precision highp float;
 varying vec2 uv;
 uniform sampler2D base, waves, areaIds, countryIds;
-uniform vec2 viewport, rasterSize;
+uniform vec2 viewport, rasterSize, boundaryTexelSize;
 uniform vec4 camera;
 uniform float animated, period, displayWidth, worldHeight, selected, hovered;
 float areaAt(vec2 p) { return floor(texture2D(areaIds,vec2(fract(p.x),clamp(p.y,0.,1.))).r*255.+.5); }
@@ -120,7 +120,7 @@ void main(){
         vec2 p=vec2(fract((x-camera.x)/period),(pixel.y-camera.y)/worldHeight);
         // 半描画ピクセル以上を調べ、水平・垂直な境界が画素間に落ちても線を拾う。
         vec2 halfPixel=.51*viewport/rasterSize/vec2(period,worldHeight);
-        vec2 minimumDelta=max(halfPixel,vec2(1./8192.,1./4361.));
+        vec2 minimumDelta=max(halfPixel,boundaryTexelSize);
         vec2 delta=max(vec2(.4/period,.4/worldHeight),minimumDelta);
         float center=areaAt(p);
         float a=areaAt(p+vec2(delta.x,0.)), b=areaAt(p-vec2(delta.x,0.));

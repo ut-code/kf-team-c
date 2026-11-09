@@ -28,13 +28,6 @@
     pointer-events: auto;
     filter: drop-shadow(0 2px 2px #0009);
 }
-.map-encounter-links {
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    stroke: #bbcbd780;
-    stroke-width: 1;
-}
 .map-encounter-marker:hover:not(:disabled) {
     background: transparent;
     filter: brightness(1.15) drop-shadow(0 2px 3px #000b);

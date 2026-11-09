@@ -6,9 +6,19 @@ import {
     type NotificationState,
     updateNotifications,
 } from '../game/notifications';
-import { discloseCapability } from '../game/secrecy/capabilities';
+import {
+    discloseCapability,
+    type SkillOperation,
+    setSkillOperation,
+} from '../game/secrecy/capabilities';
 import { respondToInvestigation } from '../game/secrecy/investigations';
 import type { InvestigationAction } from '../game/secrecy/types';
+import {
+    createSocialFeed,
+    emptySocialFeed,
+    type SocialFeedState,
+    updateSocialFeed,
+} from '../game/society/socialFeed';
 import { chooseEncounter, selectSocialStrategy } from '../game/society/system';
 import type { GameState } from '../game/types';
 
@@ -16,6 +26,7 @@ interface GameStore {
     game: GameState | null;
     session: number;
     notifications: NotificationState;
+    socialFeed: SocialFeedState;
     dismissNotification: (id: string) => void;
     initialize: (seed?: number) => void;
     start: (origin: number) => void;
@@ -26,6 +37,7 @@ interface GameStore {
     choose: (encounterId: string, choiceId: string) => void;
     strategy: (id: string) => void;
     disclose: (id: string) => void;
+    operate: (id: string, operation: SkillOperation) => void;
     investigate: (id: string, action: InvestigationAction) => void;
 }
 export const useGameStore = create<GameStore>((set) => {
@@ -36,6 +48,9 @@ export const useGameStore = create<GameStore>((set) => {
             if (game === state.game) return state;
             return {
                 game,
+                socialFeed: state.game.started
+                    ? updateSocialFeed(state.game, game, state.socialFeed)
+                    : createSocialFeed(game),
                 notifications: state.game.started
                     ? updateNotifications(state.game, game, state.notifications)
                     : createNotifications(game),
@@ -45,6 +60,7 @@ export const useGameStore = create<GameStore>((set) => {
         game: null,
         session: 0,
         notifications: { items: [], seen: new Set() },
+        socialFeed: emptySocialFeed(),
         dismissNotification: (id) =>
             set((state) => ({
                 notifications: {
@@ -58,10 +74,11 @@ export const useGameStore = create<GameStore>((set) => {
             const initial =
                 import.meta.env.DEV && (debug === 'spread' || debug === 'research')
                     ? createDebugGame(debug, seed)
-                    : startGame(game, game.origin);
+                    : game;
             set((state) => ({
                 session: state.session + 1,
                 game: initial,
+                socialFeed: createSocialFeed(initial),
                 notifications: createNotifications(initial),
             }));
         },
@@ -70,6 +87,7 @@ export const useGameStore = create<GameStore>((set) => {
                 const game = createDebugGame(preset);
                 set((state) => ({
                     game,
+                    socialFeed: createSocialFeed(game),
                     session: state.session + 1,
                     notifications: createNotifications(game),
                 }));
@@ -85,6 +103,7 @@ export const useGameStore = create<GameStore>((set) => {
         choose: (id, choice) => change((game) => chooseEncounter(game, id, choice)),
         strategy: (id) => change((game) => selectSocialStrategy(game, id)),
         disclose: (id) => change((game) => discloseCapability(game, id)),
+        operate: (id, operation) => change((game) => setSkillOperation(game, id, operation)),
         investigate: (id, action) => change((game) => respondToInvestigation(game, id, action)),
     };
 });

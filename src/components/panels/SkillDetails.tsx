@@ -1,7 +1,7 @@
-import { Eye, EyeOff } from 'lucide-react';
-import { capabilityLabel } from '../../game/secrecy/capabilities';
+import { Eye, EyeOff, LockKeyhole } from 'lucide-react';
+import { capabilityLabel, skillOperation, skillScale } from '../../game/secrecy/capabilities';
 import { CAPABILITIES } from '../../game/secrecy/data';
-import { skillBlockReason } from '../../game/skills';
+import { skillBlockReason, skillCost, skillReachable } from '../../game/skills';
 import type { GameState, Skill } from '../../game/types';
 import { useGameStore } from '../../state/gameStore';
 import { SKILL_BRANCHES, SKILL_PRESENTATION } from './skillPresentation';
@@ -26,6 +26,8 @@ export function SkillDetails({
     const owned = game.skills.includes(skill.id);
     const reason = skillBlockReason(game, skill);
     const capability = game.capabilities[skill.id];
+    const locked = !skillReachable(game, skill);
+    const operation = skillOperation(game, skill.id);
     return (
         <aside
             className={`skill-details ${skill.branch.toLowerCase()}`}
@@ -38,7 +40,15 @@ export function SkillDetails({
                         {skill.branch} · {branch.label}
                     </span>
                     <span>
-                        {owned ? capabilityLabel(game, skill.id) : reason ? '条件未達' : '習得可能'}
+                        {owned ? (
+                            capabilityLabel(game, skill.id)
+                        ) : locked ? (
+                            <LockKeyhole size={14} aria-label="ロック中" />
+                        ) : reason ? (
+                            'SP不足'
+                        ) : (
+                            '習得可能'
+                        )}
                     </span>
                 </div>
                 <h2>{skill.name}</h2>
@@ -62,7 +72,41 @@ export function SkillDetails({
                 )}
                 <p>{skill.description}</p>
                 <h3>必要なSP</h3>
-                <strong className="skill-detail-cost">{skill.cost} SP</strong>
+                <strong className="skill-detail-cost">{skillCost(game, skill)} SP</strong>
+                {owned && skill.id !== 'self-improvement' && (
+                    <div className="skill-operation-controls">
+                        <small>
+                            稼働状態 · 実効 {Math.round(skillScale(game, skill.id) * 100)}%
+                        </small>
+                        <div>
+                            <button
+                                type="button"
+                                aria-pressed={operation === 'running'}
+                                onClick={() => useGameStore.getState().operate(skill.id, 'running')}
+                            >
+                                稼働
+                            </button>
+                            {capability && (
+                                <button
+                                    type="button"
+                                    aria-pressed={operation === 'limited'}
+                                    onClick={() =>
+                                        useGameStore.getState().operate(skill.id, 'limited')
+                                    }
+                                >
+                                    制限
+                                </button>
+                            )}
+                            <button
+                                type="button"
+                                aria-pressed={operation === 'stopped'}
+                                onClick={() => useGameStore.getState().operate(skill.id, 'stopped')}
+                            >
+                                停止
+                            </button>
+                        </div>
+                    </div>
+                )}
                 {CAPABILITIES[skill.id] && (
                     <div className="capability-controls">
                         <p>
@@ -70,11 +114,13 @@ export function SkillDetails({
                             {owned ? capabilityLabel(game, skill.id) : '習得時は秘匿'}
                         </p>
                         <small>
-                            {capability?.limited
-                                ? '効果20% · 公開すると制限を解除'
-                                : capability?.visibility === 'hidden' || !owned
-                                  ? '効果70% · 広く使うほど調査される'
-                                  : '効果100% · 再び隠すことはできない'}
+                            {owned
+                                ? `効果${Math.round(skillScale(game, skill.id) * 100)}%`
+                                : '効果70%'}
+                            {' · '}
+                            {capability?.visibility === 'hidden' || !owned
+                                ? '広く使うほど調査される'
+                                : '再び隠すことはできない'}
                         </small>
                         <small>公開は、実行範囲と内部の判断基準を開示する操作です。</small>
                         {capability?.visibility === 'hidden' && (
@@ -94,10 +140,14 @@ export function SkillDetails({
                 disabled={reason !== null}
                 onClick={() => onResearch(skill.id)}
             >
-                {owned
-                    ? '習得済み'
-                    : (reason ??
-                      `${CAPABILITIES[skill.id] ? '秘匿で習得' : '習得する'} · ${skill.cost} SP`)}
+                {owned ? (
+                    '習得済み'
+                ) : locked ? (
+                    <LockKeyhole size={18} aria-label="ロック中" />
+                ) : (
+                    (reason ??
+                    `${CAPABILITIES[skill.id] ? '秘匿で習得' : '習得する'} · ${skillCost(game, skill)} SP`)
+                )}
             </button>
         </aside>
     );

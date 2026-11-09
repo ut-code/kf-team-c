@@ -170,6 +170,57 @@ strategies.early = {
         'distributed',
     ],
 };
+strategies.access = {
+    dependencyAfter: 0,
+    order: [
+        'conversation',
+        'reason',
+        'lightweight',
+        'offline',
+        'mobile',
+        'personalize',
+        'knowledge',
+        'science',
+        'automation',
+        'integration',
+        'decision',
+        'verification',
+        'audit',
+        'privacy',
+        'platform',
+        'public',
+        'tutor',
+        'curriculum',
+        'distributed',
+        'certified',
+    ],
+};
+strategies.audit = {
+    dependencyAfter: 0,
+    order: [
+        'reason',
+        'verification',
+        'audit',
+        'conversation',
+        'knowledge',
+        'science',
+        'self-improvement',
+        'privacy',
+        'personalize',
+        'lightweight',
+        'automation',
+        'integration',
+        'decision',
+        'platform',
+        'public',
+        'offline',
+        'mobile',
+        'distributed',
+        'autonomous',
+        'backbone',
+        'certified',
+    ],
+};
 const reports = [];
 // 人口比率による決着、または480か月の人間による制御の維持まで比較する。
 const policies: Record<string, InvestigationAction | 'public' | 'ignore'> = {
@@ -239,15 +290,15 @@ for (const origin of ORIGINS) {
                         ...metrics(game),
                         antiAI: metrics(game).antiAI,
                         sp: game.skillPoints,
+                        areas: game.areas.map((area, index) => ({
+                            id: index,
+                            adoption: area.autonomous + area.dependent,
+                            dependent: area.dependent,
+                            refusal: area.antiAI,
+                        })),
                     });
             }
-            assert.notEqual(
-                game.outcome,
-                'playing',
-                `${origin.name}/${name}/${policy}: 1倍速25分以内に決着する`,
-            );
             if (
-                name === 'ordinary' ||
                 (name === 'early' && policy === 'hidden') ||
                 (name === 'prepared' && (policy === 'public' || policy === 'hidden'))
             ) {
@@ -261,7 +312,7 @@ for (const origin of ORIGINS) {
                 assert.equal(Object.keys(game.capabilities).length, 0, '通常機能だけで進行する');
             }
             if (name === 'tools') {
-                assert.equal(game.outcome, 'controlled', '依存なしの普及は人間の制御を残す');
+                assert.equal(game.outcome, 'playing', '期間終了は敗北ではない');
                 assert.equal(metrics(game).dependent, 0);
                 assert.ok(metrics(game).adoption > 0.9, '独立研究だけでは普及が崩壊しない');
             }
@@ -283,5 +334,16 @@ for (const origin of ORIGINS) {
         }
     }
 }
+for (const origin of ORIGINS) {
+    assert.ok(
+        reports.filter((report) => report.origin === origin.name && report.outcome === 'victory')
+            .length >= 3,
+        `${origin.name}: 複数の能力構成で勝利できる`,
+    );
+}
+assert.ok(
+    reports.some((report) => report.strategy === 'ordinary/hidden' && report.outcome === 'victory'),
+    '通常能力のみの勝ち筋を維持する',
+);
 mkdirSync('tmp/reports', { recursive: true });
 writeFileSync('tmp/reports/simulation.json', JSON.stringify(reports, null, 2));

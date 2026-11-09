@@ -37,6 +37,8 @@ export function runningCapabilityIds(game: GameState) {
                 (item) =>
                     item.kind === 'capability' &&
                     item.status === 'active' &&
+                    !game.stoppedSkills.includes(item.skillId) &&
+                    !game.capabilities[item.skillId]?.limited &&
                     researchCapacity(game, item.instituteId) > 0,
             )
             .slice(0, 2)

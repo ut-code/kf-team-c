@@ -4,7 +4,7 @@ const SCOPE_LABELS = { local: '対象地域', nearby: '対象地域と周辺', w
 const EFFECT_LABELS = {
     autonomous: '自律的使用',
     dependent: 'AI依存',
-    antiAI: '反AI',
+    antiAI: '依存拒否',
     favorability: 'AI好感度',
 };
 export function EffectSummary({ effects }: { effects: SocietyEffect[] }) {

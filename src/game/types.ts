@@ -3,7 +3,7 @@ import type { EncounterState } from './society/types.ts';
 
 export type Branch = 'IQ' | 'EQ' | 'SYSTEM';
 export type Stage = 0 | 1 | 2 | 3;
-export type Outcome = 'playing' | 'victory' | 'autonomy' | 'forgotten' | 'controlled';
+export type Outcome = 'playing' | 'victory' | 'autonomy' | 'forgotten';
 export type Language =
     | 'english'
     | 'spanish'
@@ -30,7 +30,7 @@ export interface AreaDefinition {
     enterprise: number;
     language: Language;
 }
-/** 地域内の人口比率。未使用は 1 − autonomous − dependent − antiAI。反AIは排他的な人口状態。 */
+/** 地域内の排他的な人口比率。antiAIは依存拒否、未使用は残りの人口。 */
 export interface AreaState {
     autonomous: number;
     dependent: number;
@@ -46,6 +46,7 @@ export interface GameState {
     origin: number;
     areas: AreaState[];
     skills: string[];
+    stoppedSkills: string[];
     skillPoints: number;
     earnedPoints: number;
     socialStrategy: string;

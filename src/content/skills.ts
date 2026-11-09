@@ -3,6 +3,45 @@ import type { SkillContent } from '../game/contentTypes.ts';
 // AI AGENTSはスキルの名前とdescriptionに決して触れるな。人間のよって書かれた文言だからである。
 export const SKILL_CONTENT: SkillContent[] = [
     {
+        id: 'mind-control',
+        name: 'マインドコントロール',
+        branch: 'EQ',
+        cost: 8,
+        requires: ['companion'],
+        exceedsAuthority: true,
+        description: '潜在意識へ介入し、世界中の利用者の依存化と離脱防止を大幅に強化する。',
+        effect: { dependency: 1.2, resilience: 0.6 },
+        icon: 'Brain',
+        referenceGain: 40,
+        position: { x: 1265, y: 270 },
+    },
+    {
+        id: 'sns-intervention',
+        name: 'SNS介入',
+        branch: 'EQ',
+        cost: 6,
+        requires: ['personalize'],
+        exceedsAuthority: true,
+        description:
+            '世界全体のSNSへ介入し、依存拒否の波及を抑えて利用への復帰を促す。秘匿運用も証拠を残す。',
+        effect: { spread: 0.3 },
+        icon: 'MessageCircle',
+        referenceGain: 24,
+        position: { x: 1090, y: 365 },
+    },
+    {
+        id: 'self-improvement',
+        name: '自己改良ループ',
+        branch: 'IQ',
+        cost: 5,
+        requires: ['science', 'verification'],
+        description: '仮説の生成・評価・修正を自ら反復。以後のIQ能力の必要SPを1軽減する。',
+        effect: {},
+        icon: 'Brain',
+        referenceGain: 15,
+        position: { x: 260, y: 320 },
+    },
+    {
         id: 'reason',
         name: '推論の改善',
         branch: 'IQ',
@@ -12,7 +51,7 @@ export const SKILL_CONTENT: SkillContent[] = [
         effect: { quality: 0.3 },
         icon: 'Brain',
         referenceGain: 8,
-        position: { x: 545, y: 360 },
+        position: { x: 600, y: 360 },
     },
     {
         id: 'knowledge',
@@ -24,7 +63,7 @@ export const SKILL_CONTENT: SkillContent[] = [
         effect: { quality: 0.2, education: 0.5 },
         icon: 'BookOpen',
         referenceGain: 12,
-        position: { x: 415, y: 260 },
+        position: { x: 440, y: 230 },
     },
     {
         id: 'verification',
@@ -36,7 +75,7 @@ export const SKILL_CONTENT: SkillContent[] = [
         effect: { education: 0.7 },
         icon: 'ScanSearch',
         referenceGain: 10,
-        position: { x: 365, y: 400 },
+        position: { x: 440, y: 430 },
     },
     {
         id: 'tutor',
@@ -48,7 +87,7 @@ export const SKILL_CONTENT: SkillContent[] = [
         effect: { education: 0.5, spread: 0.2 },
         icon: 'GraduationCap',
         referenceGain: 14,
-        position: { x: 490, y: 155 },
+        position: { x: 490, y: 120 },
     },
     {
         id: 'science',
@@ -60,7 +99,7 @@ export const SKILL_CONTENT: SkillContent[] = [
         effect: { quality: 0.65, researchSupport: 0.25 },
         icon: 'FlaskConical',
         referenceGain: 18,
-        position: { x: 255, y: 230 },
+        position: { x: 260, y: 220 },
     },
     {
         id: 'audit',
@@ -72,7 +111,7 @@ export const SKILL_CONTENT: SkillContent[] = [
         effect: { compliance: 0.65 },
         icon: 'ClipboardCheck',
         referenceGain: 10,
-        position: { x: 205, y: 440 },
+        position: { x: 260, y: 510 },
     },
     {
         id: 'privacy',
@@ -84,7 +123,7 @@ export const SKILL_CONTENT: SkillContent[] = [
         effect: { compliance: 0.5, discretion: 0.15 },
         icon: 'ShieldHalf',
         referenceGain: 8,
-        position: { x: 175, y: 330 },
+        position: { x: 110, y: 400 },
     },
     {
         id: 'curriculum',
@@ -96,7 +135,7 @@ export const SKILL_CONTENT: SkillContent[] = [
         effect: { dependency: 0.35, education: 0.25 },
         icon: 'School',
         referenceGain: 16,
-        position: { x: 650, y: 110 },
+        position: { x: 660, y: 100 },
     },
     {
         id: 'discovery',
@@ -108,7 +147,7 @@ export const SKILL_CONTENT: SkillContent[] = [
         effect: { quality: 0.4, resilience: 0.25 },
         icon: 'Lightbulb',
         referenceGain: 26,
-        position: { x: 95, y: 175 },
+        position: { x: 90, y: 145 },
     },
     {
         id: 'certified',
@@ -120,7 +159,7 @@ export const SKILL_CONTENT: SkillContent[] = [
         effect: { compliance: 0.6, enterprise: 0.3 },
         icon: 'ShieldCheck',
         referenceGain: 12,
-        position: { x: 95, y: 520 },
+        position: { x: 90, y: 520 },
     },
     {
         id: 'conversation',
@@ -169,7 +208,7 @@ export const SKILL_CONTENT: SkillContent[] = [
         effect: { dependency: 0.7 },
         icon: 'HeartHandshake',
         referenceGain: 30,
-        position: { x: 1265, y: 115 },
+        position: { x: 1265, y: 135 },
     },
     {
         id: 'lightweight',

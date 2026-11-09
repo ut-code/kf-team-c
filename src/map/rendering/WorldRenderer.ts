@@ -1,6 +1,5 @@
 import { AREAS, MONTH_MS } from '../../game/data';
 import type { AreaState } from '../../game/types';
-import { WORLD_WIDTH } from '../geometry';
 import type { MapRegion } from '../types';
 import {
     type MapView,
@@ -67,6 +66,7 @@ export class WorldRenderer {
         WebGLTexture
     >;
     private invasionSize = new Float32Array(2);
+    private boundaryTexelSize = new Float32Array(2);
     private baseTarget: TargetBuffer;
     private waveTarget: TargetBuffer;
     private colors = new ColorReader();
@@ -141,8 +141,6 @@ export class WorldRenderer {
             stencil: false,
         });
         if (!gl) throw new Error('世界地図の描画にはWebGLが必要です。');
-        if (gl.getParameter(gl.MAX_TEXTURE_SIZE) < WORLD_WIDTH)
-            throw new Error('世界地図には8192pxのテクスチャ対応が必要です。');
         this.gl = gl;
         this.chatTraffic = new ChatTraffic(gl);
         this.programs = {
@@ -321,9 +319,18 @@ export class WorldRenderer {
                     ['invasion', invasion],
                 ] as const) {
                     if (source) {
+                        const maximum = this.gl.getParameter(this.gl.MAX_TEXTURE_SIZE);
+                        if (source.width > maximum || source.height > maximum)
+                            throw new Error(
+                                `地図画像のサイズがGPUの上限（${maximum}px）を超えています。`,
+                            );
                         if (name === 'invasion') {
                             this.invasionSize[0] = source.width / 3;
                             this.invasionSize[1] = source.height;
+                        }
+                        if (name === 'areas') {
+                            this.boundaryTexelSize[0] = 1 / source.width;
+                            this.boundaryTexelSize[1] = 1 / source.height;
                         }
                         this.upload(
                             this.textures[name],
@@ -613,6 +620,7 @@ export class WorldRenderer {
         this.camera(composite);
         this.selection(composite);
         gl.uniform2f(composite.location('rasterSize'), pixels.width, pixels.height);
+        gl.uniform2fv(composite.location('boundaryTexelSize'), this.boundaryTexelSize);
         gl.uniform1f(composite.location('animated'), 1);
         gl.drawArrays(gl.TRIANGLES, 0, 6);
         // 通信線と発着点の目印は一時的に非表示。

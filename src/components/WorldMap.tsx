@@ -30,6 +30,25 @@ interface Gesture {
     target: MapTarget | null;
 }
 
+interface TouchPoint {
+    x: number;
+    y: number;
+}
+
+function pinchPosition(points: Map<number, TouchPoint>) {
+    const [first, second] = [...points.values()];
+    return {
+        x: (first.x + second.x) / 2,
+        y: (first.y + second.y) / 2,
+        distance: Math.hypot(second.x - first.x, second.y - first.y),
+    };
+}
+
+/** 縦横のどちらも画面内に収まる倍率。 */
+function overviewZoom(width: number, height: number) {
+    return Math.min(1, (width * WORLD_HEIGHT) / (height * WORLD_WIDTH));
+}
+
 /** Reactは操作と読み上げを担当し、地図の全画像は一つのWebGL描画へ渡す。 */
 export const WorldMap = memo(function WorldMap({
     regions,
@@ -73,6 +92,8 @@ export const WorldMap = memo(function WorldMap({
     const renderer = useRef<WorldRenderer | null>(null);
     const view = useRef<MapView>({ width: 0, height: 0, zoom: 1, x: 0, y: 0 });
     const gesture = useRef<Gesture | null>(null);
+    const pointers = useRef(new Map<number, TouchPoint>());
+    const pinch = useRef<ReturnType<typeof pinchPosition> | null>(null);
     const [dragging, setDragging] = useState(false),
         [error, setError] = useState<string | null>(null),
         [ready, setReady] = useState(false);
@@ -146,22 +167,58 @@ export const WorldMap = memo(function WorldMap({
         renderer.current?.setView(view.current);
     }, [camera.x]);
 
-    const limitY = useCallback(
-        (y: number) => Math.max(view.current.height * (1 - view.current.zoom), Math.min(0, y)),
-        [],
-    );
+    const limitY = useCallback((y: number) => {
+        const { height, zoom } = view.current;
+        if (zoom <= 1) return (height * (1 - zoom)) / 2;
+        return Math.max(height * (1 - zoom), Math.min(0, y));
+    }, []);
     const applyView = useCallback(() => {
         renderer.current?.setView(view.current);
     }, []);
+
+    const zoomAt = useCallback(
+        (requestedZoom: number, x: number, y: number, nextX = x, nextY = y) => {
+            const current = view.current;
+            const minimum = overviewZoom(current.width, current.height);
+            const zoom = Math.max(minimum, Math.min(Math.max(1, minimum) * 3, requestedZoom));
+            const oldSize = { width: current.width, height: current.height * current.zoom };
+            const nextSize = { width: current.width, height: current.height * zoom };
+            const left = (current.width - visibleWidth(oldSize)) / 2;
+            const nextLeft = (current.width - visibleWidth(nextSize)) / 2;
+            const ratio = zoom / current.zoom;
+            current.x = constrainCamera(
+                { x: nextX - nextLeft - (x - left - current.x) * ratio },
+                nextSize,
+            ).x;
+            current.y = nextY - (y - current.y) * ratio;
+            current.zoom = zoom;
+            current.y = limitY(current.y);
+            useMapStore.getState().setCamera({ x: current.x });
+            applyView();
+        },
+        [applyView, limitY],
+    );
+
+    const showOverview = () => {
+        const current = view.current;
+        current.zoom = overviewZoom(current.width, current.height);
+        current.x = centerCamera({ width: current.width, height: current.height * current.zoom }).x;
+        current.y = limitY(0);
+        useMapStore.getState().setCamera({ x: current.x });
+        applyView();
+    };
 
     useEffect(() => {
         const element = viewport.current!;
         const observer = new ResizeObserver(([entry]) => {
             const current = view.current;
             const previous = { width: current.width, height: current.height * current.zoom };
-            const minimumZoom =
-                (entry.contentRect.width * WORLD_HEIGHT) / (entry.contentRect.height * WORLD_WIDTH);
-            current.zoom = Math.max(current.zoom, minimumZoom);
+            const minimumZoom = overviewZoom(entry.contentRect.width, entry.contentRect.height);
+            const relativeZoom =
+                current.height === 0
+                    ? 1
+                    : current.zoom / overviewZoom(current.width, current.height);
+            current.zoom = minimumZoom * relativeZoom;
             const next = {
                 width: entry.contentRect.width,
                 height: entry.contentRect.height * current.zoom,
@@ -182,6 +239,8 @@ export const WorldMap = memo(function WorldMap({
             current.x = nextCamera.x;
             current.y = limitY(current.y);
             gesture.current = null;
+            pointers.current.clear();
+            pinch.current = null;
             setDragging(false);
             useMapStore.getState().setCamera(nextCamera);
             applyView();
@@ -189,44 +248,20 @@ export const WorldMap = memo(function WorldMap({
         observer.observe(element);
         const wheel = (event: WheelEvent) => {
             event.preventDefault();
-            if (gesture.current) return;
+            if (pointers.current.size) return;
             const current = view.current;
             const factor = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? current.height : 1;
-            const minimumZoom = Math.max(
-                1,
-                (current.width * WORLD_HEIGHT) / (current.height * WORLD_WIDTH),
-            );
-            const zoom = Math.max(
-                minimumZoom,
-                Math.min(minimumZoom * 3, current.zoom * Math.exp(-event.deltaY * factor * 0.001)),
-            );
-            if (zoom === current.zoom) return;
             const bounds = element.getBoundingClientRect(),
                 x = event.clientX - bounds.left,
                 y = event.clientY - bounds.top;
-            const oldSize = { width: current.width, height: current.height * current.zoom },
-                nextSize = { width: current.width, height: current.height * zoom };
-            const left = (current.width - visibleWidth(oldSize)) / 2,
-                nextLeft = (current.width - visibleWidth(nextSize)) / 2,
-                ratio = zoom / current.zoom;
-            current.x = constrainCamera(
-                { x: x - nextLeft - (x - left - current.x) * ratio },
-                nextSize,
-            ).x;
-            current.y = Math.max(
-                current.height - nextSize.height,
-                Math.min(0, y - (y - current.y) * ratio),
-            );
-            current.zoom = zoom;
-            useMapStore.getState().setCamera({ x: current.x });
-            applyView();
+            zoomAt(current.zoom * Math.exp(-event.deltaY * factor * 0.001), x, y);
         };
         element.addEventListener('wheel', wheel, { passive: false });
         return () => {
             observer.disconnect();
             element.removeEventListener('wheel', wheel);
         };
-    }, [initialLongitude, limitY, applyView]);
+    }, [initialLongitude, limitY, applyView, zoomAt]);
 
     const select = (target: MapTarget | null) => {
         useMapStore.getState().selectArea(target?.area ?? null);
@@ -244,7 +279,7 @@ export const WorldMap = memo(function WorldMap({
     function pointerDown(event: PointerEvent<HTMLDivElement>) {
         if (
             event.button !== 0 ||
-            gesture.current ||
+            pointers.current.size >= 2 ||
             !ready ||
             (event.target instanceof Element && event.target.closest('button'))
         )
@@ -254,10 +289,19 @@ export const WorldMap = memo(function WorldMap({
         event.currentTarget.setPointerCapture(event.pointerId);
         const p = point(event),
             current = view.current;
+        pointers.current.set(event.pointerId, p);
+        if (pointers.current.size === 2) {
+            // 2本目の指が触れたらタップ選択を無効にし、指の中心を基準に拡縮する。
+            pinch.current = pinchPosition(pointers.current);
+            gesture.current = null;
+            setDragging(true);
+            hover(null);
+            return;
+        }
         gesture.current = {
             pointerId: event.pointerId,
-            startX: event.clientX,
-            startY: event.clientY,
+            startX: p.x,
+            startY: p.y,
             originX: current.x,
             originY: current.y,
             moved: false,
@@ -265,22 +309,41 @@ export const WorldMap = memo(function WorldMap({
         };
     }
     function pointerMove(event: PointerEvent<HTMLDivElement>) {
+        const p = point(event);
+        if (pointers.current.has(event.pointerId)) {
+            pointers.current.set(event.pointerId, p);
+            if (pointers.current.size === 2 && pinch.current) {
+                const previous = pinch.current;
+                const next = pinchPosition(pointers.current);
+                if (previous.distance > 0 && next.distance > 0) {
+                    zoomAt(
+                        (view.current.zoom * next.distance) / previous.distance,
+                        previous.x,
+                        previous.y,
+                        next.x,
+                        next.y,
+                    );
+                }
+                pinch.current = next;
+                return;
+            }
+        }
         const current = gesture.current;
         if (!current) {
+            if (event.pointerType === 'touch') return;
             if (event.target instanceof Element && event.target.closest('button')) {
                 hover(null);
                 event.currentTarget.style.cursor = '';
                 return;
             }
-            const p = point(event),
-                target = renderer.current?.hitTest(p.x, p.y) ?? null;
+            const target = renderer.current?.hitTest(p.x, p.y) ?? null;
             hover(target);
             event.currentTarget.style.cursor = target ? 'pointer' : '';
             return;
         }
         if (current.pointerId !== event.pointerId) return;
-        const dx = event.clientX - current.startX,
-            dy = event.clientY - current.startY;
+        const dx = p.x - current.startX,
+            dy = p.y - current.startY;
         if (!current.moved && Math.hypot(dx, dy) <= 5) return;
         if (!current.moved) {
             current.moved = true;
@@ -296,25 +359,38 @@ export const WorldMap = memo(function WorldMap({
         value.y = limitY(current.originY + dy);
         applyView();
     }
-    function endGesture() {
-        if (gesture.current?.moved) useMapStore.getState().setCamera({ x: view.current.x });
-        gesture.current = null;
-        setDragging(false);
-        if (viewport.current) viewport.current.style.cursor = '';
-    }
-    function pointerUp(event: PointerEvent<HTMLDivElement>) {
+    function finishPointer(event: PointerEvent<HTMLDivElement>, allowSelect: boolean) {
+        if (!pointers.current.has(event.pointerId)) return;
         const current = gesture.current;
-        if (!current || current.pointerId !== event.pointerId) return;
         const p = point(event),
             target = renderer.current!.hitTest(p.x, p.y);
         if (
+            allowSelect &&
+            current?.pointerId === event.pointerId &&
             !current.moved &&
-            Math.hypot(event.clientX - current.startX, event.clientY - current.startY) <= 5 &&
+            Math.hypot(p.x - current.startX, p.y - current.startY) <= 5 &&
             target?.id === current.target?.id &&
             target?.kind === current.target?.kind
         )
             select(target);
-        endGesture();
+        pointers.current.delete(event.pointerId);
+        pinch.current = null;
+        useMapStore.getState().setCamera({ x: view.current.x });
+        const remaining = pointers.current.entries().next().value;
+        // ピンチ後に1本だけ残っても、現在位置から連続してドラッグできるようにする。
+        gesture.current = remaining
+            ? {
+                  pointerId: remaining[0],
+                  startX: remaining[1].x,
+                  startY: remaining[1].y,
+                  originX: view.current.x,
+                  originY: view.current.y,
+                  moved: true,
+                  target: null,
+              }
+            : null;
+        setDragging(Boolean(remaining));
+        if (!remaining) event.currentTarget.style.cursor = '';
         if (event.currentTarget.hasPointerCapture(event.pointerId))
             event.currentTarget.releasePointerCapture(event.pointerId);
     }
@@ -330,8 +406,7 @@ export const WorldMap = memo(function WorldMap({
                 size,
             ).x;
         else if (event.key === 'Home') {
-            current.x = centerCamera(size).x;
-            current.y = (current.height - size.height) / 2;
+            showOverview();
         } else if (event.key === 'Escape') {
             useMapStore.getState().selectArea(null);
             return;
@@ -348,15 +423,15 @@ export const WorldMap = memo(function WorldMap({
             data-animation-speed={trafficSpeed}
             tabIndex={0}
             role="region"
-            aria-label="世界地図。ドラッグと矢印キーで移動。ホイールで拡大縮小、Homeで中央へ、Escapeで小地域の選択解除。"
+            aria-label="世界地図。ドラッグと矢印キーで移動。2本指のピンチとホイールで拡大縮小、Homeで世界全体へ、Escapeで小地域の選択解除。"
             aria-busy={!ready}
             onPointerDown={pointerDown}
             onPointerMove={pointerMove}
-            onPointerUp={pointerUp}
-            onPointerCancel={endGesture}
-            onLostPointerCapture={endGesture}
+            onPointerUp={(event) => finishPointer(event, true)}
+            onPointerCancel={(event) => finishPointer(event, false)}
+            onLostPointerCapture={(event) => finishPointer(event, false)}
             onPointerLeave={() => {
-                if (!gesture.current) hover(null);
+                if (!pointers.current.size) hover(null);
             }}
             onKeyDown={keyDown}
             onContextMenu={(event) => event.preventDefault()}
@@ -367,6 +442,11 @@ export const WorldMap = memo(function WorldMap({
                 aria-hidden="true"
                 data-world-renderer="webgl"
             />
+            {!ready && !error && (
+                <p className={`${styles.loading} glass`} role="status">
+                    世界地図を読み込んでいます…
+                </p>
+            )}
             {ready && (
                 <MapEncounterMarkers
                     encounters={encounters}

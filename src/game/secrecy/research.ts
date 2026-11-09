@@ -1,10 +1,11 @@
 import { RESEARCH_TOPICS } from '../../content/research.ts';
+import { researchReach } from '../connections.ts';
 import { AREAS } from '../data.ts';
 import { isEncounterLocationOccupied } from '../encounterLocations.ts';
 import { clamp, metrics } from '../metrics.ts';
-import { SKILLS, skillEffects } from '../skills.ts';
+import { SKILLS } from '../skills.ts';
 import type { GameState } from '../types.ts';
-import { discloseCapability } from './capabilities.ts';
+import { activeSkillEffects, discloseCapability, skillScale } from './capabilities.ts';
 import { INSTITUTES } from './data.ts';
 import { researchCapacity, runningResearchIds } from './researchCapacity.ts';
 import type { ScientificInvestigation } from './types.ts';
@@ -34,7 +35,7 @@ export function researchRate(
     const publications = game.investigations.filter(
         (item) => item.kind === 'research' && item.status === 'published',
     ).length;
-    const effect = skillEffects(game.skills);
+    const effect = activeSkillEffects(game);
     const slowdown =
         investigation.intervention === 'pressure'
             ? area.dependent * 0.7
@@ -59,24 +60,22 @@ export function researchRate(
 export function publishedResearchPressure(game: GameState, index: number) {
     const exposure = clamp(metrics(game).adoption * 5);
     const area = game.areas[index];
-    const authorityKnown = SKILLS.some(
-        (skill) =>
-            skill.exceedsAuthority &&
-            game.skills.includes(skill.id) &&
-            (game.capabilities[skill.id]?.visibility === 'public' ||
-                game.capabilities[skill.id]?.visibility === 'exposed'),
-    );
+    const authorityKnown = SKILLS.reduce((known, skill) => {
+        const capability = game.capabilities[skill.id];
+        if (!skill.exceedsAuthority || !capability || capability.visibility === 'hidden')
+            return known;
+        return Math.max(known, 0.25 + skillScale(game, skill.id) * 0.75);
+    }, 0);
     return game.investigations.reduce((pressure, investigation) => {
         if (investigation.kind !== 'research' || investigation.status !== 'published')
             return pressure;
         const topic = researchTopic(investigation);
         const institute = INSTITUTES.find((item) => item.id === investigation.instituteId)!;
-        const center = AREAS.find((area) => area.id === institute.areaId)!;
-        const reach = topic.resistance >= 8 ? 1 : AREAS[index].region === center.region ? 1 : 0.1;
+        const center = AREAS.findIndex((area) => area.id === institute.areaId);
+        const reach = researchReach(center, index, game.month - investigation.closedMonth!);
         const concern =
             topic.resistance >= 8
-                ? topic.pressure * area.dependent ** 2 +
-                  (authorityKnown ? topic.authorityPressure! : 0)
+                ? topic.pressure * area.dependent ** 2 + authorityKnown * topic.authorityPressure!
                 : topic.pressure * area.dependent;
         return pressure + concern * reach * exposure * (1 - area.favorability * 0.7);
     }, 0);
@@ -123,6 +122,7 @@ export function advanceResearch(previous: GameState): GameState {
     for (const institute of INSTITUTES) {
         const index = AREAS.findIndex((area) => area.id === institute.areaId);
         const use = previous.areas[index].autonomous + previous.areas[index].dependent;
+        if (use < 0.03) continue;
         researchKnowledge[institute.id] +=
             (0.35 + AREAS[index].education * 0.35 + use * 0.25 + publications * 0.025) *
             institute.researchCapacity *
@@ -157,6 +157,17 @@ export function advanceResearch(previous: GameState): GameState {
         const next = RESEARCH_TOPICS.find(
             (topic, tier) =>
                 researchKnowledge[institute.id] >= topic.knowledge &&
+                previous.areas[AREAS.findIndex((area) => area.id === institute.areaId)].dependent >=
+                    0.02 &&
+                (tier === 0 ||
+                    SKILLS.some(
+                        (skill) =>
+                            previous.skills.includes(skill.id) &&
+                            (tier < 2 || skill.exceedsAuthority) &&
+                            previous.capabilities[skill.id] &&
+                            (previous.capabilities[skill.id].visibility !== 'hidden' ||
+                                previous.capabilities[skill.id].evidence >= 5),
+                    )) &&
                 !investigations.some(
                     (item) =>
                         item.kind === 'research' &&

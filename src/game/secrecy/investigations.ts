@@ -1,9 +1,14 @@
 import { AREAS } from '../data.ts';
 import { isEncounterLocationOccupied } from '../encounterLocations.ts';
 import { clamp } from '../metrics.ts';
-import { SKILLS, skillEffects } from '../skills.ts';
+import { SKILLS } from '../skills.ts';
 import type { GameState } from '../types.ts';
-import { discloseCapability } from './capabilities.ts';
+import {
+    activeSkillEffects,
+    discloseCapability,
+    setSkillOperation,
+    skillScale,
+} from './capabilities.ts';
 import { INSTITUTES } from './data.ts';
 import { researchRate, researchTopic } from './research.ts';
 import { researchCapacity, runningCapabilityIds } from './researchCapacity.ts';
@@ -54,7 +59,7 @@ export function investigationRate(
     const index = instituteArea(investigation);
     const area = game.areas[index];
     const materials = area.autonomous + area.dependent;
-    const effect = skillEffects(game.skills);
+    const effect = activeSkillEffects(game);
     const partnership =
         !unimpeded && investigation.intervention === 'partnership'
             ? 0.85 - effect.discretion * 6 - effect.compliance * 0.5
@@ -111,24 +116,7 @@ export function respondToInvestigation(
     }
     if (action === 'disclose') return discloseCapability(game, investigation.skillId);
     if (action === 'restrict') {
-        const capability = game.capabilities[investigation.skillId];
-        return {
-            ...game,
-            capabilities: {
-                ...game.capabilities,
-                [investigation.skillId]: { ...capability, limited: true },
-            },
-            investigations: game.investigations.map((item) =>
-                item.id === id
-                    ? {
-                          ...item,
-                          status: 'restricted',
-                          closedMonth: game.month,
-                          result: '機能を制限。研究効果は20%に低下した。過去の記録は残る。',
-                      }
-                    : item,
-            ),
-        };
+        return setSkillOperation(game, investigation.skillId, 'limited');
     }
     // 介入は一度だけ。費用で進捗を消すことはできない。
     if (investigation.intervention !== 'none' || game.skillPoints < 2) return game;
@@ -181,13 +169,18 @@ export function advanceInvestigations(previous: GameState): GameState {
     const use =
         game.areas.reduce((sum, area) => sum + area.autonomous + area.dependent, 0) / AREAS.length;
     for (const [id, capability] of Object.entries(game.capabilities)) {
-        if (capability.visibility !== 'hidden' || capability.limited) continue;
+        if (
+            capability.visibility !== 'hidden' ||
+            capability.limited ||
+            game.stoppedSkills.includes(id)
+        )
+            continue;
         // 普及と上位研究の活用が、外部から観測できる証拠を増やす。
         const successors = SKILLS.filter(
             (skill) =>
                 game.skills.includes(skill.id) &&
                 skill.requires.includes(id) &&
-                !game.capabilities[skill.id]?.limited,
+                skillScale(game, skill.id) > 0.2,
         ).length;
         game.capabilities[id] = {
             ...capability,
@@ -200,6 +193,7 @@ export function advanceInvestigations(previous: GameState): GameState {
         return (
             capability.visibility === 'hidden' &&
             !capability.limited &&
+            !game.stoppedSkills.includes(id) &&
             capability.evidence >= 10 &&
             !game.investigations.some((item) => item.kind === 'capability' && item.skillId === id)
         );
