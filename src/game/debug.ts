@@ -64,7 +64,6 @@ export function createDebugGame(preset: DebugStart, seed = 2030) {
         'conversation',
         'personalize',
         'lightweight',
-        'offline',
         'automation',
         'integration',
         'memory',

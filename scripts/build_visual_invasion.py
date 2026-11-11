@@ -154,8 +154,6 @@ def build():
     pending = TEXTURES / 'invasion-rank.pending.png'
     write_png(pending, width * 3, height, pixels)
     pending.replace(TEXTURES / 'invasion-rank.png')
-    traffic = [[dict(x=c['x'] / width, y=c['y'] / height, **{name: fronts[k][c['y'] * width + c['x']] / 65535 for k, name in enumerate(('adoption', 'dependency', 'opposition'))}) for c in cities] for cities in report['urbanCenters']]
-    (ROOT / 'src/map/traffic-cities.json').write_text(json.dumps(traffic, indent=4) + '\n')
     report['visualCoverage'] = {'generator': 'scripts/build_visual_invasion.py', 'budget': 'land fraction with regional density exponent', 'cityDelay': 'first three: index * 8; later: 45 + (index - 3) * 22', 'population': 'used for cached city seeds only; not a coverage constraint', 'passage': 'coherent multiscale roughness and broad urban connection bands; not measured roads'}
     report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n')
     # Reviewable Japan progression, and basic rank/containment checks.
@@ -166,7 +164,7 @@ def build():
     stats = []
     for amount in (.01, .1, .3, .6, 1):
         covered = sum(fronts[0][i] <= amount * 65535 for i in japan) / len(japan)
-        cities = sum(c['adoption'] <= amount for c in traffic[28])
+        cities = sum(fronts[0][c['y'] * width + c['x']] / 65535 <= amount for c in report['urbanCenters'][28])
         stats.append({'use': amount, 'land': covered, 'cities': cities})
     assert stats[2]['cities'] >= 3 and stats[2]['land'] >= .25
     print(json.dumps(stats), flush=True)

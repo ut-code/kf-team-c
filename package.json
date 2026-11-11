@@ -11,6 +11,7 @@
         "build": "tsc -b && vite build",
         "preview": "vite preview --host 127.0.0.1",
         "test:game": "node --experimental-strip-types --test scripts/test-game.ts",
+        "test:skill-layout": "node --experimental-strip-types scripts/test-skill-layout-editor.ts",
         "check:skill-layout": "node --experimental-strip-types scripts/check-skill-layout.ts",
         "balance": "node --experimental-strip-types scripts/balance.ts",
         "compare:decisions": "node --experimental-strip-types scripts/compare-decisions.ts",

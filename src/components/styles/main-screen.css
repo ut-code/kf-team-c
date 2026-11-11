@@ -284,14 +284,6 @@
     color: #c6d4df;
     font-variant-numeric: tabular-nums;
 }
-.map-credit {
-    position: absolute;
-    right: 18px;
-    bottom: 3px;
-    font-size: 7px;
-    color: #a2b5c1;
-    pointer-events: none;
-}
 @media (max-width: 1150px) {
     .world-metrics-widget {
         left: 18px;
@@ -367,10 +359,6 @@
     .game-actions > :where(button) > small,
     .game-actions > :where(button) > b {
         display: none;
-    }
-    .map-credit {
-        bottom: 1px;
-        font-size: 6px;
     }
 }
 

@@ -29,7 +29,7 @@ export const RESEARCH_TARGETS: {
     {
         id: 'judgment',
         name: '生活判断への介入',
-        skills: ['companion', 'routine', 'care'],
+        skills: ['companion', 'care'],
         domain: 'personal',
     },
     {
@@ -47,7 +47,7 @@ export const RESEARCH_TARGETS: {
     {
         id: 'learning',
         name: '学習・評価のAIへの委任',
-        skills: ['curriculum', 'adaptive-assessment', 'drug-design'],
+        skills: ['curriculum', 'drug-design'],
         domain: 'learning',
     },
     { id: 'information', name: 'SNS上の情報操作', skills: ['sns-intervention'], domain: 'general' },

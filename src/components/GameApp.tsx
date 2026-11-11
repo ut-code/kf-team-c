@@ -116,7 +116,11 @@ export function GameApp({ regions }: { regions: MapRegion[] }) {
     const [hidden, setHidden] = useState(document.hidden);
     const summary = useMemo(() => metrics(game), [game]);
     const blocked =
-        !game.started || game.outcome !== 'playing' || hidden || Boolean(selectedInvestigation);
+        !game.started ||
+        game.outcome !== 'playing' ||
+        hidden ||
+        researchOpen ||
+        Boolean(selectedInvestigation);
     const paused = game.started && game.outcome === 'playing' && (blocked || game.speed === 0);
     useEffect(() => {
         const visibility = () => setHidden(document.hidden);
@@ -151,7 +155,7 @@ export function GameApp({ regions }: { regions: MapRegion[] }) {
         : [];
     return (
         <main ref={shell} className="game-shell" data-paused={paused && !blocked}>
-            {import.meta.env.DEV && (
+            {import.meta.env.DEV && !researchOpen && (
                 <details className="debug-start glass">
                     <summary>Debug</summary>
                     <button
@@ -283,9 +287,6 @@ export function GameApp({ regions }: { regions: MapRegion[] }) {
                     </button>
                 </nav>
             </footer>
-            <small className="map-credit">
-                NASA / Natural Earth · UN WPP / ITU · 地域設定はゲーム上の仮定
-            </small>
             {snsOpen && <SocietyPanel game={game} onClose={closePanel} />}
             {selectedInvestigation && (
                 <InvestigationPanel

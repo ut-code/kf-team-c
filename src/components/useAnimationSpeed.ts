@@ -7,10 +7,19 @@ export function useAnimationSpeed(root: RefObject<HTMLElement | null>, speed: nu
         const synchronize = () => {
             for (const animation of element.getAnimations({ subtree: true })) {
                 const target = (animation.effect as KeyframeEffect).target;
-                if (!(target instanceof Element)) continue;
+                if (
+                    !(target instanceof Element) ||
+                    target.closest('[data-animation-clock="manual"]')
+                )
+                    continue;
                 // 地図はパネル表示などによるゲームの一時停止にも従う。
                 const scope = target.closest<HTMLElement>('[data-animation-speed]');
-                const rate = scope ? Number(scope.dataset.animationSpeed) : speed;
+                const rate =
+                    animation instanceof CSSTransition
+                        ? 1
+                        : scope
+                          ? Number(scope.dataset.animationSpeed)
+                          : speed;
                 if (animation.playbackRate !== rate) animation.playbackRate = rate;
             }
         };

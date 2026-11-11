@@ -271,14 +271,6 @@ def build():
         pending.replace(TEXTURES / 'invasion-rank.png')
     finally:
         pending.unlink(missing_ok=True)
-    # 通信演出も侵食と同じ都市・到達順を使い、未到達の都市から発信しない。
-    traffic_cities = [[dict(x=city['x'] / WIDTH, y=city['y'] / height,
-                           adoption=int(adoption[city['y'], city['x']]) / 65535,
-                           dependency=int(dependency[city['y'], city['x']]) / 65535,
-                           opposition=int(opposition[city['y'], city['x']]) / 65535)
-                       for city in cities] for cities in groups[1:]]
-    (ROOT / 'src/map/traffic-cities.json').write_text(
-        json.dumps(traffic_cities, separators=(',', ':')) + '\n', encoding='utf-8')
     report = {'width': WIDTH, 'height': height, 'urbanCenters': groups[1:],
               'source': 'src/game/data/world.json / GHSL 2020 population sample',
               'channels': {'RG, first third': 'adoption uint16', 'RG, second third': 'dependency uint16', 'RG, third third': 'antiAI uint16'},

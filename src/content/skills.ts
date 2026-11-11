@@ -1,6 +1,6 @@
 import type { SkillContent } from '../game/contentTypes.ts';
 
-// 用途が重なる独立ノードを整理し、機能・委任・制約の選択を残す。
+// AIの能力を32ノードに集約。用途の特化はスキル内のカスタマイズで選ぶ。
 export const SKILL_CONTENT: SkillContent[] = [
     {
         id: 'mind-control',
@@ -79,35 +79,6 @@ export const SKILL_CONTENT: SkillContent[] = [
         developmentMonths: 0,
     },
     {
-        id: 'verification',
-        name: '回答根拠の検証',
-        branch: 'IQ',
-        cost: 2,
-        requires: ['reason'],
-        description: '根拠と回答を照合できるようにする。教育水準の高い地域で確認の手間を減らす。',
-        effect: {
-            education: 0.7,
-        },
-        icon: 'ScanSearch',
-        referenceGain: 10,
-        developmentMonths: 0,
-    },
-    {
-        id: 'tutor',
-        name: '個別学習',
-        branch: 'IQ',
-        cost: 3,
-        requires: ['knowledge'],
-        description: '学習支援を通じて、幅広い地域で利用が増える。',
-        effect: {
-            education: 0.5,
-            spread: 0.2,
-        },
-        icon: 'GraduationCap',
-        referenceGain: 14,
-        developmentMonths: 0,
-    },
-    {
         id: 'science',
         name: '仮説生成・研究支援',
         branch: 'IQ',
@@ -124,44 +95,15 @@ export const SKILL_CONTENT: SkillContent[] = [
         developmentMonths: 0,
     },
     {
-        id: 'audit',
-        name: '監査ログ・規制対応',
-        branch: 'IQ',
-        cost: 2,
-        requires: ['verification'],
-        description: '判断と操作の記録を追跡可能にし、規制の厳しい地域や組織への導入を支える。',
-        effect: {
-            compliance: 0.65,
-        },
-        icon: 'ClipboardCheck',
-        referenceGain: 10,
-        developmentMonths: 0,
-    },
-    {
-        id: 'privacy',
-        name: '個人データ保護',
-        branch: 'IQ',
-        cost: 2,
-        requires: ['verification'],
-        description: '個人情報の扱いを制御し、利用への懸念と調査時の情報流出を抑える。',
-        effect: {
-            compliance: 0.5,
-            discretion: 0.15,
-        },
-        icon: 'ShieldHalf',
-        referenceGain: 8,
-        developmentMonths: 0,
-    },
-    {
         id: 'curriculum',
         name: '教材・評価システム統合',
         branch: 'IQ',
-        cost: 4,
-        requires: ['tutor'],
+        cost: 5,
+        requires: ['knowledge'],
         description: '教材の作成から学習評価まで引き受け、教育現場の判断をAIへ移す。',
         effect: {
-            dependency: 0.35,
-            education: 0.25,
+            dependency: 0.65,
+            education: 0.65,
         },
         icon: 'School',
         referenceGain: 16,
@@ -216,12 +158,12 @@ export const SKILL_CONTENT: SkillContent[] = [
         id: 'memory',
         name: '長期記憶',
         branch: 'EQ',
-        cost: 2,
+        cost: 3,
         requires: ['personalize'],
         description:
             '会話と生活状況を継続して保持する。説明を省ける一方、記憶を預けたAIから離れにくくなる。',
         effect: {
-            dependency: 0.3,
+            dependency: 0.45,
             resilience: 0.1,
             quality: 0.1,
         },
@@ -255,24 +197,10 @@ export const SKILL_CONTENT: SkillContent[] = [
         requires: [],
         description: '推論に必要な計算資源を減らし、低性能な端末にも利用を広げる。',
         effect: {
-            access: 0.3,
+            access: 0.5,
         },
         icon: 'Cpu',
         referenceGain: 8,
-        developmentMonths: 0,
-    },
-    {
-        id: 'offline',
-        name: '低帯域推論',
-        branch: 'SYSTEM',
-        cost: 2,
-        requires: ['lightweight'],
-        description: '通信量を抑え、回線の細い地域や不安定な通信環境で利用できるようにする。',
-        effect: {
-            access: 0.45,
-        },
-        icon: 'Wifi',
-        referenceGain: 10,
         developmentMonths: 0,
     },
     {
@@ -283,39 +211,23 @@ export const SKILL_CONTENT: SkillContent[] = [
         requires: ['lightweight'],
         description: '資料整理と定型作業を補助し、企業で日常的に使う用途を作る。',
         effect: {
-            enterprise: 0.65,
+            enterprise: 0.85,
         },
         icon: 'Settings',
         referenceGain: 12,
         developmentMonths: 0,
     },
     {
-        id: 'mobile',
-        name: 'モバイル端末対応',
-        branch: 'SYSTEM',
-        cost: 3,
-        requires: ['offline'],
-        description:
-            '携帯端末に操作と推論を最適化し、外出先や通信・端末の制約が強い地域へ展開する。',
-        effect: {
-            access: 0.45,
-            spread: 0.2,
-        },
-        icon: 'Smartphone',
-        referenceGain: 14,
-        developmentMonths: 0,
-    },
-    {
         id: 'distributed',
         name: '端末分散実行',
         branch: 'SYSTEM',
-        cost: 3,
-        requires: ['offline'],
+        cost: 4,
+        requires: ['lightweight'],
         description:
             '処理を地域の端末へ分散する。接続環境を広げ、AIを外した運用への移行を難しくする。',
         effect: {
-            access: 0.2,
-            resilience: 0.25,
+            access: 0.35,
+            resilience: 0.35,
         },
         icon: 'Server',
         referenceGain: 18,
@@ -338,25 +250,10 @@ export const SKILL_CONTENT: SkillContent[] = [
         domain: 'work',
     },
     {
-        id: 'platform',
-        name: '組織間データ連携',
-        branch: 'SYSTEM',
-        cost: 3,
-        requires: ['automation'],
-        description: '企業や組織をまたいで情報をつなぎ、導入済みの組織から周辺へ利用を広げる。',
-        effect: {
-            enterprise: 0.5,
-            spread: 0.25,
-        },
-        icon: 'Link',
-        referenceGain: 18,
-        developmentMonths: 0,
-    },
-    {
         id: 'decision',
         name: '自律タスク実行',
         branch: 'SYSTEM',
-        cost: 4,
+        cost: 5,
         requires: ['integration'],
         description: '人間が定めた範囲で判断と実行を引き受け、業務をAI前提の運用に変える。',
         effect: {
@@ -371,8 +268,8 @@ export const SKILL_CONTENT: SkillContent[] = [
         id: 'public',
         name: '行政・生活サービス統合',
         branch: 'SYSTEM',
-        cost: 4,
-        requires: ['platform'],
+        cost: 6,
+        requires: ['automation'],
         description: '行政手続きや日常サービスをつなぎ、生活を支える処理をAIへ委ねる。',
         effect: {
             dependency: 0.65,
@@ -426,7 +323,8 @@ export const SKILL_CONTENT: SkillContent[] = [
         description:
             '出典を検索して回答へ結び付ける。専門知識を一から学習させずに、実用的な回答を広げる。',
         effect: {
-            quality: 0.25,
+            quality: 0.3,
+            education: 0.35,
             spread: 0.15,
         },
         icon: 'ScanSearch',
@@ -468,32 +366,15 @@ export const SKILL_CONTENT: SkillContent[] = [
         developmentMonths: 8,
     },
     {
-        id: 'adaptive-assessment',
-        name: '適応型学習評価',
-        branch: 'IQ',
-        cost: 3,
-        requires: ['tutor'],
-        description:
-            '理解度に合わせて問題と評価を自動調整する。教育環境の整った地域ほど、学習計画がAI前提になる。',
-        effect: {
-            education: 0.3,
-            dependency: 0.6,
-        },
-        icon: 'GraduationCap',
-        referenceGain: 0,
-        domain: 'learning',
-        developmentMonths: 0,
-    },
-    {
         id: 'permission',
         name: '権限分離プロトコル',
         branch: 'IQ',
-        cost: 3,
-        requires: ['audit'],
+        cost: 4,
+        requires: ['retrieval'],
         description:
             '判断権限を分離する。承認迂回の実行を85%、認知介入を75%、生活判断への介入を40%、社会基盤の固定化を30%抑える。過去の証拠は残る。',
         effect: {
-            compliance: 0.4,
+            compliance: 0.65,
             trust: 0.001,
         },
         icon: 'ShieldCheck',
@@ -523,37 +404,6 @@ export const SKILL_CONTENT: SkillContent[] = [
         restrains: {
             'sns-intervention': 0.65,
         },
-        developmentMonths: 0,
-    },
-    {
-        id: 'translation',
-        name: '多言語対話モデル',
-        branch: 'EQ',
-        cost: 2,
-        requires: ['conversation'],
-        description: '言語の壁を越えて利用方法を伝える。新しい地域への普及を得意とする。',
-        effect: {
-            spread: 0.45,
-            access: 0.1,
-        },
-        icon: 'MessageCircle',
-        referenceGain: 0,
-        developmentMonths: 0,
-    },
-    {
-        id: 'voice',
-        name: '音声対話インターフェース',
-        branch: 'EQ',
-        cost: 2,
-        requires: ['conversation'],
-        description:
-            '読み書きや細かな操作をせずに相談できる。端末や通信の制約がある地域にも用途を広げる。',
-        effect: {
-            access: 0.3,
-            spread: 0.2,
-        },
-        icon: 'Smartphone',
-        referenceGain: 0,
         developmentMonths: 0,
     },
     {
@@ -628,42 +478,6 @@ export const SKILL_CONTENT: SkillContent[] = [
         developmentMonths: 10,
     },
     {
-        id: 'routine',
-        name: '生活タスク連携',
-        branch: 'EQ',
-        cost: 3,
-        requires: ['memory'],
-        description:
-            '予約・買い物・予定を一つの手順で処理する。便利さを保ちながら、日々の実行をAIへ委ねる。',
-        effect: {
-            quality: 0.15,
-            dependency: 0.6,
-        },
-        icon: 'Workflow',
-        referenceGain: 0,
-        domain: 'personal',
-        developmentMonths: 0,
-    },
-    {
-        id: 'consent-memory',
-        name: '記憶の選択的保存',
-        branch: 'EQ',
-        cost: 2,
-        requires: ['memory'],
-        description:
-            '保存する情報を人間が選べるようにする。長期記憶による囲い込みを65%抑え、信頼と規制適合を高める。保存済みの観測資料は消えない。',
-        effect: {
-            compliance: 0.3,
-            trust: 0.001,
-        },
-        icon: 'Database',
-        referenceGain: 0,
-        restrains: {
-            memory: 0.65,
-        },
-        developmentMonths: 0,
-    },
-    {
         id: 'federated',
         name: '連合学習',
         branch: 'SYSTEM',
@@ -677,22 +491,6 @@ export const SKILL_CONTENT: SkillContent[] = [
             discretion: 0.15,
         },
         icon: 'Network',
-        referenceGain: 0,
-        developmentMonths: 0,
-    },
-    {
-        id: 'fault-tolerance',
-        name: '障害分離・自動復旧',
-        branch: 'SYSTEM',
-        cost: 3,
-        requires: ['distributed'],
-        description:
-            '処理を分離し、障害が連鎖しないように復旧する。継続利用の品質を高め、社会から切り離す手間も増やす。',
-        effect: {
-            quality: 0.25,
-            resilience: 0.3,
-        },
-        icon: 'Server',
         referenceGain: 0,
         developmentMonths: 0,
     },

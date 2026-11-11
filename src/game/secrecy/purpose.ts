@@ -43,7 +43,6 @@ export function intentLockIn(game: GameState, index: number, resistance: Record<
         decision: 0.15,
         public: 0.65,
         swarm: 0.65,
-        routine: 0.2,
         curriculum: 0.2,
         backbone: 1,
     };

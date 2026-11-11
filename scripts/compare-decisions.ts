@@ -99,12 +99,9 @@ for (const family of Object.keys(POLICIES) as PolicyFamily[]) {
             for (const [label, priority] of [
                 [
                     '以後は個人向けの設計を優先',
-                    ['conversation', 'personalize', 'memory', 'routine', 'digital-twin'],
+                    ['conversation', 'personalize', 'memory', 'digital-twin'],
                 ],
-                [
-                    '以後は学習・評価の設計を優先',
-                    ['reason', 'knowledge', 'tutor', 'curriculum', 'adaptive-assessment'],
-                ],
+                ['以後は学習・評価の設計を優先', ['reason', 'knowledge', 'curriculum']],
             ] as const) {
                 branches.push({
                     label,

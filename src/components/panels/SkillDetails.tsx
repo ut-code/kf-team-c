@@ -1,6 +1,6 @@
 import { LockKeyhole } from 'lucide-react';
 import { capabilityLabel, skillScale } from '../../game/secrecy/capabilities';
-import { SKILLS, skillBlockReason, skillCost, skillReachable } from '../../game/skills';
+import { skillBlockReason, skillCost, skillReachable } from '../../game/skills';
 import { skillTraits } from '../../game/skillTraits';
 import type { GameState, Skill } from '../../game/types';
 import { SKILL_BRANCHES, SKILL_PRESENTATION } from './skillPresentation';
@@ -48,21 +48,18 @@ export function SkillDetails({
                         <p>実際の利用から証拠が蓄積し、介入が立証されると反発が広がります。</p>
                     </div>
                 )}
-                <h3>開発</h3>
-                <strong className="skill-detail-cost">{skillCost(game, skill)} SP</strong>
+                <div className="skill-detail-cost">
+                    <span>コスト</span>
+                    <strong>
+                        {skillCost(game, skill)}
+                        <small>SP</small>
+                    </strong>
+                </div>
                 <p>
                     {skill.developmentMonths === 0
                         ? '即時に開発が完了します。'
-                        : `開発期間 ${skill.developmentMonths}か月。開発中から徐々に機能が広がります。`}
+                        : `開発期間 ${skill.developmentMonths}か月。`}
                 </p>
-                {skill.requires.length > 0 && (
-                    <p>
-                        前提スキル：
-                        {skill.requires
-                            .map((id) => SKILLS.find((item) => item.id === id)!.name)
-                            .join(' / ')}
-                    </p>
-                )}
                 {owned && (
                     <>
                         <progress value={game.developmentProgress[skill.id]} max={1} />
@@ -73,9 +70,6 @@ export function SkillDetails({
                         </p>
                     </>
                 )}
-                <small>
-                    SPは開発時に消費します。開発済みの技術と、社会に残った証拠は取り消せません。
-                </small>
             </div>
             <button
                 type="button"

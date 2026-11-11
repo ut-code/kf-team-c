@@ -90,3 +90,17 @@ test('大きな変化は1ポイントずつ通知し、端数を次回へ持ち�
         assert.equal(next.changes.length, 1);
     }
 });
+
+test('全地域の好感度が一斉に下がっても、特定地域の通知だけで枠を埋めない', async () => {
+    const { spreadMetricChanges } = await import('../src/map/metricChanges.ts');
+    const previous = Array.from({ length: 37 }, () => initial);
+    const current = previous.map((state) => ({ ...state, favorability: 0.08 }));
+    const changes = accumulateMetricChanges(previous, current).changes;
+    assert.equal(changes.length, 37 * 50);
+    const selected = spreadMetricChanges(changes, 96);
+    assert.equal(selected.length, 96);
+    assert.equal(new Set(selected.slice(0, 37).map((change) => change.area)).size, 37);
+    assert.ok(selected.every((change) => change.delta < 0));
+    assert.deepEqual(spreadMetricChanges(changes, 0), []);
+    assert.deepEqual(spreadMetricChanges([], 96), []);
+});

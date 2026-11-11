@@ -41,8 +41,9 @@ export function activeSkillEffects(game: GameState) {
     for (const skill of SKILLS) {
         if (!game.skills.includes(skill.id)) continue;
         const scale = skillScale(game, skill.id);
+        const effect = skill.effect;
         for (const key of Object.keys(total) as (keyof typeof total)[]) {
-            total[key] += (skill.effect[key] ?? 0) * scale;
+            total[key] += (effect[key] ?? 0) * scale;
         }
     }
     return total;

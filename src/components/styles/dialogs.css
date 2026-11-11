@@ -44,9 +44,6 @@
     margin: 0;
     max-height: calc(100dvh - 36px);
 }
-.modal.floating.conversation-modal {
-    height: min(820px, calc(100dvh - 190px));
-}
 .game-shell .modal.floating {
     width: min(640px, calc(100vw - 36px));
     margin-inline: 0;
@@ -108,7 +105,6 @@
 .startup-error {
     padding: 40px;
 }
-
 .modal.wide {
     width: min(760px, calc(100vw - 40px));
 }

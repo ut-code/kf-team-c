@@ -15,37 +15,17 @@ const GROWTH = [
     'knowledge',
     'code',
 ];
-const WORK = ['automation', 'integration', 'platform', 'decision', 'public', 'swarm'];
+const WORK = ['automation', 'integration', 'decision', 'public', 'swarm'];
 const PERSONAL = [
     'conversation',
     'personalize',
     'memory',
-    'routine',
     'digital-twin',
     'companion',
     'mind-control',
 ];
-const LEARNING = [
-    'reason',
-    'knowledge',
-    'tutor',
-    'curriculum',
-    'adaptive-assessment',
-    'science',
-    'discovery',
-    'drug-design',
-];
-const SUPPORT = [
-    'verification',
-    'audit',
-    'privacy',
-    'translation',
-    'offline',
-    'mobile',
-    'retrieval',
-    'explanation',
-    'fault-tolerance',
-];
+const LEARNING = ['reason', 'knowledge', 'curriculum', 'science', 'discovery', 'drug-design'];
+const SUPPORT = ['retrieval', 'explanation'];
 export const POLICIES = {
     expansion: {
         name: '普及後の一斉依存化',
@@ -165,20 +145,12 @@ export function continuePolicy(
                 if (family === 'burst')
                     order = ['conversation', 'reason', 'personalize', 'lightweight'];
                 else if (family === 'gradual' || family === 'research_pivot')
-                    order = [
-                        'conversation',
-                        'reason',
-                        'personalize',
-                        'verification',
-                        'privacy',
-                        'explanation',
-                        'lightweight',
-                    ];
+                    order = ['conversation', 'reason', 'personalize', 'explanation', 'lightweight'];
                 else if (family === 'regional')
                     order = [
                         'conversation',
                         'reason',
-                        ...(home.digital < 0.6 ? ['lightweight', 'offline', 'mobile'] : []),
+                        ...(home.digital < 0.6 ? ['lightweight'] : []),
                         ...specialty.filter(
                             (id) => !SKILLS.find((s) => s.id === id)!.effect.dependency,
                         ),
@@ -211,9 +183,7 @@ export function continuePolicy(
                         ...specialty.slice(0, 3),
                         ...GROWTH,
                         'explanation',
-                        ...(specialty === PERSONAL
-                            ? ['automation', 'integration']
-                            : ['memory', 'routine']),
+                        ...(specialty === PERSONAL ? ['automation', 'integration'] : ['memory']),
                         ...specialty,
                         ...SUPPORT,
                         ...WORK,
@@ -227,10 +197,8 @@ export function continuePolicy(
                         'automation',
                         'integration',
                         'care',
-                        'platform',
                         'decision',
                         'public',
-                        'routine',
                         'curriculum',
                         ...LEARNING,
                         ...SUPPORT,
@@ -247,24 +215,20 @@ export function continuePolicy(
                             skill.exceedsAuthority &&
                             game.capabilities[skill.id]?.visibility === 'exposed',
                     )
-                        ? ['verification', 'audit', 'permission', 'explanation']
+                        ? ['permission', 'explanation']
                         : [];
                     order = [...constrain, ...alternative, ...GROWTH, ...SUPPORT];
                 } else
                     order = [
                         'memory',
-                        'routine',
                         'digital-twin',
                         'automation',
                         'integration',
-                        'platform',
                         'swarm',
                         'decision',
                         'knowledge',
-                        'tutor',
                         'curriculum',
                         'public',
-                        'adaptive-assessment',
                         ...SUPPORT,
                         ...LEARNING,
                         ...PERSONAL,

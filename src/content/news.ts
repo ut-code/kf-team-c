@@ -10,8 +10,8 @@ export const WORLD_NEWS: NewsDefinition[] = [
         summary:
             '西海岸のAI学習サービスで大規模な情報流出が確認された。判断を委ねたはずの基盤の脆さが露呈し、利用を拒む人が出始めている。',
         areaId: 'us-west',
-        skills: ['tutor', 'curriculum'],
-        avoid: ['privacy', 'federated'],
+        skills: ['curriculum'],
+        avoid: ['federated'],
     },
     {
         id: 'security-breach-2',
@@ -20,7 +20,7 @@ export const WORLD_NEWS: NewsDefinition[] = [
             '東欧の複数自治体で、行政AIの記録が改ざんされる攻撃が見つかった。依存が進んだ地域ほど、拒否の波が広がっている。',
         areaId: 'east-europe',
         skills: ['public'],
-        avoid: ['audit', 'fault-tolerance'],
+        avoid: ['permission'],
     },
     {
         id: 'security-breach-3',
@@ -28,8 +28,8 @@ export const WORLD_NEWS: NewsDefinition[] = [
         summary:
             '東京圏でAI基盤への侵入が連続して確認された。専門家は「構造を理解する側の目が育っていない」と指摘している。',
         areaId: 'japan',
-        skills: ['platform', 'backbone'],
-        avoid: ['sandbox', 'fault-tolerance'],
+        skills: ['automation', 'backbone'],
+        avoid: ['sandbox'],
         minDependency: 0.3,
     },
     {
@@ -83,7 +83,6 @@ export const WORLD_NEWS: NewsDefinition[] = [
             '北欧の統合行政AIが給付と交通管理ごと停止した。障害の復旧に、計算資源の供給の2割を数か月充当する見通しが示された。',
         areaId: 'north-europe',
         skills: ['public'],
-        avoid: ['fault-tolerance'],
         minDependency: 0.25,
     },
     {
@@ -93,7 +92,6 @@ export const WORLD_NEWS: NewsDefinition[] = [
             '近畿圏で都市基盤AIが停止し、復旧に数か月を要する見通しが出た。依存が深い分、取り返す社会的な信任の重荷も大きい。',
         areaId: 'japan',
         skills: ['public', 'backbone'],
-        avoid: ['fault-tolerance'],
         minDependency: 0.4,
         after: 'system-outage-2',
     },

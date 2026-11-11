@@ -7,6 +7,7 @@ import {
     accumulateMetricChanges,
     METRIC_CHANGE_DURATION,
     type MetricChange,
+    spreadMetricChanges,
 } from '../map/metricChanges';
 import { randomRegionPoint } from '../map/randomRegionPoint';
 import type { MapRegion } from '../map/types';
@@ -25,7 +26,7 @@ interface Popup extends MetricChange {
 // 表示演出の予約量を固定し、大きな指標変化でもDOMと待ち行列を増やし続けない。
 const MAX_POPUPS = 128;
 const POPUP_SPACING = 90;
-const SCHEDULE_WINDOW = MONTH_MS * 4;
+const SCHEDULE_WINDOW = MONTH_MS;
 
 export function MapMetricChanges({
     areaStates,
@@ -48,6 +49,7 @@ export function MapMetricChanges({
     const appearances = useRef<number[]>([]);
     const elapsed = useRef(0);
     const container = useRef<HTMLDivElement>(null);
+    const popupAnimations = useRef<{ animation: Animation; createdAt: number }[]>([]);
     const [popups, setPopups] = useState<Popup[]>([]);
     const shapes = useMemo(
         () => new Map(parseRegions(regions).map((shape) => [Number(shape.region.id), shape])),
@@ -70,7 +72,7 @@ export function MapMetricChanges({
         baseline.current = accumulated.baseline;
         const changes = accumulated.changes;
         if (!changes.length) return;
-        // 地域順をシャッフルし、4か月分の時間枠へ均等に分散する。
+        // 地域順をシャッフルし、1か月分の時間枠へ均等に分散する。
         // 各枠にも揺らぎを入れ、ランダム抽選だけで生じる表示の密集や空白を抑える。
         const shuffled = [...changes];
         for (let i = shuffled.length - 1; i > 0; i--) {
@@ -81,7 +83,7 @@ export function MapMetricChanges({
             (start) => start > now - POPUP_SPACING,
         );
         const available = MAX_POPUPS - popups.filter((popup) => popup.expires > now).length;
-        const selected = shuffled.slice(0, Math.max(0, available));
+        const selected = spreadMetricChanges(shuffled, Math.max(0, available));
         const interval = SCHEDULE_WINDOW / Math.max(1, selected.length);
         const scheduled = selected.map((change, index) => ({
             change,
@@ -124,15 +126,16 @@ export function MapMetricChanges({
         // CSSの実時間と通知のゲーム内時間を揃える。速度変更・停止でも途中位置を保つ。
         const elements = container.current?.children;
         if (!elements) return;
+        const synchronized: { animation: Animation; createdAt: number }[] = [];
         for (let index = 0; index < elements.length; index++) {
             const animation = elements[index].firstElementChild?.getAnimations()[0];
             if (!animation) continue;
             animation.currentTime = elapsed.current - popups[index].createdAt;
-            animation.playbackRate = speed;
-            if (speed === 0) animation.pause();
-            else animation.play();
+            animation.pause();
+            synchronized.push({ animation, createdAt: popups[index].createdAt });
         }
-    }, [popups, speed]);
+        popupAnimations.current = synchronized;
+    }, [popups]);
 
     useEffect(() => {
         if (!popups.length || speed === 0) return;
@@ -141,14 +144,14 @@ export function MapMetricChanges({
         let frame: number;
         const visibilityChanged = () => {
             previous = performance.now();
-            for (const animation of container.current?.getAnimations({ subtree: true }) ?? []) {
-                if (document.hidden) animation.pause();
-                else animation.play();
-            }
         };
         const advance = (now: number) => {
-            if (!document.hidden) elapsed.current += (now - previous) * speed;
+            if (!document.hidden) elapsed.current += Math.min(now - previous, 250) * speed;
             previous = now;
+            // 自動再生とゲーム内時間を二重に進めず、単一の時計から全アイコンを描く。
+            for (const { animation, createdAt } of popupAnimations.current) {
+                animation.currentTime = elapsed.current - createdAt;
+            }
             if (elapsed.current >= nextExpiry) {
                 setPopups((current) => current.filter((popup) => popup.expires > elapsed.current));
             } else {
@@ -166,7 +169,12 @@ export function MapMetricChanges({
 
     if (!view.width || !view.height) return null;
     return (
-        <div ref={container} className={styles.metricChanges} aria-hidden="true">
+        <div
+            ref={container}
+            className={styles.metricChanges}
+            data-animation-clock="manual"
+            aria-hidden="true"
+        >
             {popups.map((popup) => {
                 const point = screenPoint(view, popup.world.x, popup.world.y);
                 return (
@@ -186,9 +194,9 @@ export function MapMetricChanges({
                             }}
                         >
                             {popup.delta > 0 ? (
-                                <Heart size={11} fill="currentColor" />
+                                <Heart size={14} fill="currentColor" />
                             ) : (
-                                <HeartCrack size={11} />
+                                <HeartCrack size={14} />
                             )}
                         </span>
                     </div>

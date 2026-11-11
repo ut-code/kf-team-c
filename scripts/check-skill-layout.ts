@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { skillLayout, type TreePoint } from '../src/game/skillLayout.ts';
+import type { Branch } from '../src/game/types.ts';
 
 function distance(point: TreePoint, start: TreePoint, end: TreePoint) {
     const dx = end.x - start.x,
@@ -31,10 +32,36 @@ const bounds = (a: TreePoint, b: TreePoint, padding = 0): Box => ({
 const separate = (a: Box, b: Box) =>
     a.left > b.right || b.left > a.right || a.top > b.bottom || b.top > a.bottom;
 
-export function checkSkillLayout() {
-    const tree = skillLayout();
+export function checkSkillLayout(branch: Branch) {
+    const tree = skillLayout(undefined, branch);
     assert.equal(tree.centerX, 0);
     assert.equal(tree.centerY, 0);
+    for (const edge of tree.edges) {
+        for (const [id, point] of [
+            [edge.from, edge.points[0]],
+            [edge.to, edge.points[1]],
+        ] as const) {
+            const node = tree.positions.find((node) => node.skill.id === id);
+            if (!node) {
+                assert.ok(
+                    Math.abs(Math.hypot(point.x, point.y) - tree.originRadius) < 0.01,
+                    '線が起点の縁から離れる',
+                );
+                continue;
+            }
+            const left = node.x - tree.nodeWidth / 2,
+                right = node.x + tree.nodeWidth / 2;
+            const top = node.y - tree.nodeHeight / 2,
+                bottom = node.y + tree.nodeHeight / 2;
+            const borderDistance = Math.min(
+                distance(point, { x: left, y: top }, { x: right, y: top }),
+                distance(point, { x: right, y: top }, { x: right, y: bottom }),
+                distance(point, { x: right, y: bottom }, { x: left, y: bottom }),
+                distance(point, { x: left, y: bottom }, { x: left, y: top }),
+            );
+            assert.ok(borderDistance < 0.01, `線がノードの縁から離れる：${id}`);
+        }
+    }
     const boxes = [
         {
             id: 'origin',
@@ -64,6 +91,8 @@ export function checkSkillLayout() {
         const points = edge.points;
         return {
             id: `${edge.from} → ${edge.to}`,
+            from: edge.from,
+            to: edge.to,
             segments: points.slice(1).map((end, index) => ({
                 start: points[index],
                 end,
@@ -78,11 +107,12 @@ export function checkSkillLayout() {
                 for (const segment of path.segments)
                     assert.ok(
                         distance({ x: tree.centerX, y: tree.centerY }, segment.start, segment.end) >
-                            tree.originRadius + 2.1,
+                            tree.originRadius - 0.01,
                         `線が起点に重なる：${path.id}`,
                     );
                 continue;
             }
+            if (box.id === path.from || box.id === path.to) continue;
             const corners = [
                 { x: box.left, y: box.top },
                 { x: box.right, y: box.top },
@@ -131,4 +161,10 @@ export function checkSkillLayout() {
     };
 }
 
-console.log(JSON.stringify(checkSkillLayout()));
+console.log(
+    JSON.stringify(
+        Object.fromEntries(
+            (['IQ', 'EQ', 'SYSTEM'] as const).map((branch) => [branch, checkSkillLayout(branch)]),
+        ),
+    ),
+);

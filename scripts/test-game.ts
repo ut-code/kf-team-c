@@ -34,7 +34,7 @@ test('開発ツリーには循環・欠落・重なるノードがなく、委�
     for (const node of skillLayout().positions) {
         const skill = node.skill;
         assert.ok(skill.developmentMonths >= 0 && skill.cost > 0);
-        const position = `${node.x}:${node.y}`;
+        const position = `${skill.branch}:${node.x}:${node.y}`;
         assert.ok(!positions.has(position));
         positions.add(position);
         const visit = (id: string, path: string[]) => {
@@ -453,4 +453,77 @@ test('個別能力の解析を残し、研究は公表で完了して現場対�
         RESEARCH_TOPICS.find((topic) => topic.id === 'intent-decoding')!.category,
         'research',
     );
+});
+
+test('32スキルへの集約後もニュースと研究の対象が実在する', async () => {
+    const { RESEARCH_TARGETS } = await import('../src/game/secrecy/researchTargets.ts');
+    assert.equal(SKILLS.length, 32);
+    const ids = new Set(SKILLS.map((skill) => skill.id));
+    for (const news of WORLD_NEWS)
+        for (const id of [...news.skills, ...(news.avoid ?? [])]) assert.ok(ids.has(id), id);
+    for (const target of RESEARCH_TARGETS)
+        for (const id of target.skills) assert.ok(ids.has(id), id);
+});
+
+test('配置編集中にノードを起点や親と重ねても線の座標は有限になる', () => {
+    const positions = Object.fromEntries(
+        skillLayout().positions.map((node) => [node.skill.id, { x: node.x, y: node.y }]),
+    );
+    positions.reason = { x: 0, y: 0 };
+    positions.knowledge = { x: 0, y: 0 };
+    for (const edge of skillLayout(positions).edges) {
+        for (const point of edge.points)
+            assert.ok(Number.isFinite(point.x) && Number.isFinite(point.y));
+    }
+});
+
+test('系統別のツリーは同じ起点から右へ進み、別系統のノードや線を含まない', () => {
+    const seen = new Set<string>();
+    for (const branch of ['IQ', 'EQ', 'SYSTEM'] as const) {
+        const tree = skillLayout(undefined, branch);
+        assert.equal(tree.centerX, 0);
+        assert.equal(tree.centerY, 0);
+        const root = tree.positions.find((node) => !node.skill.requires.length)!;
+        assert.equal(root.x, 130);
+        assert.equal(root.y, 0);
+        for (const node of tree.positions) {
+            assert.equal(node.skill.branch, branch);
+            assert.ok(!seen.has(node.skill.id));
+            seen.add(node.skill.id);
+            if (node.skill.requires.length) {
+                const parent = tree.positions.find(
+                    (item) => item.skill.id === node.skill.requires[0],
+                );
+                assert.ok(parent && parent.x < node.x);
+            }
+        }
+        assert.equal(tree.edges.length, tree.positions.length);
+    }
+    assert.equal(seen.size, SKILLS.length);
+});
+
+test('固定ツリーはデスクトップと狭い画面で全ノードを収め、拡大率を1以下に保つ', async () => {
+    const { skillTreeView } = await import('../src/game/skillTreeView.ts');
+    for (const branch of ['IQ', 'EQ', 'SYSTEM'] as const) {
+        const tree = skillLayout(undefined, branch);
+        for (const [width, height] of [
+            [1280, 720],
+            [820, 560],
+            [390, 280],
+        ]) {
+            const view = skillTreeView(tree, width, height);
+            assert.ok(view.scale <= 1 && view.scale > 0);
+            for (const node of tree.positions) {
+                const left = (node.x - tree.nodeWidth / 2 - view.x) * view.scale;
+                const right = (node.x + tree.nodeWidth / 2 - view.x) * view.scale;
+                const top = (node.y - tree.nodeHeight / 2 - view.y) * view.scale;
+                const bottom = (node.y + tree.nodeHeight / 2 - view.y) * view.scale;
+                assert.ok(
+                    left >= 0 && right <= width && top >= 0 && bottom <= height,
+                    `${branch}:${node.skill.id}`,
+                );
+            }
+            assert.ok((0 - view.x) * view.scale >= tree.originRadius * view.scale);
+        }
+    }
 });

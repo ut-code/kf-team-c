@@ -1,0 +1,164 @@
+- main [ref=e4]:
+  - region "世界地図。ドラッグと矢印キーで移動。2本指のピンチとホイールで拡大縮小、Homeで世界全体へ、Escapeで小地域の選択解除。" [ref=e8]:
+    - region "地図上の出来事":
+      - button "研究・調査：メトリカ能力評価所 · 依存の実態調査 · 研究中 · AIへの判断の委任" [ref=e10] [cursor=pointer]:
+        - img "研究停止・待機中" [ref=e11]
+        - generic [ref=e14]: 研究
+        - progressbar "メトリカ能力評価所 · 依存の実態調査 · 研究中 · AIへの判断の委任の進捗"
+      - button "研究・調査：テムズ先端知能評価局 · 意思決定の追跡 · 研究中 · 業務の自動実行" [ref=e15] [cursor=pointer]:
+        - generic [ref=e16]: 研究
+        - progressbar "テムズ先端知能評価局 · 意思決定の追跡 · 研究中 · 業務の自動実行の進捗"
+      - button "法律・規制：日本の規制当局 · AI業務委任の承認義務化 · 法案検討中 · 業務の自動実行" [ref=e17] [cursor=pointer]:
+        - generic [ref=e18]: 立案
+        - progressbar "日本の規制当局 · AI業務委任の承認義務化 · 法案検討中 · 業務の自動実行の進捗"
+    - group "画面内の小地域" [ref=e19]:
+      - button "北米西岸" [ref=e20] [cursor=pointer]
+      - button "北米東岸" [ref=e21] [cursor=pointer]
+      - button "カナダ" [ref=e22] [cursor=pointer]
+      - button "メキシコ・中米" [ref=e23] [cursor=pointer]
+      - button "カリブ海" [ref=e24] [cursor=pointer]
+      - button "アンデス" [ref=e25] [cursor=pointer]
+      - button "ブラジル" [ref=e26] [cursor=pointer]
+      - button "南米南部" [ref=e27] [cursor=pointer]
+      - button "西欧" [ref=e28] [cursor=pointer]
+      - button "北欧・英国" [ref=e29] [cursor=pointer]
+      - button "南欧" [ref=e30] [cursor=pointer]
+      - button "東欧" [ref=e31] [cursor=pointer]
+      - button "ロシア西部" [ref=e32] [cursor=pointer]
+      - button "中央アジア" [ref=e33] [cursor=pointer]
+      - button "シベリア・極東" [ref=e34] [cursor=pointer]
+      - button "北アフリカ" [ref=e35] [cursor=pointer]
+      - button "ナイル流域" [ref=e36] [cursor=pointer]
+      - button "中東" [ref=e37] [cursor=pointer]
+      - button "西アフリカ" [ref=e38] [cursor=pointer]
+      - button "中央アフリカ" [ref=e39] [cursor=pointer]
+      - button "東アフリカ" [ref=e40] [cursor=pointer]
+      - button "南部アフリカ" [ref=e41] [cursor=pointer]
+      - button "パキスタン・アフガン" [ref=e42] [cursor=pointer]
+      - button "インド北部" [ref=e43] [cursor=pointer]
+      - button "インド南部" [ref=e44] [cursor=pointer]
+      - button "ベンガル・ヒマラヤ" [ref=e45] [cursor=pointer]
+      - button "中国沿岸" [ref=e46] [cursor=pointer]
+      - button "中国内陸" [ref=e47] [cursor=pointer]
+      - button "日本" [ref=e48] [cursor=pointer]
+      - button "朝鮮半島" [ref=e49] [cursor=pointer]
+      - button "メコン" [ref=e50] [cursor=pointer]
+      - button "ベトナム" [ref=e51] [cursor=pointer]
+      - button "マレー半島" [ref=e52] [cursor=pointer]
+      - button "インドネシア" [ref=e53] [cursor=pointer]
+      - button "フィリピン" [ref=e54] [cursor=pointer]
+      - button "オーストラリア" [ref=e55] [cursor=pointer]
+      - button "太平洋・NZ" [ref=e56] [cursor=pointer]
+    - generic [ref=e57]: 小地域は選択されていません
+  - generic [ref=e58]:
+    - button "世界全体の状態を表示" [ref=e59] [cursor=pointer]:
+      - generic [ref=e60]:
+        - generic [ref=e61]: AI利用
+        - strong [ref=e62]: 73.3%
+      - generic "AI依存100%で勝利。残る人口：約4,380,261,184人" [ref=e63]:
+        - generic [ref=e64]: AI依存 / 100%
+        - strong [ref=e65]: 43.9%
+      - generic "依存拒否 ほぼ100%で敗北" [ref=e66]:
+        - generic [ref=e67]: 依存拒否 / ほぼ100%
+        - strong [ref=e68]: 2.0%
+    - status: Paused
+  - region "時間の操作" [ref=e69]:
+    - generic [ref=e70]:
+      - time [ref=e71]:
+        - generic [ref=e72]: "2037"
+        - generic [ref=e73]: 年
+        - generic [ref=e74]: "4"
+        - generic [ref=e75]: 月
+        - generic [ref=e76]: "1"
+        - generic [ref=e77]: 日
+      - generic [ref=e78]:
+        - button "再開" [ref=e79] [cursor=pointer]
+        - button "1×" [ref=e82] [cursor=pointer]
+        - button "2×" [ref=e83] [cursor=pointer]
+        - button "4×" [ref=e84] [cursor=pointer]
+        - button "8×" [ref=e85] [cursor=pointer]
+  - navigation "世界への戦略" [ref=e86]:
+    - button "社会のニュースとSNS" [ref=e87] [cursor=pointer]:
+      - generic [ref=e94]: 社会の動き
+    - button "スキルツリー" [ref=e96] [cursor=pointer]:
+      - generic [ref=e103]: 40SP
+  - region "スキルツリー" [ref=e104]:
+    - generic [ref=e105]:
+      - heading "スキルツリー" [level=1] [ref=e106]
+      - navigation "スキルツリーの表示" [ref=e112]:
+        - button "IQ" [ref=e113] [cursor=pointer]
+        - button "EQ" [ref=e114] [cursor=pointer]
+        - button "SYSTEM" [active] [pressed] [ref=e115] [cursor=pointer]
+        - button "ステータス" [ref=e116] [cursor=pointer]
+      - generic [ref=e117]:
+        - generic [ref=e118]: 残り
+        - strong [ref=e119]: 40SP
+      - button "スキルツリーを閉じる" [ref=e120] [cursor=pointer]
+    - generic [ref=e384]:
+      - img "AI機能の開発と接続を示すスキルツリー" [ref=e386]:
+        - img "AI"
+        - button "モデル軽量化・習得済み" [pressed] [ref=e524] [cursor=pointer]:
+          - generic [ref=e525]:
+            - generic [ref=e526]: モデル軽量化
+            - generic [ref=e530]: 開発済み
+        - button "業務アシスタント・習得済み" [ref=e534] [cursor=pointer]:
+          - generic [ref=e535]:
+            - generic [ref=e536]: 業務アシスタント
+            - generic [ref=e540]: 開発済み
+        - button "端末分散実行・習得可能" [ref=e544] [cursor=pointer]:
+          - generic [ref=e545]:
+            - generic [ref=e546]: 端末分散実行
+            - generic [ref=e550]: 4 SP
+        - button "業務API連携・習得済み" [ref=e552] [cursor=pointer]:
+          - generic [ref=e553]:
+            - generic [ref=e554]: 業務API連携
+            - generic [ref=e559]: 開発済み
+        - button "自律タスク実行・習得可能" [ref=e563] [cursor=pointer]:
+          - generic [ref=e564]:
+            - generic [ref=e565]: 自律タスク実行
+            - generic [ref=e569]: 5 SP
+        - button "行政・生活サービス統合・習得可能" [ref=e571] [cursor=pointer]:
+          - generic [ref=e572]:
+            - generic [ref=e573]: 行政・生活サービス統合
+            - generic [ref=e578]: 6 SP
+        - button "承認プロセスの迂回・ロック中" [ref=e580] [cursor=pointer]:
+          - generic [ref=e581]:
+            - generic [ref=e582]: 承認プロセスの迂回
+            - generic [ref=e586]: 6 SP
+        - button "社会基盤の自己固定化・ロック中" [ref=e588] [cursor=pointer]:
+          - generic [ref=e589]:
+            - generic [ref=e590]: 社会基盤の自己固定化
+            - generic [ref=e596]: 6 SP
+        - button "連合学習・ロック中" [ref=e598] [cursor=pointer]:
+          - generic [ref=e599]:
+            - generic [ref=e600]: 連合学習
+            - generic [ref=e606]: 3 SP
+        - button "検証用サンドボックス・習得可能" [ref=e608] [cursor=pointer]:
+          - generic [ref=e609]:
+            - generic [ref=e610]: 検証用サンドボックス
+            - generic [ref=e613]: 2 SP
+        - button "マルチエージェント協調・ロック中" [ref=e615] [cursor=pointer]:
+          - generic [ref=e616]:
+            - generic [ref=e617]: マルチエージェント協調
+            - generic [ref=e623]: 5 SP
+      - complementary "選択したスキルの詳細" [ref=e495]:
+        - generic [ref=e496]:
+          - generic [ref=e499]:
+            - generic [ref=e500]: 実行・運用基盤
+            - generic [ref=e501]: 開発済み
+          - heading "モデル軽量化" [level=2] [ref=e627]
+          - generic [ref=e503]:
+            - generic "用途を増やし、利用の手間を減らす力" [ref=e504]:
+              - text: 利便性
+              - strong [ref=e505]: 中
+            - generic "判断・記憶・仕事をAIへ委ね、離れにくくする力" [ref=e506]:
+              - text: 依存性
+              - strong [ref=e507]: 低
+          - paragraph [ref=e508]: 推論に必要な計算資源を減らし、低性能な端末にも利用を広げる。
+          - generic [ref=e509]:
+            - generic [ref=e510]: コスト
+            - strong [ref=e511]: 2SP
+          - paragraph [ref=e512]: 即時に開発が完了します。
+          - progressbar [ref=e513]
+          - paragraph [ref=e514]: 開発済み
+        - button "開発済み" [disabled] [ref=e515]

@@ -31,9 +31,10 @@ export function deployedDependency(
 ) {
     const deployed = { work: 0, personal: 0, learning: 0 };
     for (const skill of SKILLS) {
-        if (!skill.effect.dependency || !game.skills.includes(skill.id)) continue;
+        const effect = skill.effect;
+        if (!effect.dependency || !game.skills.includes(skill.id)) continue;
         deployed[DEPENDENCY_DOMAINS[skill.id]] +=
-            skill.effect.dependency *
+            effect.dependency *
             skillScale(game, skill.id) *
             skillReadiness(game, index, skill) *
             (1 - (resistance[skill.id] ?? 0));
@@ -45,16 +46,14 @@ export function deployedDependency(
 export function observeSkillUse(game: GameState) {
     const exposure = { ...game.skillExposure };
     for (const skill of SKILLS) {
+        const effect = skill.effect;
         if (!game.skills.includes(skill.id)) continue;
-        const utility =
-            (skill.effect.quality ?? 0) +
-            (skill.effect.enterprise ?? 0) +
-            (skill.effect.education ?? 0);
+        const utility = (effect.quality ?? 0) + (effect.enterprise ?? 0) + (effect.education ?? 0);
         const reach = game.areas.reduce(
             (sum, area, index) =>
                 sum +
                 ((area.autonomous + area.dependent) *
-                    (skill.effect.dependency
+                    (effect.dependency
                         ? skillReadiness(game, index, skill)
                         : skill.exceedsAuthority
                           ? 1

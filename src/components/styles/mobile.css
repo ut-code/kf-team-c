@@ -92,7 +92,6 @@
         display: inline;
     }
     .game-actions > :where(button) > small,
-    .map-credit,
     .map-legend {
         display: none;
     }
@@ -133,29 +132,6 @@
     .game-shell .modal.floating {
         inset: var(--mobile-top) var(--mobile-right) auto var(--mobile-left);
     }
-    .modal.conversation-modal,
-    .modal.floating.conversation-modal {
-        height: calc(100dvh - var(--mobile-top) - var(--mobile-bottom));
-        padding: 0;
-    }
-    .conversation-heading,
-    .conversation-status {
-        gap: 8px;
-        padding-inline: 12px;
-    }
-    .conversation-status {
-        flex-wrap: wrap;
-    }
-    .conversation-heading > div {
-        min-width: 0;
-    }
-    .conversation-reply {
-        flex-wrap: wrap;
-        min-height: 44px;
-    }
-    .conversation-reply > span {
-        min-width: 120px;
-    }
     .result-stats {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -185,13 +161,11 @@
         grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
     }
     .tree-viewport {
-        overflow: auto;
+        overflow: hidden;
     }
-    /* SVGは縮小せず、指で全体をスクロールして探索する。 */
     .skill-tree {
-        width: var(--tree-width);
-        height: var(--tree-height);
-        max-width: none;
+        width: 100%;
+        height: 100%;
     }
     .skill-details {
         border-left: 0;
