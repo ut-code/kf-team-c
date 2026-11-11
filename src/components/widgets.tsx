@@ -3,7 +3,7 @@ import { useLayoutEffect, useRef } from 'react';
 const populationFormatter = new Intl.NumberFormat('ja-JP', { maximumFractionDigits: 0 });
 export const population = (millions: number) =>
     `${populationFormatter.format(Math.max(0, millions) * 1_000_000)}人`;
-export const percent = (value: number) => `${(value * 100).toFixed(1)}%`;
+export { percentage as percent } from '../game/metrics';
 export function Modal({
     children,
     label,

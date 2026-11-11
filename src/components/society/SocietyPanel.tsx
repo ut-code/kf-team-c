@@ -1,12 +1,7 @@
-import { Bot, Check, Heart, MessageCircle, Repeat2, SlidersHorizontal, X } from 'lucide-react';
+import { Bot, Heart, MessageCircle, Repeat2, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { calendarParts } from '../../game/calendar';
 import type { SocialPost } from '../../game/society/socialFeed';
-import {
-    SOCIAL_STRATEGIES,
-    STRATEGY_SWITCH_COST,
-    socialStrategy,
-} from '../../game/society/strategies';
 import type { GameState } from '../../game/types';
 import { useGameStore } from '../../state/gameStore';
 import styles from './SocietyPanel.module.css';
@@ -41,8 +36,11 @@ function Post({ post }: { post: SocialPost }) {
                 </header>
                 <div className={styles.authorMeta}>
                     <span>@{post.handle}</span>
-                    <span>国籍：{post.nationality}</span>
+                    <span>
+                        {post.headline ? '現地報道' : '国籍'}：{post.nationality}
+                    </span>
                 </div>
+                {post.headline && <h3>{post.headline}</h3>}
                 <p>{post.text}</p>
                 {post.quote && (
                     <blockquote className={styles.quote}>
@@ -75,18 +73,16 @@ function Post({ post }: { post: SocialPost }) {
     );
 }
 
-export function SocietyPanel({ game, onClose }: { game: GameState; onClose: () => void }) {
+export function SocietyPanel({ onClose }: { game: GameState; onClose: () => void }) {
     const posts = useGameStore((state) => state.socialFeed.posts);
     const [lastVisible, setLastVisible] = useState(posts[0]?.sequence ?? 0);
     const [following, setFollowing] = useState(true);
     const timeline = useRef<HTMLDivElement>(null);
-    const strategyEditor = useRef<HTMLDetailsElement>(null);
     const newest = posts[0]?.sequence ?? 0;
     useEffect(() => {
         if (following) setLastVisible(newest);
     }, [following, newest]);
     const fresh = posts.filter((post) => post.sequence > lastVisible).length;
-    const current = socialStrategy(game.socialStrategy);
     return (
         <aside
             id="sns-panel"
@@ -107,42 +103,6 @@ export function SocietyPanel({ game, onClose }: { game: GameState; onClose: () =
                     <X size={20} />
                 </button>
             </header>
-            <details className={styles.strategy} ref={strategyEditor}>
-                <summary>
-                    <SlidersHorizontal size={14} />
-                    <strong>{current.name}</strong>
-                    <span>方針変更</span>
-                </summary>
-                <div className={styles.strategyOptions}>
-                    {SOCIAL_STRATEGIES.map((strategy) => (
-                        <button
-                            type="button"
-                            key={strategy.id}
-                            aria-pressed={game.socialStrategy === strategy.id}
-                            disabled={
-                                strategy.id !== 'listening' &&
-                                game.socialStrategy !== strategy.id &&
-                                game.skillPoints < STRATEGY_SWITCH_COST
-                            }
-                            onClick={() => {
-                                useGameStore.getState().strategy(strategy.id);
-                                strategyEditor.current!.open = false;
-                            }}
-                        >
-                            <strong>
-                                {strategy.name}
-                                {strategy.id === game.socialStrategy && <Check size={14} />}
-                            </strong>
-                            <p>{strategy.description}</p>
-                            <small>{strategy.tradeoff}</small>
-                        </button>
-                    ))}
-                    <p className={styles.strategyCost}>
-                        変更 {STRATEGY_SWITCH_COST} SP ·「信頼を回復」へ戻す場合は無料
-                    </p>
-                </div>
-            </details>
-            <div className={styles.currentEffect}>{current.tradeoff}</div>
             {fresh > 0 && (
                 <button
                     type="button"

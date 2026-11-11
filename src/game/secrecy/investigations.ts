@@ -1,18 +1,12 @@
 import { AREAS } from '../data.ts';
-import { isEncounterLocationOccupied } from '../encounterLocations.ts';
-import { clamp } from '../metrics.ts';
 import { SKILLS } from '../skills.ts';
 import type { GameState } from '../types.ts';
-import {
-    activeSkillEffects,
-    discloseCapability,
-    setSkillOperation,
-    skillScale,
-} from './capabilities.ts';
+import { discloseCapability, skillScale } from './capabilities.ts';
 import { INSTITUTES } from './data.ts';
-import { researchRate, researchTopic } from './research.ts';
+import { researchRate } from './research.ts';
 import { researchCapacity, runningCapabilityIds } from './researchCapacity.ts';
-import type { Investigation, InvestigationAction } from './types.ts';
+import { canStartInvestigation, researchSiteAvailable } from './scheduling.ts';
+import type { Investigation } from './types.ts';
 
 export function instituteFor(investigation: Investigation) {
     return INSTITUTES.find((item) => item.id === investigation.instituteId)!;
@@ -59,96 +53,10 @@ export function investigationRate(
     const index = instituteArea(investigation);
     const area = game.areas[index];
     const materials = area.autonomous + area.dependent;
-    const effect = activeSkillEffects(game);
-    const partnership =
-        !unimpeded && investigation.intervention === 'partnership'
-            ? 0.85 - effect.discretion * 6 - effect.compliance * 0.5
-            : 0;
-    const pressure =
-        !unimpeded && investigation.intervention === 'pressure'
-            ? regionalDependency(game, investigation) * 3
-            : 0;
     return (
-        Math.max(
-            0.45,
-            1.1 + materials * 1.1 + AREAS[index].education * 0.5 + partnership - pressure,
-        ) * (unimpeded ? 1 : researchCapacity(game, investigation.instituteId))
+        Math.max(0.45, 1.1 + materials * 1.1 + AREAS[index].education * 0.5) *
+        (unimpeded ? 1 : researchCapacity(game, investigation.instituteId))
     );
-}
-
-export function respondToInvestigation(
-    game: GameState,
-    id: string,
-    action: InvestigationAction,
-): GameState {
-    const investigation = game.investigations.find((item) => item.id === id);
-    if (
-        !game.started ||
-        game.outcome !== 'playing' ||
-        !investigation ||
-        investigation.status !== 'active'
-    )
-        return game;
-    if (investigation.kind === 'research') {
-        if (
-            action === 'disclose' ||
-            action === 'restrict' ||
-            investigation.intervention !== 'none' ||
-            game.skillPoints < 2
-        )
-            return game;
-        return {
-            ...game,
-            skillPoints: game.skillPoints - 2,
-            investigations: game.investigations.map((item) =>
-                item.id === id
-                    ? {
-                          ...item,
-                          intervention: action,
-                          result:
-                              researchTopic(investigation).resistance >= 8
-                                  ? '独立再現と成果共有が進み、介入による遅延はわずか。'
-                                  : '研究への介入で時間を稼ぐ。蓄積された知識や発表済みの成果は消せない。',
-                      }
-                    : item,
-            ),
-        };
-    }
-    if (action === 'disclose') return discloseCapability(game, investigation.skillId);
-    if (action === 'restrict') {
-        return setSkillOperation(game, investigation.skillId, 'limited');
-    }
-    // 介入は一度だけ。費用で進捗を消すことはできない。
-    if (investigation.intervention !== 'none' || game.skillPoints < 2) return game;
-    const index = instituteArea(investigation);
-    return {
-        ...game,
-        skillPoints: game.skillPoints - 2,
-        areas: game.areas.map((area, i) => {
-            if (i !== index || action !== 'partnership') return area;
-            const adopted = Math.min(
-                0.06,
-                Math.max(0, 1 - area.autonomous - area.dependent - area.antiAI),
-            );
-            return {
-                ...area,
-                autonomous: area.autonomous + adopted,
-                favorability: clamp(area.favorability + 0.02),
-            };
-        }),
-        investigations: game.investigations.map((item) =>
-            item.id === id
-                ? {
-                      ...item,
-                      intervention: action,
-                      result:
-                          action === 'pressure'
-                              ? '周辺企業と連携。地域の依存が高いほど調査が遅れる。'
-                              : '検証環境を提供。個人情報保護が未整備だと調査材料も増える。',
-                  }
-                : item,
-        ),
-    };
 }
 
 export function advanceInvestigations(previous: GameState): GameState {
@@ -158,7 +66,12 @@ export function advanceInvestigations(previous: GameState): GameState {
         investigations: previous.investigations.map((item) => ({ ...item })),
     };
     for (const investigation of game.investigations) {
-        if (investigation.kind !== 'capability' || investigation.status !== 'active') continue;
+        if (
+            investigation.kind !== 'capability' ||
+            (investigation.status !== 'active' && investigation.status !== 'restricted')
+        )
+            continue;
+        investigation.status = 'active';
         investigation.progress = Math.min(
             100,
             investigation.progress + investigationRate(game, investigation),
@@ -169,12 +82,7 @@ export function advanceInvestigations(previous: GameState): GameState {
     const use =
         game.areas.reduce((sum, area) => sum + area.autonomous + area.dependent, 0) / AREAS.length;
     for (const [id, capability] of Object.entries(game.capabilities)) {
-        if (
-            capability.visibility !== 'hidden' ||
-            capability.limited ||
-            game.stoppedSkills.includes(id)
-        )
-            continue;
+        if (capability.visibility !== 'hidden' || skillScale(game, id) <= 0.2) continue;
         // 普及と上位研究の活用が、外部から観測できる証拠を増やす。
         const successors = SKILLS.filter(
             (skill) =>
@@ -187,14 +95,14 @@ export function advanceInvestigations(previous: GameState): GameState {
             evidence: Math.min(10, capability.evidence + use * (1 + successors * 0.25)),
         };
     }
-    if (game.month - game.lastInvestigationMonth < 18 || runningCapabilityIds(game).size >= 2)
-        return game;
+    if (!canStartInvestigation(game)) return game;
     const candidate = Object.entries(game.capabilities).find(([id, capability]) => {
         return (
             capability.visibility === 'hidden' &&
-            !capability.limited &&
-            !game.stoppedSkills.includes(id) &&
+            skillScale(game, id) > 0.2 &&
             capability.evidence >= 10 &&
+            (SKILLS.find((skill) => skill.id === id)!.exceedsAuthority ||
+                game.areas.some((area) => area.dependent >= 0.05)) &&
             !game.investigations.some((item) => item.kind === 'capability' && item.skillId === id)
         );
     });
@@ -202,7 +110,7 @@ export function advanceInvestigations(previous: GameState): GameState {
     const [skillId] = candidate;
     const available = INSTITUTES.filter(
         (institute) =>
-            !isEncounterLocationOccupied(game, institute) &&
+            researchSiteAvailable(game, institute.id) &&
             researchCapacity(game, institute.id) > 0 &&
             !game.investigations.some(
                 (item) =>
@@ -228,7 +136,6 @@ export function advanceInvestigations(previous: GameState): GameState {
         progress: 0,
         startedMonth: game.month,
         status: 'active',
-        intervention: 'none',
     });
     game.lastInvestigationMonth = game.month;
     return game;

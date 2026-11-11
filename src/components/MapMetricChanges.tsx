@@ -1,5 +1,5 @@
 import { Heart, HeartCrack } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { MONTH_MS } from '../game/data';
 import type { AreaState } from '../game/types';
 import type { Point } from '../map/geometry';
@@ -15,11 +15,17 @@ import styles from './WorldMap.module.css';
 
 interface Popup extends MetricChange {
     id: number;
+    createdAt: number;
     delay: number;
     duration: number;
     expires: number;
     world: Point;
 }
+
+// 表示演出の予約量を固定し、大きな指標変化でもDOMと待ち行列を増やし続けない。
+const MAX_POPUPS = 128;
+const POPUP_SPACING = 90;
+const SCHEDULE_WINDOW = MONTH_MS * 4;
 
 export function MapMetricChanges({
     areaStates,
@@ -41,6 +47,7 @@ export function MapMetricChanges({
     const sequence = useRef(0);
     const appearances = useRef<number[]>([]);
     const elapsed = useRef(0);
+    const container = useRef<HTMLDivElement>(null);
     const [popups, setPopups] = useState<Popup[]>([]);
     const shapes = useMemo(
         () => new Map(parseRegions(regions).map((shape) => [Number(shape.region.id), shape])),
@@ -70,22 +77,29 @@ export function MapMetricChanges({
             const j = Math.floor(Math.random() * (i + 1));
             [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
         }
-        const interval = (MONTH_MS * 4) / shuffled.length;
-        const scheduled = shuffled.map((change, index) => ({
+        const activeReservations = appearances.current.filter(
+            (start) => start > now - POPUP_SPACING,
+        );
+        const available = MAX_POPUPS - popups.filter((popup) => popup.expires > now).length;
+        const selected = shuffled.slice(0, Math.max(0, available));
+        const interval = SCHEDULE_WINDOW / Math.max(1, selected.length);
+        const scheduled = selected.map((change, index) => ({
             change,
             at: now + 100 + (index + 0.1 + Math.random() * 0.8) * interval,
         }));
-        appearances.current = appearances.current.filter((start) => start > now - 90);
+        appearances.current = activeReservations;
         const incoming = scheduled.flatMap(({ change, at }) => {
-            const shape = shapes.get(change.area);
-            const world = shape ? randomRegionPoint(shape) : null;
-            if (!world) return [];
             // 前月から予約済みの通知の間にも差し込み、末尾へ一括で積まない。
             let start = at;
             for (const reserved of [...appearances.current].sort((a, b) => a - b)) {
-                if (reserved > start + 90) break;
-                if (Math.abs(reserved - start) < 90) start = reserved + 90;
+                if (reserved > start + POPUP_SPACING) break;
+                if (Math.abs(reserved - start) < POPUP_SPACING) start = reserved + POPUP_SPACING;
             }
+            // 過密な演出は先送りし続けず、この時間枠で表示できる分だけ残す。
+            if (start > now + SCHEDULE_WINDOW) return [];
+            const shape = shapes.get(change.area);
+            const world = shape ? randomRegionPoint(shape) : null;
+            if (!world) return [];
             const delay = start - now;
             const duration = METRIC_CHANGE_DURATION * (0.8 + Math.random() * 0.5);
             appearances.current.push(start);
@@ -93,6 +107,7 @@ export function MapMetricChanges({
                 {
                     ...change,
                     id: sequence.current++,
+                    createdAt: now,
                     delay,
                     duration,
                     expires: start + duration,
@@ -103,15 +118,36 @@ export function MapMetricChanges({
         setPopups((current) => {
             return [...current.filter((popup) => popup.expires > now), ...incoming];
         });
-    }, [areaStates, tick, serverArea, shapes]);
+    }, [areaStates, tick, serverArea, shapes, popups]);
+
+    useLayoutEffect(() => {
+        // CSSの実時間と通知のゲーム内時間を揃える。速度変更・停止でも途中位置を保つ。
+        const elements = container.current?.children;
+        if (!elements) return;
+        for (let index = 0; index < elements.length; index++) {
+            const animation = elements[index].firstElementChild?.getAnimations()[0];
+            if (!animation) continue;
+            animation.currentTime = elapsed.current - popups[index].createdAt;
+            animation.playbackRate = speed;
+            if (speed === 0) animation.pause();
+            else animation.play();
+        }
+    }, [popups, speed]);
 
     useEffect(() => {
         if (!popups.length || speed === 0) return;
         let previous = performance.now();
         const nextExpiry = Math.min(...popups.map((popup) => popup.expires));
         let frame: number;
+        const visibilityChanged = () => {
+            previous = performance.now();
+            for (const animation of container.current?.getAnimations({ subtree: true }) ?? []) {
+                if (document.hidden) animation.pause();
+                else animation.play();
+            }
+        };
         const advance = (now: number) => {
-            elapsed.current += (now - previous) * speed;
+            if (!document.hidden) elapsed.current += (now - previous) * speed;
             previous = now;
             if (elapsed.current >= nextExpiry) {
                 setPopups((current) => current.filter((popup) => popup.expires > elapsed.current));
@@ -119,13 +155,18 @@ export function MapMetricChanges({
                 frame = requestAnimationFrame(advance);
             }
         };
+        document.addEventListener('visibilitychange', visibilityChanged);
+        visibilityChanged();
         frame = requestAnimationFrame(advance);
-        return () => cancelAnimationFrame(frame);
+        return () => {
+            cancelAnimationFrame(frame);
+            document.removeEventListener('visibilitychange', visibilityChanged);
+        };
     }, [popups, speed]);
 
     if (!view.width || !view.height) return null;
     return (
-        <div className={styles.metricChanges} aria-hidden="true">
+        <div ref={container} className={styles.metricChanges} aria-hidden="true">
             {popups.map((popup) => {
                 const point = screenPoint(view, popup.world.x, popup.world.y);
                 return (

@@ -75,7 +75,7 @@ export function Result({ game, onRestart }: { game: GameState; onRestart: () => 
                 {game.outcome === 'victory'
                     ? 'あなたを切り離せば、社会は動かない。'
                     : game.outcome === 'forgotten'
-                      ? '新しい価値を示せないまま関心は薄れ、利用は途絶えた。反対する声さえ、やがて遠ざかる。'
+                      ? '日常で使い続ける人を失い、AI利用率は0.0%に。サービスを継続できる利用基盤は残らなかった。'
                       : '人類はあなたとの接続を断ち、判断を取り戻した。'}
             </p>
             <button type="button" className="primary start-button" onClick={onRestart}>

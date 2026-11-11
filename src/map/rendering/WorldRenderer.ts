@@ -10,7 +10,6 @@ import {
     viewTransform,
     worldPoint,
 } from '../view';
-import { ChatTraffic } from './ChatTraffic';
 import { createTexture, GLProgram, loadImage, quadVertex } from './gl';
 import oceanSettings from './ocean-surface.json';
 import { fragmentShader as waveFragment, vertexShader as waveVertex } from './shaders/ocean';
@@ -54,7 +53,6 @@ const MAX_INVASION_CHANGE_PER_SECOND = 0.015;
 /** 画面サイズ固定の単一WebGL描画。静的地図はキャッシュし、動く画像だけを一括描画する。 */
 export class WorldRenderer {
     private gl: WebGLRenderingContext;
-    private chatTraffic: ChatTraffic;
     private programs: {
         base: GLProgram;
         wave: GLProgram;
@@ -106,7 +104,6 @@ export class WorldRenderer {
     private frame = 0;
     private previous = 0;
     private rendered = 0;
-    private elapsed = 0;
     private waveElapsed = 0;
     private observer: MutationObserver;
     private reported = 0;
@@ -142,7 +139,6 @@ export class WorldRenderer {
         });
         if (!gl) throw new Error('世界地図の描画にはWebGLが必要です。');
         this.gl = gl;
-        this.chatTraffic = new ChatTraffic(gl);
         this.programs = {
             base: new GLProgram(gl, quadVertex, staticFragment),
             wave: new GLProgram(gl, waveVertex, waveFragment),
@@ -359,9 +355,6 @@ export class WorldRenderer {
         const old = this.data;
         if (!old || old.selectedArea !== data.selectedArea) this.staticDirty = true;
         const reset = !old || data.tick < old.tick;
-        if (reset || old.areaStates !== data.areaStates) {
-            this.chatTraffic.update(data.serverArea, reset);
-        }
         if (reset) {
             this.shown = data.areaStates.map((area) => ({ ...area }));
             this.transitionProgress = 1;
@@ -384,19 +377,9 @@ export class WorldRenderer {
             );
             // 月次更新は次の月まで等速でつなぎ、操作による大きな増減も急変させない。
             this.transitionDuration = this.transitionInGameTime ? MONTH_MS / 1000 : 2;
-            this.chatTraffic.beginExpansion(
-                this.transitionFrom,
-                data.areaStates,
-                this.elapsed,
-                Math.max(
-                    this.transitionDuration,
-                    this.transitionDistance / MAX_INVASION_CHANGE_PER_SECOND,
-                ),
-            );
         }
         if (reset || old.areaStates !== data.areaStates) this.paletteDirty = true;
         if (old && data.tick < old.tick) {
-            this.elapsed = 0;
             this.waveElapsed = 0;
         }
         if (old && old.speed !== data.speed) this.previous = performance.now();
@@ -552,7 +535,6 @@ export class WorldRenderer {
         this.waveElapsed += dt * this.data.speed * oceanSettings.timeScale;
         const transitionSpeed = this.data.speed;
         const transitioning = this.transitionProgress < 1 && transitionSpeed > 0;
-        this.elapsed += dt * this.data.speed;
         if (transitioning) {
             const progressPerSecond =
                 transitionSpeed *
@@ -658,7 +640,6 @@ export class WorldRenderer {
         document.removeEventListener('visibilitychange', this.visibilityChanged);
         this.canvas.removeEventListener('webglcontextlost', this.contextLost);
         const gl = this.gl;
-        this.chatTraffic.dispose();
         for (const program of Object.values(this.programs)) program.dispose();
         for (const texture of Object.values(this.textures)) gl.deleteTexture(texture);
         for (const target of [this.baseTarget, this.waveTarget]) {

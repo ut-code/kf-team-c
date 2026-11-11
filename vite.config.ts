@@ -1,8 +1,9 @@
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
+import { skillLayoutEditor } from './scripts/skill-layout-editor.ts';
 
 export default defineConfig({
-    plugins: [react()],
+    plugins: [react(), skillLayoutEditor()],
     build: {
         rolldownOptions: {
             output: {

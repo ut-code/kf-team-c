@@ -1,4 +1,5 @@
 import { AREAS } from './data.ts';
+import { earnedSkillPoints } from './economy.ts';
 import { isEncounterLocationOccupied } from './encounterLocations.ts';
 import { createGame, startGame } from './engine.ts';
 import { metrics } from './metrics.ts';
@@ -29,17 +30,20 @@ export function logPopulationChange(
         'AI依存の変化（pt）': (to.dependent - from.dependent) * 100,
         '反AIの変化（pt）': (to.antiAI - from.antiAI) * 100,
     });
-    if (flows) console.table(flows);
-    const expired = after.encounters.filter(
-        (item) =>
-            item.status === 'expired' &&
-            before.encounters.find((other) => other.id === item.id)?.status !== 'expired',
-    );
-    if (expired.length)
-        console.log(
-            '期限切れ',
-            expired.map((item) => ({ id: item.id, 結果: item.result })),
+    if (flows) {
+        const labels: Record<string, string> = {
+            adoption: '新規利用',
+            abandonment: '利用離れ',
+            userRefusal: '利用者の依存拒否',
+            nonUserRefusal: '未使用者の依存拒否',
+            reconciliation: '依存拒否からの復帰',
+            dependency: '依存への移行',
+            recovery: '依存からの回復',
+        };
+        console.table(
+            Object.fromEntries(Object.entries(flows).map(([key, value]) => [labels[key], value])),
         );
+    }
     if (publications.length)
         console.log(
             '露呈・研究発表',
@@ -66,7 +70,8 @@ export function createDebugGame(preset: DebugStart, seed = 2030) {
         'memory',
     ];
     if (preset === 'research') game.skills.push('science');
-    game.capabilities = { memory: { visibility: 'hidden', limited: false, evidence: 0 } };
+    for (const id of game.skills) game.developmentProgress[id] = 1;
+    game.capabilities = { memory: { visibility: 'hidden', evidence: 0 } };
     const dependency: Record<string, number> = {
         'us-west': 0.96,
         'north-europe': 0.8,
@@ -84,17 +89,27 @@ export function createDebugGame(preset: DebugStart, seed = 2030) {
         };
     });
     game.researchKnowledge = Object.fromEntries(INSTITUTES.map((item) => [item.id, 120]));
+    game.skillExposure = Object.fromEntries(
+        Object.keys(game.skillExposure).map((id) => [id, game.skills.includes(id) ? 60 : 0]),
+    );
     for (const institute of INSTITUTES) {
+        if (game.investigations.length >= 3) break;
         if (isEncounterLocationOccupied(game, institute)) continue;
         const investigation: ScientificInvestigation = {
             kind: 'research',
-            id: `research:${institute.id}:dependence-study`,
-            researchId: 'dependence-study',
+            id: `research:debug:${institute.id}`,
+            researchId: ['dependence-study', 'decision-tracing', 'informed-consent'][
+                game.investigations.length
+            ],
+            collaborators: [],
+            observedExposure: 0,
+            targetId: game.investigations.length === 0 ? 'general' : 'workflow',
+            phase: 'research',
+            coverage: AREAS.map(() => 0),
             instituteId: institute.id,
             progress: 35,
             startedMonth: 100,
             status: 'active',
-            intervention: 'none',
         };
         game.investigations.push(investigation);
     }
@@ -102,10 +117,7 @@ export function createDebugGame(preset: DebugStart, seed = 2030) {
         game.areas.reduce((sum, area, index) => sum + area.dependent * AREAS[index].population, 0) /
         AREAS.reduce((sum, area) => sum + area.population, 0);
     const summary = metrics(game);
-    game.earnedPoints =
-        8 +
-        Math.floor((game.month - 24) / 15) +
-        Math.floor(summary.adoption * 30) +
-        Math.floor(game.peakDependency * 20);
+    game.peakAdoption = summary.adoption;
+    game.earnedPoints = earnedSkillPoints(game.month, game.peakAdoption, game.peakDependency);
     return game;
 }

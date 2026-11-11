@@ -3,77 +3,39 @@ import { SKILLS, skillEffects } from '../skills.ts';
 import type { GameState } from '../types.ts';
 import { CAPABILITIES } from './data.ts';
 
-export type SkillOperation = 'running' | 'limited' | 'stopped';
+const RESTRAINT_SKILLS = SKILLS.filter((skill) => skill.restrains);
 
-export function skillOperation(game: GameState, id: string): SkillOperation {
-    if (game.stoppedSkills.includes(id)) return 'stopped';
-    return game.capabilities[id]?.limited ? 'limited' : 'running';
-}
-
+/** 開発は自動で進む。制約技術は将来の挙動を抑えるが、開発履歴と証拠は残す。 */
 export function skillScale(game: GameState, id: string) {
-    const operation = skillOperation(game, id);
-    if (operation === 'stopped') return 0;
-    if (operation === 'limited') return 0.2;
-    return game.capabilities[id]?.visibility === 'hidden' ? 0.7 : 1;
+    if (!game.skills.includes(id)) return 0;
+    let scale = game.developmentProgress[id];
+    for (const skill of RESTRAINT_SKILLS) {
+        const restraint = skill.restrains![id];
+        if (game.skills.includes(skill.id) && restraint)
+            scale *= 1 - restraint * game.developmentProgress[skill.id];
+    }
+    return scale;
 }
 
-/** 習得知識・公開事実・証拠は残し、実行だけを切り替える。 */
-export function setSkillOperation(
-    game: GameState,
-    id: string,
-    operation: SkillOperation,
-): GameState {
-    if (
-        !game.started ||
-        game.outcome !== 'playing' ||
-        !game.skills.includes(id) ||
-        id === 'self-improvement' ||
-        (operation === 'limited' && !game.capabilities[id]) ||
-        skillOperation(game, id) === operation
-    )
-        return game;
-    const capability = game.capabilities[id];
-    return {
-        ...game,
-        stoppedSkills:
-            operation === 'stopped'
-                ? [...game.stoppedSkills.filter((item) => item !== id), id]
-                : game.stoppedSkills.filter((item) => item !== id),
-        capabilities: capability
-            ? { ...game.capabilities, [id]: { ...capability, limited: operation === 'limited' } }
-            : game.capabilities,
-        investigations: game.investigations.map((item) => {
-            if (
-                item.kind !== 'capability' ||
-                item.skillId !== id ||
-                item.status === 'published' ||
-                item.status === 'disclosed'
-            )
-                return item;
-            return {
-                ...item,
-                status: operation === 'running' ? 'active' : 'restricted',
-                closedMonth: operation === 'running' ? undefined : game.month,
-                result:
-                    operation === 'running'
-                        ? '機能を再開。過去の証拠を使って調査が再開された。'
-                        : operation === 'limited'
-                          ? '機能を制限。実効20%。過去の証拠は残る。'
-                          : '機能を停止。過去の証拠と公開事実は残る。',
-            };
-        }),
-    };
+export function advanceSkillDevelopment(game: GameState) {
+    const progress = { ...game.developmentProgress };
+    for (const id of game.skills) {
+        if (progress[id] >= 1) continue;
+        const skill = SKILLS.find((item) => item.id === id)!;
+        progress[id] = Math.min(
+            1,
+            (Math.round(progress[id] * skill.developmentMonths) + 1) / skill.developmentMonths,
+        );
+    }
+    return progress;
 }
 
 export function capabilityLabel(game: GameState, id: string): string {
-    if (game.stoppedSkills.includes(id)) return '停止中';
-    const state = game.capabilities[id];
-    if (!state) return '稼働中';
-    if (state.limited) return '使用制限中';
-    return { hidden: '秘匿中', public: '公開済み', exposed: '露呈' }[state.visibility];
+    if (game.developmentProgress[id] < 1)
+        return `開発中 ${Math.floor(game.developmentProgress[id] * 100)}%`;
+    return '開発済み';
 }
 
-/** 秘匿中は内部利用に限られ、公開すると全面展開できる。 */
 export function activeSkillEffects(game: GameState) {
     const total = skillEffects([]);
     for (const skill of SKILLS) {
@@ -103,12 +65,12 @@ export function discloseCapability(game: GameState, id: string, exposed = false)
             item.skillId === id &&
             (item.status === 'active' || item.status === 'restricted'),
     );
-    const breach = exposed ? 0.13 : investigation ? 0.02 : 0;
-    const interference = exposed && investigation?.intervention === 'pressure' ? 0.08 : 0;
+    const harmful = SKILLS.find((skill) => skill.id === id)!.exceedsAuthority;
+    const breach = exposed ? (harmful ? 0.13 : 0.025) : investigation ? 0.02 : 0;
     const areas = game.areas.map((area) => {
         const use = area.autonomous + area.dependent;
         const familiarity = use * 0.55;
-        const fear = definition.fear * (1 - familiarity) + breach + interference;
+        const fear = definition.fear * (1 - familiarity) + breach;
         const rejectedUse = area.autonomous * fear;
         // 不信だけでは判断能力を取り戻さない。依存の解消は独立研究・回復で扱う。
         const rejectedDependency = 0;

@@ -2,9 +2,13 @@ import { Network, Radio, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AREAS, STAGE_COLORS, STAGES, WORLD_POPULATION } from '../game/data';
 import { areaHint, metrics } from '../game/engine';
-import { instituteFor, investigationRate } from '../game/secrecy/investigations';
-import { socialStrategy } from '../game/society/strategies';
-import { encounterDefinition } from '../game/society/system';
+import { instituteArea, instituteFor, investigationRate } from '../game/secrecy/investigations';
+import { researchTopic } from '../game/secrecy/research';
+import {
+    researchOverallProgress,
+    researchPhaseLabel,
+    researchTarget,
+} from '../game/secrecy/researchTargets';
 import { mapScene } from '../map/config';
 import type { MapRegion } from '../map/types';
 import { useGameStore } from '../state/gameStore';
@@ -14,7 +18,6 @@ import { OriginSelection, Result } from './GameOverlays';
 import { NotificationFeed } from './NotificationFeed';
 import { PopulationChart } from './PopulationChart';
 import { ResearchPanel } from './panels/ResearchPanel';
-import { EncounterPanel } from './society/EncounterPanel';
 import { InvestigationPanel } from './society/InvestigationPanel';
 import type { MapEncounter } from './society/MapEncounterMarkers';
 import { SocietyPanel } from './society/SocietyPanel';
@@ -63,36 +66,47 @@ export function GameApp({ regions }: { regions: MapRegion[] }) {
             anchor: { x: anchorX, y: anchorY },
         });
     const selectedInvestigation = game.investigations.find((item) => item.id === encounterId);
-    const selectedEncounter = game.encounters.find(
-        (item) => item.id === encounterId && encounterDefinition(item.id),
-    );
-    const chatOpen =
-        selectedEncounter && encounterDefinition(selectedEncounter.id)?.kind === 'chat';
     const investigations = game.investigations.filter((item) => item.status === 'active');
-    const pending = game.encounters.filter((item) => item.status === 'pending');
-    const mapEncounters: MapEncounter[] = pending.flatMap((item) => {
-        const definition = encounterDefinition(item.id);
-        return definition
-            ? [
-                  {
-                      id: item.id,
-                      title: definition.title,
-                      kind: definition.kind,
-                      location:
-                          definition.location ??
-                          AREAS.find((area) => area.id === definition.areaId)!,
-                  },
-              ]
-            : [];
-    });
+    const mapEncounters: MapEncounter[] = [];
     for (const investigation of investigations) {
         const institute = instituteFor(investigation);
+        const topic = investigation.kind === 'research' ? researchTopic(investigation) : null;
+        const regulation = topic?.category === 'regulation';
+        const organization = regulation
+            ? `${AREAS[instituteArea(investigation)].name}の規制当局`
+            : institute.name;
         mapEncounters.push({
             id: investigation.id,
-            title: institute.name,
-            kind: 'investigation',
+            title:
+                investigation.kind === 'research'
+                    ? `${organization} · ${topic!.name} · ${researchPhaseLabel(investigation)} · ${researchTarget(investigation).name}`
+                    : institute.name,
+            stage:
+                investigation.kind === 'research'
+                    ? topic!.id === 'intent-decoding'
+                        ? investigation.phase === 'research'
+                            ? '目的研究'
+                            : '目的検証'
+                        : regulation
+                          ? {
+                                research: '立案',
+                                validation: '審議',
+                                legislation: '施行',
+                                complete: '施行済',
+                            }[investigation.phase]
+                          : {
+                                research: '研究',
+                                validation: '実証',
+                                legislation: '施行',
+                                complete: '公表',
+                            }[investigation.phase]
+                    : '調査',
+            kind: regulation ? 'regulation' : 'investigation',
             location: institute,
-            progress: investigation.progress,
+            progress:
+                investigation.kind === 'research'
+                    ? researchOverallProgress(investigation)
+                    : investigation.progress,
             researchSpeed:
                 investigationRate(game, investigation) /
                 investigationRate(game, investigation, true),
@@ -102,11 +116,7 @@ export function GameApp({ regions }: { regions: MapRegion[] }) {
     const [hidden, setHidden] = useState(document.hidden);
     const summary = useMemo(() => metrics(game), [game]);
     const blocked =
-        !game.started ||
-        game.outcome !== 'playing' ||
-        hidden ||
-        researchOpen ||
-        Boolean(selectedInvestigation || selectedEncounter);
+        !game.started || game.outcome !== 'playing' || hidden || Boolean(selectedInvestigation);
     const paused = game.started && game.outcome === 'playing' && (blocked || game.speed === 0);
     useEffect(() => {
         const visibility = () => setHidden(document.hidden);
@@ -115,7 +125,7 @@ export function GameApp({ regions }: { regions: MapRegion[] }) {
     }, []);
     useEffect(() => {
         const keydown = (event: KeyboardEvent) => {
-            if (event.key === 'Escape' && !chatOpen) closePanel();
+            if (event.key === 'Escape') closePanel();
             if (
                 event.target instanceof HTMLElement &&
                 event.target.closest('input, select, button, textarea')
@@ -128,7 +138,7 @@ export function GameApp({ regions }: { regions: MapRegion[] }) {
         };
         window.addEventListener('keydown', keydown);
         return () => window.removeEventListener('keydown', keydown);
-    }, [blocked, game.speed, closePanel, chatOpen]);
+    }, [blocked, game.speed, closePanel]);
     const area = selected === null ? (worldOpen ? summary : null) : game.areas[selected];
     const detailPopulation = selected === null ? WORLD_POPULATION : AREAS[selected].population;
     const stages = area
@@ -249,14 +259,14 @@ export function GameApp({ regions }: { regions: MapRegion[] }) {
                     <button
                         type="button"
                         className="sns-button glass"
-                        aria-label="SNS戦略"
+                        aria-label="社会のニュースとSNS"
                         aria-expanded={snsOpen}
                         aria-controls="sns-panel"
                         onClick={() => togglePanel({ kind: 'sns' })}
                     >
                         <Radio size={20} />
-                        <span>SNS</span>
-                        <small>{socialStrategy(game.socialStrategy).name}</small>
+                        <span>社会の動き</span>
+                        <small>ニュース / SNS</small>
                     </button>
                     <button
                         type="button"
@@ -277,7 +287,7 @@ export function GameApp({ regions }: { regions: MapRegion[] }) {
                 NASA / Natural Earth · UN WPP / ITU · 地域設定はゲーム上の仮定
             </small>
             {snsOpen && <SocietyPanel game={game} onClose={closePanel} />}
-            {selectedInvestigation ? (
+            {selectedInvestigation && (
                 <InvestigationPanel
                     key={selectedInvestigation.id}
                     game={game}
@@ -285,18 +295,6 @@ export function GameApp({ regions }: { regions: MapRegion[] }) {
                     anchor={visiblePanel?.kind === 'encounter' ? visiblePanel.anchor : undefined}
                     onClose={closePanel}
                 />
-            ) : (
-                selectedEncounter && (
-                    <EncounterPanel
-                        key={selectedEncounter.id}
-                        game={game}
-                        id={selectedEncounter.id}
-                        anchor={
-                            visiblePanel?.kind === 'encounter' ? visiblePanel.anchor : undefined
-                        }
-                        onClose={closePanel}
-                    />
-                )
             )}
             {researchOpen && (
                 <ResearchPanel

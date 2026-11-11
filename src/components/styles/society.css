@@ -250,6 +250,19 @@ fieldset.encounter-choices {
 }
 
 /* 調査は地図と短い通知に集約し、詳細は開いたときだけ表示する。 */
+.map-research-stage {
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    white-space: nowrap;
+    font-size: 10px;
+    color: #edf2f7;
+    background: #172432e6;
+    border-radius: 3px;
+    padding: 1px 4px;
+}
+
 .map-research-progress {
     position: absolute;
     left: 5px;

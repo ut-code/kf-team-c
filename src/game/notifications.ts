@@ -1,9 +1,16 @@
-import { AREAS } from './data.ts';
+import { WORLD_NEWS } from '../content/news.ts';
+import { AREAS, MONTH_MS } from './data.ts';
+import {
+    ADOPTION_MILESTONES,
+    DEPENDENCY_MILESTONES,
+    REGULAR_SP_INTERVAL_MS,
+    REGULAR_SP_LIMIT,
+} from './economy.ts';
 import { metrics } from './metrics.ts';
 import { instituteArea } from './secrecy/investigations.ts';
 import { researchTopic } from './secrecy/research.ts';
+import { researchHasFindings } from './secrecy/researchTargets.ts';
 import { SKILLS } from './skills.ts';
-import { encounterDefinition } from './society/system.ts';
 import type { GameState } from './types.ts';
 
 const MAX_NOTIFICATIONS = 3;
@@ -63,6 +70,16 @@ export function updateNotifications(
         incoming.push({ id, month: game.month, text, kind });
     };
     if (previous.areas !== game.areas) incoming.push(...milestoneNotifications(game));
+    const regular = Math.min(
+        REGULAR_SP_LIMIT,
+        Math.floor((game.month * MONTH_MS) / REGULAR_SP_INTERVAL_MS),
+    );
+    const beforeRegular = Math.min(
+        REGULAR_SP_LIMIT,
+        Math.floor((previous.month * MONTH_MS) / REGULAR_SP_INTERVAL_MS),
+    );
+    if (regular > beforeRegular)
+        add(`sp:regular:${regular}`, `定期支給 · +${regular - beforeRegular} SP`, 'milestone');
     for (const id of game.skills.filter((id) => !previous.skills.includes(id))) {
         const skill = SKILLS.find((item) => item.id === id)!;
         const origin =
@@ -75,24 +92,50 @@ export function updateNotifications(
                     : '利用と検証の蓄積から推論モデルを更新';
         add(`skill:${id}:learned`, `${skill.name}を構成：${origin}`, 'event');
     }
-    for (const encounter of game.encounters) {
-        const before = previous.encounters.find((item) => item.id === encounter.id);
-        const definition = encounterDefinition(encounter.id)!;
-        if (before && before.status !== encounter.status && encounter.status === 'expired') {
-            add(
-                `encounter:${encounter.id}:expired`,
-                `対応期限切れ：${definition.title}`,
-                'warning',
-            );
-        }
+    for (const record of game.news.filter(
+        (item) => !previous.news.some((old) => old.id === item.id),
+    )) {
+        add(
+            `news:${record.id}`,
+            `ニュース：${WORLD_NEWS.find((item) => item.id === record.id)!.title}`,
+            'event',
+        );
+    }
+    for (const [name, values, before, after] of [
+        ['利用', ADOPTION_MILESTONES, previous.peakAdoption, game.peakAdoption],
+        ['依存', DEPENDENCY_MILESTONES, previous.peakDependency, game.peakDependency],
+    ] as const) {
+        for (const value of values)
+            if (before < value && after >= value)
+                add(
+                    `sp:${name}:${value}`,
+                    `${name}${Math.round(value * 100)}%を達成 · +2 SP`,
+                    'milestone',
+                );
     }
     for (const investigation of game.investigations) {
         const before = previous.investigations.find((item) => item.id === investigation.id);
+        if (
+            investigation.kind === 'research' &&
+            researchHasFindings(investigation) &&
+            (before?.kind !== 'research' || !researchHasFindings(before))
+        ) {
+            add(
+                `investigation:${investigation.id}:findings`,
+                researchTopic(investigation).id === 'intent-decoding'
+                    ? 'AIが人類の支配を目指して行動していることが立証された'
+                    : researchTopic(investigation).category === 'regulation'
+                      ? `「${researchTopic(investigation).name}」が成立。規制の適用を開始`
+                      : `「${researchTopic(investigation).name}」の研究成果を公表`,
+                'warning',
+            );
+            continue;
+        }
         if (before?.status === investigation.status || investigation.status === 'active') continue;
         if (investigation.kind === 'research' && investigation.status === 'published') {
             add(
                 `investigation:${investigation.id}:published`,
-                `「${researchTopic(investigation).name}」が公表された`,
+                `「${researchTopic(investigation).name}」の施行手続きを完了`,
                 'warning',
             );
         } else if (investigation.status === 'restricted') {

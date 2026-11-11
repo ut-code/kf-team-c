@@ -2,6 +2,9 @@ import { AREAS, WORLD_POPULATION } from './data.ts';
 import type { GameState } from './types.ts';
 
 export const clamp = (value: number, min = 0, max = 1) => Math.max(min, Math.min(max, value));
+export const percentage = (value: number) => `${(value * 100).toFixed(1)}%`;
+export const hasVisibleUse = (value: number) => percentage(value) !== '0.0%';
+export const isCompleteDependency = (value: number) => percentage(value) === '100.0%';
 export function metrics(state: GameState) {
     let autonomous = 0;
     let dependent = 0;

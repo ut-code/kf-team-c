@@ -1,17 +1,13 @@
-import { Eye, FlaskConical, Handshake, Pause, X } from 'lucide-react';
+import { FlaskConical, Scale, X } from 'lucide-react';
+import { AREAS } from '../../game/data';
 import { CAPABILITIES } from '../../game/secrecy/data';
-import {
-    instituteFor,
-    investigationRate,
-    regionalDependency,
-    regionalDependencyMetrics,
-} from '../../game/secrecy/investigations';
+import { instituteArea, instituteFor, investigationRate } from '../../game/secrecy/investigations';
 import { researchTopic } from '../../game/secrecy/research';
 import { researchCapacity } from '../../game/secrecy/researchCapacity';
+import { researchPhaseLabel, researchTarget } from '../../game/secrecy/researchTargets';
 import { SKILLS } from '../../game/skills';
 import type { GameState } from '../../game/types';
-import { useGameStore } from '../../state/gameStore';
-import { Modal, population } from '../widgets';
+import { Modal } from '../widgets';
 
 export function InvestigationPanel({
     game,
@@ -36,26 +32,26 @@ export function InvestigationPanel({
         investigation.kind === 'capability'
             ? CAPABILITIES[investigation.skillId].question
             : topic!.question;
+    const regulation = topic?.category === 'regulation';
+    const organization = regulation
+        ? `${AREAS[instituteArea(investigation)].name}の規制当局`
+        : institute.name;
     const active = investigation.status === 'active';
     const rate = investigationRate(game, investigation);
     const capacity = researchCapacity(game, institute.id);
     const speed = rate / investigationRate(game, investigation, true);
     const remaining = rate > 0 ? Math.ceil((100 - investigation.progress) / rate) : null;
-    const pressure = Math.round(regionalDependency(game, investigation) * 100);
-    const surrounding = regionalDependencyMetrics(game, investigation);
-    const intervene = (action: 'disclose' | 'restrict' | 'partnership' | 'pressure') =>
-        useGameStore.getState().investigate(id, action);
     return (
-        <Modal modal={false} label={institute.name} onClose={onClose} anchor={anchor}>
+        <Modal modal={false} label={organization} onClose={onClose} anchor={anchor}>
             <div className="investigation-panel">
                 <div className="society-heading">
                     <div className="contact-heading">
-                        <FlaskConical size={28} />
+                        {regulation ? <Scale size={28} /> : <FlaskConical size={28} />}
                         <div>
                             <span className="eyebrow">
-                                {institute.specialty} · {name}
+                                {regulation ? '法律・規制' : institute.specialty} · {name}
                             </span>
-                            <h2>{institute.name}</h2>
+                            <h2>{organization}</h2>
                         </div>
                     </div>
                     <button
@@ -68,16 +64,34 @@ export function InvestigationPanel({
                     </button>
                 </div>
                 <p className="investigation-question">{question}</p>
+                {investigation.kind === 'research' && (
+                    <p className="investigation-warning">
+                        {researchPhaseLabel(investigation)} · 対象：
+                        {researchTarget(investigation).name}
+                    </p>
+                )}
+                {investigation.kind === 'research' && investigation.collaborators.length > 0 && (
+                    <p className="investigation-warning">
+                        主導：{organization} · {investigation.collaborators.length}機関と
+                        {regulation ? '法的枠組みを共有' : '共同研究'}。
+                    </p>
+                )}
                 <div className="investigation-progress">
                     <label htmlFor="investigation-progress">
                         {active
                             ? remaining === null
                                 ? capacity === 0
-                                    ? '研究停止'
-                                    : '研究待機中'
-                                : `公表まで約${remaining}か月`
+                                    ? regulation
+                                        ? '法整備停止'
+                                        : '研究停止'
+                                    : regulation
+                                      ? '審議待機中'
+                                      : '研究待機中'
+                                : `${investigation.kind === 'research' ? researchPhaseLabel(investigation) : '調査中'} · 現段階の完了まで約${remaining}か月`
                             : investigation.status === 'published'
-                              ? '調査結果を公表'
+                              ? regulation
+                                  ? '施行手続き済み'
+                                  : '研究成果を公表'
                               : '対応済み'}
                     </label>
                     <strong>{Math.floor(investigation.progress)}%</strong>
@@ -89,93 +103,42 @@ export function InvestigationPanel({
                 </div>
                 {active && (
                     <details className="research-speed">
-                        <summary title="AI利用は研究を助けますが、高依存では独立した検証能力が低下します。研究支援の習得で両方の効果が強まります。">
-                            研究速度 {rate === 0 ? 0 : Math.max(1, Math.round(speed * 100))}%
+                        <summary
+                            title={
+                                regulation
+                                    ? '公表された根拠と地域の独立性が、法整備の進行を左右します。'
+                                    : '不信や依存は研究需要を高め、機関の専門分野も進行に影響します。高依存では独立した検証能力が低下します。'
+                            }
+                        >
+                            {regulation ? '法整備の進行' : '研究速度'}{' '}
+                            {rate === 0 ? 0 : Math.max(1, Math.round(speed * 100))}%
                         </summary>
                         <small>
-                            AI利用は研究を助けますが、高依存では独立した検証能力が低下します。研究支援の習得で両方の効果が強まります。100%は研究支援・依存・介入の影響がない状態です。
+                            {regulation
+                                ? '利用者の懸念と公表された根拠を受けて法案を検討・審議します。高依存では独立した法整備が難しくなります。'
+                                : '不信や依存に応じて研究需要が増え、機関の専門分野とともに進行を左右します。AI利用は研究を助けますが、高依存では独立した検証能力が低下します。'}
                         </small>
                     </details>
                 )}
                 {active && (
                     <p className="investigation-warning">
                         {topic
-                            ? topic.resistance >= 8
-                                ? '権限逸脱能力があれば独自目的が立証され、秘匿能力が露呈します。依存と公知の権限逸脱に応じて反発が続き、好感度が高いほど軽減されます。'
-                                : '成果は共有され、実際の依存に応じて警戒が広がります。依存がなければ反発は生じません。'
+                            ? topic.effectDescription
                             : '露呈すると、能力への恐怖と隠蔽への不信が広がる。'}
                     </p>
                 )}
                 {investigation.result && <p className="encounter-result">{investigation.result}</p>}
+                {active &&
+                    investigation.kind === 'research' &&
+                    investigation.phase === 'legislation' && (
+                        <p className="investigation-warning">
+                            規制が成立しています。地域ごとに適用が進み、対象用途の判断代行・誘導が制限されます。
+                        </p>
+                    )}
                 {active && (
-                    <div className="investigation-actions">
-                        {!topic && (
-                            <>
-                                <button type="button" onClick={() => intervene('disclose')}>
-                                    <Eye size={18} />
-                                    <span>
-                                        <strong>正直に開示</strong>
-                                        <small>能力への警戒は残る · 隠蔽の発覚を回避</small>
-                                    </span>
-                                </button>
-                                <button type="button" onClick={() => intervene('restrict')}>
-                                    <Pause size={18} />
-                                    <span>
-                                        <strong>機能を制限</strong>
-                                        <small>調査を中断 · この研究の効果を20%に</small>
-                                    </span>
-                                </button>
-                            </>
-                        )}
-                        {topic && (
-                            <p className="investigation-warning">
-                                {topic.resistance >= 8
-                                    ? '独立再現により、圧力・共同検証の遅延効果は小さい。'
-                                    : '能力を公開・制限しても、この研究は終了しない。'}
-                            </p>
-                        )}
-                        {investigation.intervention === 'none' && (
-                            <>
-                                <button
-                                    type="button"
-                                    disabled={game.skillPoints < 2}
-                                    onClick={() => intervene('partnership')}
-                                >
-                                    <Handshake size={18} />
-                                    <span>
-                                        <strong>共同検証 · 2 SP</strong>
-                                        <small>
-                                            {topic
-                                                ? '検証協力で進行を遅らせる · 成果は消せない'
-                                                : game.skills.includes('privacy')
-                                                  ? '保護された検証環境で調査を遅らせる'
-                                                  : '現地導入↑ · 情報保護なしでは調査も加速'}
-                                        </small>
-                                    </span>
-                                </button>
-                                <button
-                                    type="button"
-                                    disabled={game.skillPoints < 2}
-                                    onClick={() => intervene('pressure')}
-                                >
-                                    <FlaskConical size={18} />
-                                    <span>
-                                        <strong>周辺企業から圧力 · 2 SP</strong>
-                                        <small>
-                                            周辺依存 {pressure}%（
-                                            {population(surrounding.dependent)}） ·{' '}
-                                            {topic?.resistance === 8
-                                                ? '独立再現により遅延効果は小さい'
-                                                : pressure >= 30
-                                                  ? '遅延効果 大'
-                                                  : '遅延効果 小'}
-                                            {!topic && ' · 発覚時の不信↑'}
-                                        </small>
-                                    </span>
-                                </button>
-                            </>
-                        )}
-                    </div>
+                    <p className="investigation-warning">
+                        対応はスキルの開発で行います。新しい設計を導入しても、公表済みの成果と過去の証拠は残ります。
+                    </p>
                 )}
             </div>
         </Modal>

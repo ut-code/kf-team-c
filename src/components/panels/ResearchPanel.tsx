@@ -20,8 +20,7 @@ export function ResearchPanel({
         <section className="research-workspace" aria-label="スキルツリー">
             <header className="research-heading">
                 <h1>スキルツリー</h1>
-                <div className="research-budget" title="時間経過と、世界への普及・依存で獲得">
-                    <span>保有スキルポイント</span>
+                <div className="research-budget">
                     <strong>
                         {game.skillPoints}
                         <small>SP</small>

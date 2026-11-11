@@ -30,7 +30,6 @@ export type SkillIcon =
 export interface SkillContent extends Skill {
     icon: SkillIcon;
     referenceGain: number;
-    position: { x: number; y: number };
 }
 
 export interface SkillBranchContent {

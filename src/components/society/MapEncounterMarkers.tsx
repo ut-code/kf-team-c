@@ -5,8 +5,9 @@ import { type MapView, screenPoint } from '../../map/view';
 export interface MapEncounter {
     id: string;
     title: string;
-    kind: 'event' | 'chat' | 'investigation';
+    kind: 'event' | 'chat' | 'investigation' | 'regulation';
     progress?: number;
+    stage?: string;
     researchSpeed?: number;
     paused?: boolean;
     location: { longitude: number; latitude: number };
@@ -36,6 +37,8 @@ export function MapEncounterMarkers({
     return (
         <section className="map-encounters" aria-label="地図上の出来事">
             {markers.map(({ encounter, point }) => {
+                const response =
+                    encounter.kind === 'investigation' || encounter.kind === 'regulation';
                 return (
                     <button
                         type="button"
@@ -43,7 +46,7 @@ export function MapEncounterMarkers({
                         className={`map-encounter-marker ${encounter.kind}`}
                         data-encounter-id={encounter.id}
                         style={{ left: point.x, top: point.y }}
-                        aria-label={`${encounter.kind === 'investigation' ? '内部調査' : encounter.kind === 'event' ? 'イベント' : '人物からの連絡'}：${encounter.title}`}
+                        aria-label={`${encounter.kind === 'regulation' ? '法律・規制' : encounter.kind === 'investigation' ? '研究・調査' : encounter.kind === 'event' ? 'イベント' : '人物からの連絡'}：${encounter.title}`}
                         title={encounter.title}
                         onClick={(event) => {
                             const bounds = event.currentTarget.getBoundingClientRect();
@@ -55,9 +58,9 @@ export function MapEncounterMarkers({
                         }}
                     >
                         <img
-                            src={`${import.meta.env.BASE_URL}images/${encounter.kind === 'chat' ? 'chat' : encounter.kind === 'investigation' ? 'investigation' : 'event'}-marker.svg`}
+                            src={`${import.meta.env.BASE_URL}images/${encounter.kind}-marker.svg`}
                             style={
-                                encounter.kind === 'investigation'
+                                response
                                     ? {
                                           opacity:
                                               0.35 +
@@ -72,13 +75,18 @@ export function MapEncounterMarkers({
                             <Pause
                                 className="research-paused"
                                 size={13}
-                                aria-label="研究停止・待機中"
+                                aria-label={
+                                    encounter.kind === 'regulation'
+                                        ? '手続き停止・待機中'
+                                        : '研究停止・待機中'
+                                }
                             />
                         )}
-                        {encounter.kind === 'investigation' && (
+                        {response && <span className="map-research-stage">{encounter.stage}</span>}
+                        {response && (
                             <progress
                                 className="map-research-progress"
-                                aria-label={`${encounter.title}の研究進捗`}
+                                aria-label={`${encounter.title}の進捗`}
                                 value={encounter.progress ?? 0}
                                 max={100}
                             />

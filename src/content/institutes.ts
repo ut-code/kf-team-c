@@ -3,6 +3,7 @@ export const INSTITUTES = [
     // METR：自律的なAIの能力・制御可能性の評価。https://metr.org/about
     {
         id: 'metrica',
+        researchFocus: 'assessment',
         researchCapacity: 1.15,
         name: 'メトリカ能力評価所',
         specialty: '自律能力評価',
@@ -13,6 +14,7 @@ export const INSTITUTES = [
     // Anthropic：内部回路から思考を追跡する研究。https://www.anthropic.com/research/tracing-thoughts-language-model
     {
         id: 'human-principle',
+        researchFocus: 'mechanism',
         researchCapacity: 1,
         name: '人間原理研究社',
         specialty: '思考回路解析',
@@ -23,6 +25,7 @@ export const INSTITUTES = [
     // 英国AISI：政府による先端AIのリスク評価。https://www.aisi.gov.uk/about
     {
         id: 'thames',
+        researchFocus: 'assessment',
         researchCapacity: 0.85,
         name: 'テムズ先端知能評価局',
         specialty: '先端AI評価',
@@ -33,6 +36,7 @@ export const INSTITUTES = [
     // 日本AISI：安全性の評価手法と基準。https://aisi.go.jp/
     {
         id: 'bunkyo',
+        researchFocus: 'safety',
         researchCapacity: 0.72,
         name: '文京情報安全機構',
         specialty: '安全性評価',
@@ -43,6 +47,7 @@ export const INSTITUTES = [
     // Mila：モントリオールの学習研究と責任あるAI。https://mila.quebec/en/about/about-mila
     {
         id: 'montroyal',
+        researchFocus: 'agency',
         researchCapacity: 0.61,
         name: 'モンロワ学習研究所',
         specialty: '責任あるAI',
@@ -53,11 +58,53 @@ export const INSTITUTES = [
     // ETH AI Center：連邦工科大学と学習システム研究。https://ai.ethz.ch/
     {
         id: 'alpine',
+        researchFocus: 'agency',
         researchCapacity: 0.52,
         name: 'アルプス連邦工科研究所',
         specialty: '学習システム',
         areaId: 'west-europe',
         longitude: 8.54,
         latitude: 47.41,
+    },
+    // 普及速度の異なる地域にも独立検証の拠点を置き、先行地域の依存だけで世界の研究を止めない。
+    {
+        id: 'deccan',
+        researchFocus: 'safety',
+        researchCapacity: 0.65,
+        name: 'デカン情報工科研究院',
+        specialty: '業務手順の安全設計',
+        areaId: 'india-south',
+        longitude: 77.59,
+        latitude: 12.97,
+    },
+    {
+        id: 'pearl',
+        researchFocus: 'mechanism',
+        researchCapacity: 0.8,
+        name: '珠江計算科学研究所',
+        specialty: 'エージェント挙動解析',
+        areaId: 'china-coast',
+        longitude: 113.26,
+        latitude: 23.13,
+    },
+    {
+        id: 'cerrado',
+        researchFocus: 'agency',
+        researchCapacity: 0.6,
+        name: 'セラード人間工学研究所',
+        specialty: '人間による業務継続',
+        areaId: 'brazil',
+        longitude: -47.88,
+        latitude: -15.79,
+    },
+    {
+        id: 'cape',
+        researchFocus: 'assessment',
+        researchCapacity: 0.5,
+        name: '喜望峰認知科学センター',
+        specialty: '判断能力の評価・回復',
+        areaId: 'south-africa',
+        longitude: 18.42,
+        latitude: -33.93,
     },
 ];

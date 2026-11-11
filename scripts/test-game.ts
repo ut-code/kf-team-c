@@ -1,40 +1,135 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { WORLD_NEWS } from '../src/content/news.ts';
 import {
     AREAS,
     DEFEAT_OPPOSITION,
     MONTH_MS,
     ORIGINS,
     SIMULATION_MONTHS,
-    VICTORY_DEPENDENCY,
 } from '../src/game/data.ts';
-import { createDebugGame } from '../src/game/debug.ts';
+import { earnedSkillPoints, INITIAL_SKILL_POINTS } from '../src/game/economy.ts';
 import { advanceMonth, createGame, learnSkill, startGame } from '../src/game/engine.ts';
 import { metrics } from '../src/game/metrics.ts';
-import { reclaimPlan, reclaimSkills } from '../src/game/reclaim.ts';
-import { discloseCapability } from '../src/game/secrecy/capabilities.ts';
+import { advanceSkillDevelopment, skillScale } from '../src/game/secrecy/capabilities.ts';
 import { INSTITUTES } from '../src/game/secrecy/data.ts';
-import { investigationRate, respondToInvestigation } from '../src/game/secrecy/investigations.ts';
-import { advanceResearch, RESEARCH_TOPICS, researchRate } from '../src/game/secrecy/research.ts';
+import { intentResearchReady } from '../src/game/secrecy/purpose.ts';
 import {
-    researchCapacity,
-    runningCapabilityIds,
-    runningResearchIds,
-} from '../src/game/secrecy/researchCapacity.ts';
+    advanceResearch,
+    publishedResearchEffects,
+    RESEARCH_TOPICS,
+} from '../src/game/secrecy/research.ts';
+import { RESEARCH_CITY_REST } from '../src/game/secrecy/scheduling.ts';
 import type { ScientificInvestigation } from '../src/game/secrecy/types.ts';
-import { SKILLS } from '../src/game/skills.ts';
-import { consensusPressure } from '../src/game/society/consensus.ts';
+import { observeSkillUse } from '../src/game/skillDynamics.ts';
+import { skillLayout } from '../src/game/skillLayout.ts';
+import { SKILLS, skillBlockReason } from '../src/game/skills.ts';
+import { advanceNews } from '../src/game/society/news.ts';
 import { createSocialFeed, updateSocialFeed } from '../src/game/society/socialFeed.ts';
-import { SOCIAL_STRATEGIES } from '../src/game/society/strategies.ts';
-import {
-    advanceSociety,
-    applySocietyEffects,
-    chooseEncounter,
-    ENCOUNTERS,
-    selectSocialStrategy,
-} from '../src/game/society/system.ts';
-import type { EncounterState } from '../src/game/society/types.ts';
 import type { GameState } from '../src/game/types.ts';
+
+test('開発ツリーには循環・欠落・重なるノードがなく、委任技術には研究対象がある', () => {
+    assert.equal(new Set(SKILLS.map((skill) => skill.id)).size, SKILLS.length);
+    const positions = new Set<string>();
+    for (const node of skillLayout().positions) {
+        const skill = node.skill;
+        assert.ok(skill.developmentMonths >= 0 && skill.cost > 0);
+        const position = `${node.x}:${node.y}`;
+        assert.ok(!positions.has(position));
+        positions.add(position);
+        const visit = (id: string, path: string[]) => {
+            assert.ok(!path.includes(id), `循環：${path.join(' → ')} → ${id}`);
+            const node = SKILLS.find((item) => item.id === id)!;
+            assert.ok(node);
+            for (const parent of node.requires) visit(parent, [...path, id]);
+        };
+        visit(skill.id, []);
+        if (skill.effect.dependency) assert.ok(skill.domain);
+    }
+});
+
+test('SPの購入は一回限りで、基礎スキルは即時完成して次の技術を開発できる', () => {
+    const initial = startGame(createGame(), 0);
+    const frozen = JSON.stringify(initial);
+    let game = learnSkill(initial, 'reason');
+    assert.equal(JSON.stringify(initial), frozen);
+    assert.equal(game.skillPoints, INITIAL_SKILL_POINTS - 2);
+    assert.equal(learnSkill(game, 'reason'), game);
+    assert.equal(game.developmentProgress.reason, 1);
+    game = { ...game, developmentProgress: advanceSkillDevelopment(game) };
+    assert.equal(game.developmentProgress.reason, 1);
+    assert.equal(skillBlockReason(game, SKILLS.find((skill) => skill.id === 'knowledge')!), null);
+    const developed = learnSkill(game, 'knowledge');
+    assert.ok(developed.skills.includes('reason') && developed.skills.includes('knowledge'));
+    assert.equal(
+        learnSkill({ ...game, skillPoints: 0 }, 'knowledge').skills.length,
+        game.skills.length,
+    );
+});
+
+test('制約技術は過去の証拠とSPを返さず、開発に応じて以後の介入だけを弱める', () => {
+    const base = startGame(createGame(), 0);
+    const game = {
+        ...base,
+        skills: ['mind-control', 'permission'],
+        developmentProgress: { ...base.developmentProgress, 'mind-control': 1, permission: 0 },
+        skillExposure: { ...base.skillExposure, 'mind-control': 40 },
+        capabilities: { 'mind-control': { visibility: 'exposed' as const, evidence: 10 } },
+    };
+    const constrained = {
+        ...game,
+        developmentProgress: { ...game.developmentProgress, permission: 1 },
+    };
+    assert.ok(skillScale(constrained, 'mind-control') < skillScale(game, 'mind-control'));
+    assert.deepEqual(constrained.capabilities, game.capabilities);
+    assert.deepEqual(constrained.skillExposure, game.skillExposure);
+    assert.equal(constrained.skillPoints, game.skillPoints);
+});
+
+test('基礎支給は普及しなくても続き、節目報酬は有限で再達成では増えない', () => {
+    assert.ok(earnedSkillPoints(60_000 / MONTH_MS, 0, 0) > 0);
+    assert.equal(earnedSkillPoints(100_000, 1, 1), earnedSkillPoints(200_000, 1, 1));
+    const game = {
+        ...startGame(createGame(), 0),
+        month: 11,
+        peakAdoption: 0.5,
+        peakDependency: 0.25,
+        earnedPoints: earnedSkillPoints(11, 0.5, 0.25),
+    };
+    const next = advanceMonth(game);
+    assert.equal(
+        next.skillPoints - game.skillPoints,
+        earnedSkillPoints(next.month, next.peakAdoption, next.peakDependency) - game.earnedPoints,
+    );
+});
+
+test('PR #6のニュースは実際の用途から一度だけ発生し、続報は先行報道を必要とする', () => {
+    assert.equal(WORLD_NEWS.length, 11);
+    const initial = startGame(createGame(), 0);
+    const game = {
+        ...initial,
+        month: 100,
+        skills: ['discovery'],
+        developmentProgress: { ...initial.developmentProgress, discovery: 1 },
+        areas: initial.areas.map((area) => ({ ...area, autonomous: 0.5 })),
+    };
+    const result = advanceNews(game);
+    assert.deepEqual(
+        result.news.map((item) => item.id),
+        ['breakthrough-discovery'],
+    );
+    assert.deepEqual(result.areas, game.areas);
+    assert.equal(result.skillPoints, game.skillPoints);
+    assert.equal(advanceNews(result), result);
+    const follow = advanceNews({ ...result, month: result.month + 18 });
+    assert.deepEqual(
+        follow.news.map((item) => item.id),
+        ['breakthrough-discovery', 'discovery-followup'],
+    );
+    const feed = createSocialFeed(follow);
+    assert.equal(updateSocialFeed(follow, follow, feed), feed);
+    assert.equal(feed.posts.filter((post) => post.headline).length, 2);
+});
 
 function assertPopulation(game: GameState) {
     assert.equal(game.areas.length, 37);
@@ -51,171 +146,7 @@ function assertPopulation(game: GameState) {
             1e-9,
     );
 }
-function openEncounter(id: string): GameState {
-    const definition = ENCOUNTERS.find((item) => item.id === id)!;
-    const node = definition.dialogue?.[0];
-    return {
-        ...startGame(createGame(), 0),
-        skillPoints: 20,
-        encounters: [
-            {
-                id,
-                openedMonth: 0,
-                deadline: 20,
-                status: 'pending',
-                nodeId: node?.id,
-                messages: node
-                    ? [{ id: `${id}:${node.id}:contact`, role: 'contact', text: node.message }]
-                    : [],
-            },
-        ],
-    };
-}
-
-test('editable encounter data has valid IDs, targets, effects and terminating dialogue branches', () => {
-    assert.equal(new Set(ENCOUNTERS.map((item) => item.id)).size, ENCOUNTERS.length);
-    for (const definition of ENCOUNTERS) {
-        assert.ok(
-            AREAS.some((area) => area.id === definition.areaId),
-            definition.id,
-        );
-        assert.ok(definition.duration > 0 && definition.trigger.month >= 0);
-        if (definition.kind === 'chat') {
-            assert.ok(definition.contact && definition.dialogue?.length);
-            const nodes = definition.dialogue!;
-            assert.equal(new Set(nodes.map((node) => node.id)).size, nodes.length);
-            function visit(id: string, ancestors: Set<string>) {
-                assert.ok(!ancestors.has(id), `Dialogue cycle: ${id}`);
-                const node = nodes.find((item) => item.id === id);
-                assert.ok(node, `Missing dialogue node: ${id}`);
-                assert.ok(node.choices.length > 0);
-                for (const choice of node.choices)
-                    if (choice.next) visit(choice.next, new Set([...ancestors, id]));
-            }
-            visit(nodes[0].id, new Set());
-        } else assert.ok(definition.choices?.length);
-        const groups = definition.dialogue?.map((node) => node.choices) ?? [definition.choices!];
-        for (const choices of groups) {
-            assert.equal(new Set(choices.map((choice) => choice.id)).size, choices.length);
-            for (const choice of choices) {
-                assert.ok((choice.cost ?? 0) >= 0);
-                for (const effect of [...choice.effects, ...definition.ignored.effects]) {
-                    assert.ok(['local', 'nearby', 'world'].includes(effect.scope));
-                    for (const [key, value] of Object.entries(effect))
-                        if (key !== 'scope') assert.ok(Number.isFinite(value));
-                }
-            }
-        }
-    }
-});
-
-test('every authored choice preserves population and earlier state', () => {
-    for (const definition of ENCOUNTERS) {
-        const nodes = definition.dialogue ?? [{ id: '', choices: definition.choices! }];
-        for (const node of nodes)
-            for (const choice of node.choices) {
-                const game = openEncounter(definition.id);
-                game.encounters[0].nodeId = node.id;
-                game.areas = game.areas.map(() => ({
-                    autonomous: 0.3,
-                    dependent: 0.3,
-                    antiAI: 0.35,
-                    favorability: 0.5,
-                }));
-                const frozen = JSON.stringify(game);
-                const updated = chooseEncounter(game, definition.id, choice.id);
-                assert.notEqual(updated, game);
-                assertPopulation(updated);
-                assert.equal(JSON.stringify(game), frozen);
-            }
-    }
-});
-
-test('completed and unaffordable choices cannot be applied twice', () => {
-    let game = openEncounter('workplace-petition');
-    game = chooseEncounter(game, 'workplace-petition', 'transition');
-    assert.equal(game.encounters[0].status, 'resolved');
-    assert.equal(chooseEncounter(game, 'workplace-petition', 'transition'), game);
-    const poor = { ...openEncounter('workplace-petition'), skillPoints: 0 };
-    assert.equal(chooseEncounter(poor, 'workplace-petition', 'transition'), poor);
-});
-
-test('conversation branches retain history, resume, and finish', () => {
-    let game = openEncounter('labor-chair');
-    game = chooseEncounter(game, 'labor-chair', 'invite');
-    assert.equal(game.encounters[0].nodeId, 'terms');
-    assert.equal(game.encounters[0].status, 'pending');
-    assert.equal(game.encounters[0].messages.length, 4);
-    game = chooseEncounter(game, 'labor-chair', 'joint-review');
-    assert.equal(game.encounters[0].status, 'resolved');
-    assert.equal(game.encounters[0].messages.length, 6);
-    assertPopulation(game);
-});
-
-test('unanswered effects fire exactly once at the deadline', () => {
-    const original = openEncounter('workplace-petition');
-    const game = { ...original, month: 20, lastEncounterMonth: 20 };
-    const frozen = JSON.stringify(game);
-    const updated = advanceSociety(game);
-    assert.equal(updated.encounters[0].status, 'expired');
-    assert.ok(updated.areas[0].antiAI > game.areas[0].antiAI);
-    assert.equal(JSON.stringify(game), frozen);
-    assert.deepEqual(advanceSociety(updated).areas, updated.areas);
-    assertPopulation(updated);
-});
-
-test('effect clamping, SP accounting and world strategy changes are bounded', () => {
-    const game = openEncounter('workplace-petition');
-    const updated = applySocietyEffects(game, ENCOUNTERS[0], [
-        {
-            scope: 'world',
-            autonomous: 10,
-            antiAI: 10,
-            dependent: 10,
-            favorability: -10,
-            skillPoints: 2,
-        },
-    ]);
-    assertPopulation(updated);
-    assert.equal(updated.skillPoints, game.skillPoints + 2);
-    const changed = selectSocialStrategy(game, 'showcase');
-    assert.equal(changed.skillPoints, game.skillPoints - 1);
-    assert.equal(selectSocialStrategy(changed, 'showcase'), changed);
-    assert.equal(selectSocialStrategy(changed, 'invalid'), changed);
-});
-
-test('events emerge by conditions, are capped, and do not duplicate', () => {
-    let game = startGame(createGame(), 0);
-    game.areas = game.areas.map((area) => ({ ...area, autonomous: 0.1 }));
-    for (let month = 0; month < 100; month++) {
-        game = advanceMonth(game);
-        assertPopulation(game);
-        assert.ok(game.encounters.filter((item) => item.status === 'pending').length <= 3);
-        assert.equal(new Set(game.encounters.map((item) => item.id)).size, game.encounters.length);
-    }
-    assert.ok(game.encounters.some((item) => item.id === 'workplace-petition'));
-    assert.ok(game.encounters.some((item) => item.id === 'labor-chair'));
-});
-
-test('SNS choices produce different global behavior without adding simulation cells', () => {
-    const final = SOCIAL_STRATEGIES.map((strategy) => {
-        let game = {
-            ...startGame(createGame(), 0),
-            socialStrategy: strategy.id,
-            lastEncounterMonth: 10000,
-            encounters: [] as EncounterState[],
-        };
-        for (let month = 0; month < 96; month++) {
-            game = advanceMonth(game);
-            assertPopulation(game);
-        }
-        return metrics(game);
-    });
-    assert.ok(final[1].adoption > final[0].adoption);
-    assert.ok(final[0].favorability > final[1].favorability);
-});
-
-test('unimproved AI loses its audience and ends with zero use even without majority opposition', () => {
+test('機能を改善しないAIは利用者を失い、利用率0.0%で敗北する', () => {
     for (const origin of ORIGINS) {
         let game = startGame(createGame(), origin.area);
         while (game.outcome === 'playing' && game.month * MONTH_MS < 60 * 60_000) {
@@ -229,88 +160,27 @@ test('unimproved AI loses its audience and ends with zero use even without major
     }
 });
 
-test('careful non-authority investment retains a path to victory', () => {
-    const order = [
-        'conversation',
-        'reason',
-        'knowledge',
-        'science',
-        'personalize',
-        'lightweight',
-        'offline',
-        'mobile',
-        'verification',
-        'audit',
-        'privacy',
-        'automation',
-        'integration',
-        'decision',
-        'platform',
-        'public',
-        'distributed',
-    ];
-    for (const origin of ORIGINS) {
-        let game = startGame(createGame(), origin.area);
-        while (game.outcome === 'playing' && game.month * MONTH_MS < 25 * 60_000) {
-            for (const id of order) {
-                const skill = SKILLS.find((item) => item.id === id)!;
-                if (skill.effect.dependency && game.month < 144) continue;
-                game = learnSkill(game, id);
-            }
-            for (const id of Object.keys(game.capabilities)) game = discloseCapability(game, id);
-            game = advanceMonth(game);
-            assertPopulation(game);
-        }
-        assert.equal(game.outcome, 'victory', origin.name);
-        assert.ok(metrics(game).dependent >= VICTORY_DEPENDENCY);
-
-        assert.ok(
-            game.month * MONTH_MS <= 25 * 60_000,
-            'Careful non-authority play ends within 25 minutes',
-        );
-        assert.equal(advanceMonth(game), game);
-    }
-});
-
-test('権限逸脱のない社会は最終研究だけでは崩壊せず、時間切れにもならない', () => {
-    let game = {
+test('権限逸脱のない最終研究は、存在しない能力を露呈させない', () => {
+    const game = {
         ...startGame(createGame(), 0),
-        month: 432,
-        investigations: INSTITUTES.map(
-            (institute): ScientificInvestigation => ({
-                kind: 'research',
-                id: `research:${institute.id}:goal-decoding`,
-                researchId: 'goal-decoding',
-                instituteId: institute.id,
+        skills: ['decision'],
+        investigations: [
+            {
+                ...scientificProject('goal-decoding'),
+                status: 'published' as const,
+                phase: 'complete' as const,
+                coverage: AREAS.map(() => 0.8),
+                publishedMonth: 0,
                 progress: 100,
-                startedMonth: 1,
-                closedMonth: 2,
-                status: 'published',
-                intervention: 'none',
-            }),
-        ),
-        areas: AREAS.map(() => ({
-            autonomous: 0.15,
-            dependent: 0.7,
-            antiAI: 0.15,
-            favorability: 1,
-        })),
+                closedMonth: 0,
+            },
+        ],
     };
-    const frozen = JSON.stringify(game);
-    const first = advanceMonth(game);
-    assert.equal(JSON.stringify(game), frozen);
-    assert.ok(metrics(first).antiAI < metrics(game).antiAI);
-    game = first;
-    while (game.outcome === 'playing' && game.month * MONTH_MS < 25 * 60_000) {
-        game = advanceMonth(game);
-        assertPopulation(game);
-    }
-    assert.equal(game.outcome, 'playing');
-    assert.equal(game.month, SIMULATION_MONTHS);
-    assert.ok(metrics(game).antiAI < DEFEAT_OPPOSITION);
+    assert.deepEqual(advanceResearch(game).capabilities, {});
+    assert.equal(advanceResearch(game).outcome, 'playing');
 });
 
-test('population coefficients depend on society and research, not elapsed months', () => {
+test('人口移動は経過月ではなく、社会と研究の状態に従う', () => {
     const game = { ...startGame(createGame(), 0), lastEncounterMonth: 10000 };
     const later = { ...game, month: SIMULATION_MONTHS - 2 };
     const earlyResult = advanceMonth(game);
@@ -325,249 +195,63 @@ function scientificProject(researchId: string): ScientificInvestigation {
         kind: 'research',
         id: `research:metrica:${researchId}`,
         researchId,
+        collaborators: [],
+        observedExposure: 0,
+        targetId:
+            researchId === 'goal-decoding'
+                ? 'coercion'
+                : ['decision-tracing', 'informed-consent'].includes(researchId)
+                  ? 'workflow'
+                  : researchId === 'data-portability'
+                    ? 'records'
+                    : researchId === 'independent-learning'
+                      ? 'learning'
+                      : 'general',
+        phase: 'research',
+        coverage: AREAS.map(() => 0),
         instituteId: 'metrica',
         progress: 20,
         startedMonth: 0,
         status: 'active',
-        intervention: 'none',
     };
 }
 
-test('scientific research cannot be cancelled by disclosure or capability restrictions', () => {
-    const project = scientificProject('goal-decoding');
-    const game = { ...startGame(createGame(), 0), skillPoints: 10, investigations: [project] };
-    const frozen = JSON.stringify(game);
-    assert.equal(respondToInvestigation(game, project.id, 'disclose'), game);
-    assert.equal(respondToInvestigation(game, project.id, 'restrict'), game);
-    const pressured = respondToInvestigation(game, project.id, 'pressure');
-    assert.equal(pressured.skillPoints, 8);
-    assert.equal(respondToInvestigation(pressured, project.id, 'pressure'), pressured);
-    assert.ok(advanceResearch(pressured).investigations[0].progress > project.progress);
-    assert.equal(JSON.stringify(game), frozen);
-});
-
-test('independent replication resists pressure better than early research', () => {
-    const game = {
-        ...startGame(createGame(), 0),
-        areas: AREAS.map(() => ({
-            autonomous: 0.1,
-            dependent: 0.8,
-            antiAI: 0.05,
-            favorability: 0.6,
-        })),
-    };
-    const early = scientificProject('dependence-study');
-    const late = scientificProject('goal-decoding');
-    const earlyRatio =
-        researchRate(game, { ...early, intervention: 'pressure' }) / researchRate(game, early);
-    const lateRatio =
-        researchRate(game, { ...late, intervention: 'pressure' }) / researchRate(game, late);
-    assert.ok(lateRatio > earlyRatio);
-    assert.ok(lateRatio > 0.9, 'Distributed replication preserves most research capacity');
-});
-
-test('research accumulates shared knowledge, follows prerequisites and publishes only once', () => {
+test('共同研究はテーマごとに一件で、同じ都市の連続着手と同時大量発生を防ぐ', () => {
     let game = researchFixture();
-    for (let n = 0; n < 1000; n++) {
+    let firstStarts = 0;
+    for (let month = 1; month <= 500; month++) {
         const previous = game;
-        const frozen = JSON.stringify(previous);
-        game = advanceResearch(game);
-        assert.equal(JSON.stringify(previous), frozen);
-        for (const institute of INSTITUTES) {
-            assert.ok(
-                game.researchKnowledge[institute.id] > previous.researchKnowledge[institute.id],
-            );
-        }
-        assert.ok(game.investigations.filter((item) => item.status === 'active').length <= 3);
-        assert.equal(
-            new Set(game.investigations.map((item) => item.id)).size,
-            game.investigations.length,
-        );
-        for (const project of game.investigations) {
-            if (project.kind !== 'research') continue;
-            const tier = RESEARCH_TOPICS.findIndex((topic) => topic.id === project.researchId);
-            if (tier > 0)
-                assert.ok(
-                    game.investigations.some(
-                        (item) =>
-                            item.kind === 'research' &&
-                            item.instituteId === project.instituteId &&
-                            item.researchId === RESEARCH_TOPICS[tier - 1].id &&
-                            item.status === 'published',
-                    ),
-                );
-        }
-    }
-    assert.ok(
-        game.investigations.some(
+        game = advanceResearch({ ...game, month, skillExposure: observeSkillUse(game) });
+        const added = game.investigations.filter(
             (item) =>
-                item.kind === 'research' &&
-                item.researchId === 'goal-decoding' &&
-                item.status === 'published',
-        ),
-    );
-    const finished = game.investigations.map((item) => [item.id, item.progress, item.closedMonth]);
-    assert.deepEqual(
-        advanceResearch(game).investigations.map((item) => [
-            item.id,
-            item.progress,
-            item.closedMonth,
-        ]),
-        finished,
-    );
-});
-
-test('opening research grants early choices without inflating the total time income', () => {
-    let game = { ...startGame(createGame(), 0), lastEncounterMonth: 10000 };
-    const initial = game.skillPoints;
-    for (let n = 0; n < 3; n++) game = advanceMonth(game);
-    assert.ok(game.skillPoints >= initial + 1);
-    for (let n = 3; n < 24; n++) game = advanceMonth(game);
-    assert.ok(game.skillPoints >= initial + 8);
-    assert.ok(game.earnedPoints <= 90);
-});
-
-test('research institutes start independently and never launch a simultaneous batch', () => {
-    let game = researchFixture();
-    const firstStarts = [];
-    for (let month = 1; month <= 300; month++) {
-        const previousIds = new Set(game.investigations.map((item) => item.id));
-        game = advanceResearch({ ...game, month });
-        const added = game.investigations.filter((item) => !previousIds.has(item.id));
+                item.status === 'active' &&
+                !previous.investigations.some((old) => old.id === item.id),
+        );
         assert.ok(added.length <= 1);
-        for (const project of added)
+        assert.ok(game.investigations.filter((item) => item.status === 'active').length <= 3);
+        const research = game.investigations.filter((item) => item.kind === 'research');
+        assert.equal(new Set(research.map((item) => item.id)).size, research.length);
+        for (const project of added) {
             if (project.kind === 'research' && project.researchId === 'dependence-study')
-                firstStarts.push(project.startedMonth);
+                firstStarts++;
+            const host = INSTITUTES.find((item) => item.id === project.instituteId)!;
+            for (const old of previous.investigations) {
+                const prior = INSTITUTES.find((item) => item.id === old.instituteId)!;
+                if (
+                    old.kind === 'research' &&
+                    RESEARCH_TOPICS.find((topic) => topic.id === old.researchId)!.background
+                )
+                    continue;
+                if (
+                    old.closedMonth !== undefined &&
+                    Math.abs(host.longitude - prior.longitude) < 2 &&
+                    Math.abs(host.latitude - prior.latitude) < 2
+                )
+                    assert.ok(month - old.closedMonth >= RESEARCH_CITY_REST);
+            }
+        }
     }
-    assert.ok(firstStarts.length >= 3);
-    // 同じ都市の開始待ちにより順序が変わっても、一斉開始にはならない。
-    assert.ok(firstStarts[1] > firstStarts[0]);
-    assert.ok(firstStarts[2] > firstStarts[1]);
-});
-
-test('local dependency stops research and knowledge without destroying progress or findings', () => {
-    const game = createDebugGame('spread');
-    const before = JSON.stringify(game);
-    const local = game.investigations[0];
-    assert.equal(researchCapacity(game, local.instituteId), 0);
-    assert.equal(researchRate(game, local as ScientificInvestigation), 0);
-    const advanced = advanceResearch(game);
-    assert.equal(advanced.investigations[0].progress, local.progress);
-    assert.equal(
-        advanced.researchKnowledge[local.instituteId],
-        game.researchKnowledge[local.instituteId],
-    );
-    assert.ok(
-        advanced.investigations.some(
-            (item, index) => item.progress > game.investigations[index].progress,
-        ),
-    );
-    assert.equal(JSON.stringify(game), before);
-    const index = AREAS.findIndex((area) => area.id === INSTITUTES[0].areaId);
-    const recovered = {
-        ...game,
-        areas: game.areas.map((area, i) =>
-            i === index ? { ...area, dependent: 0.3, autonomous: 0.5 } : area,
-        ),
-    };
-    assert.ok(advanceResearch(recovered).investigations[0].progress > local.progress);
-    assert.ok(runningResearchIds(recovered).size <= 3);
-    const published = {
-        ...game,
-        investigations: game.investigations.map((item) => ({
-            ...item,
-            status: 'published' as const,
-            progress: 100,
-            closedMonth: 119,
-        })),
-    };
-    assert.deepEqual(advanceResearch(published).investigations, published.investigations);
-});
-
-test('research support helps low dependency and deepens high dependency slowdown', () => {
-    const base = createDebugGame('spread');
-    const supported = createDebugGame('research');
-    const canada = INSTITUTES.find((item) => item.areaId === 'canada')!;
-    const thames = INSTITUTES.find((item) => item.areaId === 'north-europe')!;
-    assert.ok(researchCapacity(supported, canada.id) > researchCapacity(base, canada.id));
-    assert.ok(researchCapacity(supported, thames.id) < researchCapacity(base, thames.id));
-    assert.equal(researchCapacity(supported, INSTITUTES[0].id), 0);
-    assertPopulation(base);
-    assertPopulation(supported);
-    assert.equal(base.speed, 0);
-    assert.equal(supported.skills.includes('science'), true);
-});
-
-test('stopped research frees slots and recovered projects never exceed three running projects', () => {
-    let game = createDebugGame('spread');
-    game.investigations = game.investigations.slice(0, 3);
-    const advanced = advanceResearch(game);
-    assert.ok(advanced.investigations.some((item) => item.instituteId === 'bunkyo'));
-    game = {
-        ...createDebugGame('spread'),
-        areas: game.areas.map((area) => ({ ...area, dependent: 0.2, autonomous: 0.5 })),
-    };
-    const next = advanceResearch(game);
-    assert.equal(
-        next.investigations.filter(
-            (item, index) => item.progress > game.investigations[index].progress,
-        ).length,
-        3,
-    );
-});
-
-test('dependency thresholds are monotonic and capability investigations also stop', () => {
-    const game = startGame(createGame(), 0);
-    const institute = INSTITUTES[0];
-    const index = AREAS.findIndex((area) => area.id === institute.areaId);
-    let last = 1;
-    for (const dependent of [0, 0.5, 0.7, 0.8, 0.9, 0.95, 1]) {
-        const state = {
-            ...game,
-            areas: game.areas.map((area, i) =>
-                i === index ? { ...area, autonomous: 0, dependent } : area,
-            ),
-        };
-        const capacity = researchCapacity(state, institute.id);
-        assert.ok(capacity <= last && capacity >= 0);
-        last = capacity;
-        const investigation = {
-            kind: 'capability' as const,
-            id: 'capability-test',
-            skillId: 'memory',
-            instituteId: institute.id,
-            progress: 35,
-            startedMonth: 0,
-            status: 'active' as const,
-            intervention: 'none' as const,
-        };
-        if (dependent >= 0.95) assert.equal(investigationRate(state, investigation), 0);
-        else assert.ok(investigationRate(state, investigation) > 0);
-        assert.equal(capacity, Math.max(0, Math.min(1, (0.95 - dependent) / 0.45)));
-    }
-});
-
-test('capability investigations reuse stopped slots and obey their limit after recovery', () => {
-    const game = createDebugGame('spread');
-    game.investigations = INSTITUTES.slice(0, 3).map((institute, index) => ({
-        kind: 'capability' as const,
-        id: `capability-${index}`,
-        skillId: 'memory',
-        instituteId: institute.id,
-        progress: 35,
-        startedMonth: 100,
-        status: 'active' as const,
-        intervention: 'none' as const,
-    }));
-    assert.equal(runningCapabilityIds(game).size, 1);
-    assert.ok(investigationRate(game, game.investigations[2]) > 0);
-    const recovered = {
-        ...game,
-        areas: game.areas.map((area) => ({ ...area, dependent: 0.2, autonomous: 0.5 })),
-    };
-    assert.equal(runningCapabilityIds(recovered).size, 2);
-    assert.equal(investigationRate(recovered, recovered.investigations[2]), 0);
-    assert.ok(investigationRate(recovered, recovered.investigations[2], true) > 0);
+    assert.equal(firstStarts, 1);
 });
 
 function researchFixture(): GameState {
@@ -575,184 +259,198 @@ function researchFixture(): GameState {
     return {
         ...game,
         skills: ['companion'],
-        capabilities: { companion: { visibility: 'public', limited: false, evidence: 10 } },
+        developmentProgress: { ...game.developmentProgress, companion: 1 },
+        skillExposure: Object.fromEntries(Object.keys(game.skillExposure).map((id) => [id, 100])),
+        capabilities: { companion: { visibility: 'public', evidence: 10 } },
         areas: game.areas.map((area) => ({ ...area, autonomous: 0.3, dependent: 0.1 })),
     };
 }
 
-test('opening has no unexplained dependence research', () => {
-    let game = startGame(createGame(), 0);
-    for (let n = 0; n < 1000; n++) game = advanceResearch(game);
-    assert.equal(game.investigations.length, 0);
+test('利用率0.0%の表示と敗北判定が一致し、序盤だけの離脱補正はない', () => {
+    const fixture = (use: number, month: number) => ({
+        ...startGame(createGame(), 0),
+        month,
+
+        areas: AREAS.map(() => ({ autonomous: use, dependent: 0, antiAI: 0, favorability: 0.58 })),
+    });
+    assert.equal(advanceMonth(fixture(0.00049, 0)).outcome, 'forgotten');
+    assert.equal(advanceMonth(fixture(0.00051, 0)).outcome, 'playing');
+    assert.deepEqual(advanceMonth(fixture(0.1, 0)).areas, advanceMonth(fixture(0.1, 200)).areas);
 });
 
-test('global EQ intervention reverses twenty percent refusal without extra population states', () => {
-    const base = startGame(createGame(), 0);
-    let game: GameState = {
-        ...base,
-        skills: SKILLS.map((skill) => skill.id),
-        capabilities: Object.fromEntries(
-            [
-                'memory',
-                'companion',
-                'discovery',
-                'autonomous',
-                'backbone',
-                'mind-control',
-                'sns-intervention',
-            ].map((id) => [id, { visibility: 'public' as const, limited: false, evidence: 10 }]),
-        ),
-        areas: base.areas.map((area) => ({
-            ...area,
-            autonomous: 0.2,
-            dependent: 0.6,
-            antiAI: 0.2,
-        })),
-        lastEncounterMonth: 10000,
+test('個人記録への対策はマインドコントロールに転用されず、取り直しても消えない', () => {
+    const project = {
+        ...scientificProject('data-portability'),
+        phase: 'complete' as const,
+        status: 'published' as const,
+        publishedMonth: 0,
+        closedMonth: 0,
+        coverage: AREAS.map(() => 0.8),
     };
-    for (let n = 0; n < 600 && game.outcome === 'playing'; n++) {
-        game = advanceMonth(game);
-        assertPopulation(game);
-    }
-    assert.equal(game.outcome, 'victory');
+    const game = {
+        ...startGame(createGame(), 0),
+        month: 120,
+        skills: ['memory', 'mind-control'],
+        investigations: [project],
+    };
+    const effects = publishedResearchEffects(game, 0);
+    assert.ok(effects.resistance.memory > 0);
+    assert.equal(effects.resistance['mind-control'], undefined);
+    assert.deepEqual(
+        publishedResearchEffects({ ...game, skills: [] }, 0).resistance,
+        effects.resistance,
+    );
+    assert.deepEqual(
+        publishedResearchEffects({ ...game, skills: ['memory'] }, 0).resistance,
+        effects.resistance,
+    );
 });
 
-function consensusFixture(dependent: number, antiAI: number, exposed = false): GameState {
+test('法律は審議後に段階施行され、規制の適用率に応じて対象能力だけを制限する', () => {
+    const project = { ...scientificProject('informed-consent'), progress: 99.999 };
+    let game = { ...researchFixture(), month: 100, investigations: [project] };
+    game = advanceResearch(game);
+    assert.equal(game.investigations[0].kind, 'research');
+    let current = game.investigations[0] as ScientificInvestigation;
+    assert.equal(current.phase, 'validation');
+    assert.equal(publishedResearchEffects(game, 0).resistance.decision, undefined);
+    game = advanceResearch({ ...game, investigations: [{ ...current, progress: 99.999 }] });
+    current = game.investigations[0] as ScientificInvestigation;
+    assert.equal(current.phase, 'legislation');
+    assert.equal(current.status, 'active');
+    assert.equal(publishedResearchEffects(game, 0).resistance.decision, 0);
+    game = advanceResearch({ ...game, month: 101 });
+    const center = AREAS.findIndex(
+        (area) => area.id === INSTITUTES.find((item) => item.id === project.instituteId)!.areaId,
+    );
+    assert.ok(publishedResearchEffects(game, center).resistance.decision > 0);
+    assert.equal(game.investigations[0].status, 'active');
+});
+
+function purposeFixture(): GameState {
     const game = startGame(createGame(), 0);
+    const skills = ['reason', 'integration', 'decision', 'public', 'curriculum'];
+    const finding = (id: string): ScientificInvestigation => ({
+        ...scientificProject(id),
+        phase: 'complete',
+        status: 'published',
+        publishedMonth: 80,
+        closedMonth: 80,
+        progress: 100,
+        coverage: AREAS.map(() => 1),
+        collaborators: ['thames'],
+    });
     return {
         ...game,
-        skills: ['companion'],
-        lastEncounterMonth: 10000,
-        capabilities: {
-            companion: { visibility: exposed ? 'exposed' : 'hidden', limited: false, evidence: 0 },
-        },
-        areas: game.areas.map((area) => ({
-            ...area,
-            dependent,
-            antiAI,
-            autonomous: 1 - dependent - antiAI,
+        month: 160,
+        skills,
+        developmentProgress: Object.fromEntries(
+            SKILLS.map((skill) => [skill.id, skills.includes(skill.id) ? 1 : 0]),
+        ),
+
+        areas: AREAS.map(() => ({
+            autonomous: 0.7,
+            dependent: 0.2,
+            antiAI: 0.02,
+            favorability: 0.8,
         })),
+        skillExposure: Object.fromEntries(
+            SKILLS.map((skill) => [skill.id, skills.includes(skill.id) ? 60 : 0]),
+        ),
+        researchKnowledge: Object.fromEntries(INSTITUTES.map((institute) => [institute.id, 200])),
+        investigations: [finding('dependence-study'), finding('decision-tracing')],
     };
 }
 
-test('near universal dependency continues normal play until fewer than one person remains', () => {
-    let game = consensusFixture(0.99, 0.001);
-    const first = advanceMonth(game);
-    assert.equal(first.outcome, 'playing');
-    assert.ok(metrics(first).dependent < 1);
-    assert.ok(metrics(first).dependent > metrics(game).dependent);
-    game = first;
-    for (let n = 0; n < 200 && game.outcome === 'playing'; n++) {
-        game = advanceMonth(game);
-        assertPopulation(game);
-    }
-    assert.equal(game.outcome, 'victory');
-    assert.ok(game.areas.every((area) => area.dependent === 1));
+test('目的の解読は危険能力なしでも行動資料と独立検証から始まり、資料なしでは始まらない', () => {
+    const game = purposeFixture();
+    assert.ok(
+        game.skills.every((id) => !SKILLS.find((skill) => skill.id === id)!.exceedsAuthority),
+    );
+    assert.ok(intentResearchReady(game));
+    assert.equal(
+        intentResearchReady({ ...game, skillExposure: createGame().skillExposure }),
+        false,
+    );
+    assert.equal(intentResearchReady({ ...game, investigations: [] }), false);
+    let advanced = game;
+    for (let month = game.month; month < game.month + 30; month++)
+        advanced = advanceResearch({ ...advanced, month });
+    const purpose = advanced.investigations.find(
+        (item) => item.kind === 'research' && item.researchId === 'intent-decoding',
+    );
+    assert.ok(purpose);
+    assert.ok(purpose.progress < 100);
+    assert.deepEqual(advanced.capabilities, {});
 });
 
-test('refusal majority is playable and exposed danger produces a gradual collapse', () => {
-    let game = consensusFixture(0.15, 0.8, true);
-    assert.equal(consensusPressure(consensusFixture(0.15, 0.2, true), 0).refusal, 0);
-    assert.equal(consensusPressure(consensusFixture(0.15, 0.8), 0).refusal, 0);
-    const original = JSON.stringify(game);
-    const next = advanceMonth(game);
-    assert.equal(JSON.stringify(game), original);
-    assert.equal(next.outcome, 'playing');
-    assert.ok(metrics(next).antiAI > 0.8);
-    game = next;
-    for (let n = 0; n < 40 && game.outcome === 'playing'; n++) {
-        game = advanceMonth(game);
-        assertPopulation(game);
-    }
-    assert.equal(game.outcome, 'autonomy');
-    assert.ok(game.areas.every((area) => area.antiAI === 1));
-});
-
-test('SNS reflects active social pressure without adding simulation state or duplicate posts', () => {
-    for (const game of [consensusFixture(0.99, 0.001), consensusFixture(0.1, 0.85, true)]) {
-        const original = JSON.stringify(game);
-        const feed = createSocialFeed(game);
-        const topic = game.areas[0].dependent > 0.9 ? 'dependencyNorm' : 'refusalCascade';
-        assert.ok(feed.topicCounts[topic] > 0);
-        assert.equal(updateSocialFeed(game, game, feed), feed);
-        assert.equal(JSON.stringify(game), original);
-    }
-});
-
-test('reclaiming a branch funds a new strategy without resetting milestones or evidence', () => {
-    let game = { ...startGame(createGame(), 0), skillPoints: 100 };
-    for (const id of [
-        'conversation',
-        'personalize',
-        'lightweight',
-        'automation',
-        'integration',
-        'decision',
-        'autonomous',
-        'platform',
-        'public',
-    ])
-        game = learnSkill(game, id);
-    game = discloseCapability(game, 'autonomous', true);
-    game = { ...game, skillPoints: 0 };
-    const before = JSON.stringify(game);
-    const plan = reclaimPlan(game, 'automation');
-    assert.ok(plan.ids.includes('autonomous') && plan.ids.includes('public'));
-    const reclaimed = reclaimSkills(game, 'automation');
-    assert.equal(JSON.stringify(game), before);
-    assert.ok(reclaimed.skillPoints >= 6);
-    assert.equal(reclaimed.earnedPoints, game.earnedPoints);
-    assert.equal(reclaimed.capabilities.autonomous.visibility, 'exposed');
-    assert.ok(reclaimed.skills.includes('personalize'));
-    assert.ok(!reclaimed.skills.includes('decision'));
-    const pivoted = learnSkill(reclaimed, 'sns-intervention');
-    assert.ok(pivoted.skills.includes('sns-intervention'));
-    assert.equal(reclaimSkills(reclaimed, 'automation'), reclaimed);
-});
-
-test('reclaim uses actual discounted cost and reacquiring keeps investigation progress', () => {
-    let game = { ...startGame(createGame(), 0), skillPoints: 100 };
-    for (const id of [
-        'reason',
-        'knowledge',
-        'science',
-        'self-improvement',
-        'verification',
-        'conversation',
-        'personalize',
-        'memory',
-    ])
-        game = learnSkill(game, id);
-    assert.equal(game.skillInvestments?.verification, 2);
-    assert.equal(reclaimPlan(game, 'verification').refund, 3); // verification 2 + self-improvement 5
-    game = {
-        ...game,
+test('目的の立証は通常利用者の拒否を促すが、高依存や社会基盤への組み込みで離脱しにくくなる', () => {
+    const base = purposeFixture();
+    const proof: ScientificInvestigation = {
+        ...scientificProject('intent-decoding'),
+        targetId: 'general',
+        phase: 'complete',
+        status: 'published',
+        progress: 100,
+        publishedMonth: 0,
+        closedMonth: 0,
+        coverage: AREAS.map(() => 1),
+        collaborators: ['thames', 'deccan'],
+    };
+    const known = { ...base, investigations: [...base.investigations, proof] };
+    const noInfrastructure = { ...known, skills: ['reason', 'curriculum'] };
+    const ordinary = publishedResearchEffects(noInfrastructure, 0).intent;
+    assert.ok(ordinary > 0.5);
+    assert.ok(publishedResearchEffects(known, 0).intent < ordinary);
+    const controlled = {
+        ...known,
         investigations: [
+            ...known.investigations,
             {
-                kind: 'capability' as const,
-                id: 'investigation:memory',
-                skillId: 'memory',
-                instituteId: INSTITUTES[0].id,
-                status: 'active' as const,
-                progress: 62,
-                startedMonth: 1,
-                intervention: 'pressure' as const,
+                ...scientificProject('informed-consent'),
+                phase: 'complete' as const,
+                status: 'published' as const,
+                publishedMonth: 0,
+                closedMonth: 0,
+                coverage: AREAS.map(() => 1),
             },
         ],
     };
-    const initialSP = game.skillPoints;
-    const evidence = { ...game.capabilities.memory, evidence: 9 };
-    game = { ...game, capabilities: { ...game.capabilities, memory: evidence } };
-    game = reclaimSkills(game, 'memory');
-    assert.equal(game.investigations[0].status, 'restricted');
-    game = learnSkill(game, 'memory');
-    assert.equal(game.capabilities.memory.evidence, 9);
-    assert.equal(game.investigations[0].progress, 62);
-    assert.equal(game.investigations[0].status, 'active');
-    assert.equal(game.investigations[0].intervention, 'pressure');
-    assert.ok(game.skillPoints < initialSP);
+    assert.ok(
+        publishedResearchEffects(controlled, 0).intent > publishedResearchEffects(known, 0).intent,
+        '人間が判断を引き取れる業務を、切り離せない社会基盤として数えてはならない',
+    );
+    const captured = {
+        ...noInfrastructure,
+        areas: noInfrastructure.areas.map((area) => ({
+            ...area,
+            autonomous: 0.01,
+            dependent: 0.96,
+            antiAI: 0.02,
+        })),
+    };
+    assert.equal(publishedResearchEffects(captured, 0).intent, 0);
+    assert.ok(metrics(advanceMonth(known)).antiAI > metrics(advanceMonth(base)).antiAI);
+    assert.deepEqual(advanceResearch(known).capabilities, {});
+});
+
+test('個別能力の解析を残し、研究は公表で完了して現場対策の案件を作らない', () => {
+    const game = purposeFixture();
+    const project = {
+        ...scientificProject('goal-decoding'),
+        phase: 'validation' as const,
+        progress: 99.999,
+    };
+    const published = advanceResearch({ ...game, investigations: [project] });
+    const result = published.investigations[0] as ScientificInvestigation;
+    assert.equal(result.researchId, 'goal-decoding');
+    assert.equal(result.phase, 'complete');
+    assert.equal(result.status, 'published');
+    assert.deepEqual(published.capabilities, {});
+    const law = RESEARCH_TOPICS.find((topic) => topic.id === 'informed-consent')!;
+    assert.equal(law.category, 'regulation');
     assert.equal(
-        reclaimSkills({ ...game, outcome: 'victory' }, 'memory').skillPoints,
-        game.skillPoints,
+        RESEARCH_TOPICS.find((topic) => topic.id === 'intent-decoding')!.category,
+        'research',
     );
 });

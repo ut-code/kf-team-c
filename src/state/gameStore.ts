@@ -6,21 +6,12 @@ import {
     type NotificationState,
     updateNotifications,
 } from '../game/notifications';
-import { reclaimSkills } from '../game/reclaim';
-import {
-    discloseCapability,
-    type SkillOperation,
-    setSkillOperation,
-} from '../game/secrecy/capabilities';
-import { respondToInvestigation } from '../game/secrecy/investigations';
-import type { InvestigationAction } from '../game/secrecy/types';
 import {
     createSocialFeed,
     emptySocialFeed,
     type SocialFeedState,
     updateSocialFeed,
 } from '../game/society/socialFeed';
-import { chooseEncounter, selectSocialStrategy } from '../game/society/system';
 import type { GameState } from '../game/types';
 
 interface GameStore {
@@ -34,13 +25,7 @@ interface GameStore {
     initializeDebug: (preset: DebugStart) => void;
     tick: () => void;
     speed: (value: number) => void;
-    reclaim: (id: string) => void;
     research: (id: string) => void;
-    choose: (encounterId: string, choiceId: string) => void;
-    strategy: (id: string) => void;
-    disclose: (id: string) => void;
-    operate: (id: string, operation: SkillOperation) => void;
-    investigate: (id: string, action: InvestigationAction) => void;
 }
 export const useGameStore = create<GameStore>((set) => {
     const change = (update: (game: GameState) => GameState) =>
@@ -101,12 +86,6 @@ export const useGameStore = create<GameStore>((set) => {
                 advanceMonth(game, import.meta.env.DEV ? logPopulationChange : undefined),
             ),
         speed: (speed) => change((game) => ({ ...game, speed })),
-        reclaim: (id) => change((game) => reclaimSkills(game, id)),
         research: (id) => change((game) => learnSkill(game, id)),
-        choose: (id, choice) => change((game) => chooseEncounter(game, id, choice)),
-        strategy: (id) => change((game) => selectSocialStrategy(game, id)),
-        disclose: (id) => change((game) => discloseCapability(game, id)),
-        operate: (id, operation) => change((game) => setSkillOperation(game, id, operation)),
-        investigate: (id, action) => change((game) => respondToInvestigation(game, id, action)),
     };
 });

@@ -1,5 +1,6 @@
 import { ORGANIZATION_CORRIDORS, PERSONAL_CORRIDORS } from '../content/connections.ts';
 import { AREAS } from './data.ts';
+import { skillScale } from './secrecy/capabilities.ts';
 import type { GameState } from './types.ts';
 
 function connections(corridors: [string, string][], organization: boolean) {
@@ -25,7 +26,11 @@ export function networkUse(game: GameState, target: number, organization: boolea
     return (
         weights.reduce((sum, weight, i) => {
             const area = game.areas[i];
-            const source = area.autonomous + area.dependent * (organization ? 0.8 : 0.2);
+            const advocacy = game.skills.includes('mind-control')
+                ? skillScale(game, 'mind-control')
+                : 0;
+            const source =
+                area.autonomous + area.dependent * (organization ? 0.8 : 0.2 + advocacy * 0.6);
             const readiness = organization ? AREAS[i].enterprise : 1;
             return sum + weight * source * readiness;
         }, 0) /
