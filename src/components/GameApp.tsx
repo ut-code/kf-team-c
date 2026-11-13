@@ -11,7 +11,8 @@ import { useGameStore } from '../state/gameStore';
 import { useMapStore } from '../state/mapStore';
 import { GameClock } from './GameClock';
 import { OriginSelection, Result } from './GameOverlays';
-import { NotificationFeed } from './NotificationFeed';
+import { NewsBreaking } from './NewsBreaking';
+import { NewsTicker } from './NewsTicker';
 import { PopulationChart } from './PopulationChart';
 import { ResearchPanel } from './panels/ResearchPanel';
 import { EncounterPanel } from './society/EncounterPanel';
@@ -208,6 +209,8 @@ export function GameApp({ regions }: { regions: MapRegion[] }) {
                         else togglePanel({ kind: 'region', id: index });
                     }}
                 />
+                <NewsBreaking speed={blocked ? 0 : game.speed} />
+                <NewsTicker key={session} speed={blocked ? 0 : game.speed} />
             </div>
             <WorldMetricsWidget
                 values={summary}
@@ -216,9 +219,6 @@ export function GameApp({ regions }: { regions: MapRegion[] }) {
                 onToggle={() => togglePanel({ kind: 'world' })}
             />
             <GameClock key={session} blocked={blocked} />
-            <div className="right-hud">
-                <NotificationFeed key={session} speed={blocked ? 0 : game.speed} />
-            </div>
             {area && (
                 <aside
                     id="population-details"
