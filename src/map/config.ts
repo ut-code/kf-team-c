@@ -1,7 +1,7 @@
 const base = import.meta.env.BASE_URL;
 /** 既存の衛星地図・海面・国境のWebGL描画に使う素材。 */
 export const mapScene = {
-    invasionUrl: `${base}maps/textures/invasion-rank.png?v=urban-front`,
+    invasionUrl: `${base}maps/textures/invasion-rank.png?v=connected-land-front`,
     regionsUrl: `${base}maps/small-regions.json`,
     areaIndexUrl: `${base}maps/textures/small-region-display.png`,
     backgroundUrl: `${base}maps/textures/satellite-display.webp`,

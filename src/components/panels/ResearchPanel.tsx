@@ -1,7 +1,7 @@
 import { Network, X } from 'lucide-react';
 import { useState } from 'react';
 import { SKILLS } from '../../game/skills';
-import type { Branch, GameState } from '../../game/types';
+import type { GameState } from '../../game/types';
 import { SkillDetails } from './SkillDetails';
 import { SkillPerformance } from './SkillPerformance';
 import { SkillTreeMap } from './SkillTreeMap';
@@ -10,20 +10,16 @@ export function ResearchPanel({
     game,
     onResearch,
     onClose,
+    initialSkill,
 }: {
     game: GameState;
     onResearch: (id: string) => void;
     onClose: () => void;
+    initialSkill?: string;
 }) {
-    const [branch, setBranch] = useState<Branch>('IQ');
+    const initial = initialSkill ? SKILLS.find((skill) => skill.id === initialSkill)! : SKILLS[0];
     const [performanceOpen, setPerformanceOpen] = useState(false);
-    const [selections, setSelections] = useState<Record<Branch, string>>({
-        IQ: 'reason',
-        EQ: 'conversation',
-        SYSTEM: 'lightweight',
-    });
-    const selected = selections[branch];
-    const setSelected = (id: string) => setSelections((current) => ({ ...current, [branch]: id }));
+    const [selected, setSelected] = useState(initialSkill ? initial.id : 'reason');
     const skill = SKILLS.find((item) => item.id === selected)!;
     return (
         <section className="research-workspace" aria-label="スキルツリー">
@@ -33,20 +29,13 @@ export function ResearchPanel({
                     スキルツリー
                 </h1>
                 <nav className="skill-branch-tabs" aria-label="スキルツリーの表示">
-                    {(['IQ', 'EQ', 'SYSTEM'] as const).map((item) => (
-                        <button
-                            key={item}
-                            type="button"
-                            className={item.toLowerCase()}
-                            aria-pressed={!performanceOpen && branch === item}
-                            onClick={() => {
-                                setBranch(item);
-                                setPerformanceOpen(false);
-                            }}
-                        >
-                            {item}
-                        </button>
-                    ))}
+                    <button
+                        type="button"
+                        aria-pressed={!performanceOpen}
+                        onClick={() => setPerformanceOpen(false)}
+                    >
+                        開発
+                    </button>
                     <button
                         type="button"
                         aria-pressed={performanceOpen}
@@ -75,20 +64,13 @@ export function ResearchPanel({
                 <SkillPerformance
                     game={game}
                     onSelectSkill={(id) => {
-                        const target = SKILLS.find((item) => item.id === id)!;
-                        setSelections((current) => ({ ...current, [target.branch]: id }));
-                        setBranch(target.branch);
+                        setSelected(id);
                         setPerformanceOpen(false);
                     }}
                 />
             ) : (
                 <div className="research-layout">
-                    <SkillTreeMap
-                        branch={branch}
-                        game={game}
-                        selectedId={selected}
-                        onSelect={setSelected}
-                    />
+                    <SkillTreeMap game={game} selectedId={selected} onSelect={setSelected} />
                     <SkillDetails game={game} skill={skill} onResearch={onResearch} />
                 </div>
             )}

@@ -28,6 +28,7 @@ export interface MapScene {
 export interface MapData {
     regions: MapRegion[];
     areaStates: AreaState[];
+    humanProtection: number[];
     serverArea: number;
     selectedArea: number | null;
     speed: number;
@@ -354,7 +355,8 @@ export class WorldRenderer {
     setData(data: MapData) {
         const old = this.data;
         if (!old || old.selectedArea !== data.selectedArea) this.staticDirty = true;
-        const reset = !old || data.tick < old.tick;
+        // 開始地域の選択は人口移動ではないため、選択前の侵食を補間に残さない。
+        const reset = !old || data.tick < old.tick || data.serverArea !== old.serverArea;
         if (reset) {
             this.shown = data.areaStates.map((area) => ({ ...area }));
             this.transitionProgress = 1;
@@ -378,8 +380,13 @@ export class WorldRenderer {
             // 月次更新は次の月まで等速でつなぎ、操作による大きな増減も急変させない。
             this.transitionDuration = this.transitionInGameTime ? MONTH_MS / 1000 : 2;
         }
-        if (reset || old.areaStates !== data.areaStates) this.paletteDirty = true;
-        if (old && data.tick < old.tick) {
+        if (
+            reset ||
+            old.areaStates !== data.areaStates ||
+            old.humanProtection !== data.humanProtection
+        )
+            this.paletteDirty = true;
+        if (reset) {
             this.waveElapsed = 0;
         }
         if (old && old.speed !== data.speed) this.previous = performance.now();
@@ -451,6 +458,9 @@ export class WorldRenderer {
             const antiAI = Math.floor(area.antiAI * 65535);
             bytes[1024 + offset] = antiAI >> 8;
             bytes[1024 + offset + 1] = antiAI & 255;
+            const protection = Math.round(this.data!.humanProtection[index] * 65535);
+            bytes[1024 + offset + 2] = protection >> 8;
+            bytes[1024 + offset + 3] = protection & 255;
         });
         const gl = this.gl;
         gl.bindTexture(gl.TEXTURE_2D, this.textures.palette);

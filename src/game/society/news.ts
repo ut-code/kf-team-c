@@ -12,6 +12,7 @@ export interface NewsDefinition {
     skills: string[];
     avoid?: string[];
     minDependency?: number;
+    minAdoption?: number;
     after?: string;
 }
 export interface NewsRecord {
@@ -25,10 +26,14 @@ export function advanceNews(game: GameState): GameState {
     if (last && game.month - last.month < 12) return game;
     const candidate = WORLD_NEWS.find((news) => {
         if (game.news.some((record) => record.id === news.id)) return false;
-        if (!news.skills.some((id) => skillScale(game, id) >= 0.8)) return false;
+        if (news.skills.length && !news.skills.some((id) => skillScale(game, id) >= 0.8))
+            return false;
         if (news.avoid?.some((id) => skillScale(game, id) >= 0.8)) return false;
         const area = game.areas[AREAS.findIndex((item) => item.id === news.areaId)];
-        if (area.autonomous + area.dependent < 0.03 || area.dependent < (news.minDependency ?? 0))
+        if (
+            area.autonomous + area.dependent < (news.minAdoption ?? 0.03) ||
+            area.dependent < (news.minDependency ?? 0)
+        )
             return false;
         if (news.after) {
             const preceding = game.news.find((record) => record.id === news.after);

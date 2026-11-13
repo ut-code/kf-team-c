@@ -1,56 +1,64 @@
-import { FlaskConical, Scale, X } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 import { AREAS } from '../../game/data';
 import { CAPABILITIES } from '../../game/secrecy/data';
 import { instituteArea, instituteFor, investigationRate } from '../../game/secrecy/investigations';
 import { researchTopic } from '../../game/secrecy/research';
-import { researchCapacity } from '../../game/secrecy/researchCapacity';
-import { researchPhaseLabel, researchTarget } from '../../game/secrecy/researchTargets';
+import { researchImpact } from '../../game/secrecy/researchImpact';
+import {
+    researchHasFindings,
+    researchPhaseLabel,
+    researchTarget,
+} from '../../game/secrecy/researchTargets';
 import { SKILLS } from '../../game/skills';
 import type { GameState } from '../../game/types';
 import { Modal } from '../widgets';
+import { ResearchProgress } from './ResearchProgress';
+import { researchEffectLabels, researchPresentation } from './researchPresentation';
 
 export function InvestigationPanel({
     game,
     id,
     onClose,
     anchor,
+    onOpenSkill,
 }: {
     game: GameState;
     id: string;
     onClose: () => void;
     anchor?: { x: number; y: number };
+    onOpenSkill: (id?: string) => void;
 }) {
-    const investigation = game.investigations.find((item) => item.id === id);
-    if (!investigation) return null;
-    const institute = instituteFor(investigation);
-    const topic = investigation.kind === 'research' ? researchTopic(investigation) : null;
-    const name =
-        investigation.kind === 'capability'
-            ? SKILLS.find((item) => item.id === investigation.skillId)!.name
-            : topic!.name;
-    const question =
-        investigation.kind === 'capability'
-            ? CAPABILITIES[investigation.skillId].question
-            : topic!.question;
+    const project = game.investigations.find((item) => item.id === id);
+    if (!project) return null;
+    const scientific = project.kind === 'research' ? project : null;
+    const topic = scientific ? researchTopic(scientific) : null;
     const regulation = topic?.category === 'regulation';
+    const presentation = scientific
+        ? researchPresentation(scientific)
+        : { Icon: Search, label: '能力の調査', color: 'var(--warning)' };
+    const Icon = presentation.Icon;
+    const institute = instituteFor(project);
     const organization = regulation
-        ? `${AREAS[instituteArea(investigation)].name}の規制当局`
+        ? `${AREAS[instituteArea(project)].name}の規制当局`
         : institute.name;
-    const active = investigation.status === 'active';
-    const rate = investigationRate(game, investigation);
-    const capacity = researchCapacity(game, institute.id);
-    const speed = rate / investigationRate(game, investigation, true);
-    const remaining = rate > 0 ? Math.ceil((100 - investigation.progress) / rate) : null;
+    const name =
+        project.kind === 'research'
+            ? researchTopic(project).name
+            : SKILLS.find((skill) => skill.id === project.skillId)!.name;
+    const active = project.status === 'active';
+    const findings = scientific ? researchHasFindings(scientific) : !active;
+    const impact = scientific ? researchImpact(game, scientific) : null;
+    const effects = scientific
+        ? researchEffectLabels(scientific)
+        : ['権限を超えた介入が明らかになり、利用拒否が広がる'];
     return (
-        <Modal modal={false} label={organization} onClose={onClose} anchor={anchor}>
+        <Modal modal={false} label={name} onClose={onClose} anchor={anchor}>
             <div className="investigation-panel">
                 <div className="society-heading">
                     <div className="contact-heading">
-                        {regulation ? <Scale size={28} /> : <FlaskConical size={28} />}
+                        <Icon size={28} style={{ color: presentation.color }} />
                         <div>
-                            <span className="eyebrow">
-                                {regulation ? '法律・規制' : institute.specialty} · {name}
-                            </span>
+                            <span className="eyebrow">{presentation.label}</span>
                             <h2>{organization}</h2>
                         </div>
                     </div>
@@ -63,82 +71,104 @@ export function InvestigationPanel({
                         <X size={20} />
                     </button>
                 </div>
-                <p className="investigation-question">{question}</p>
-                {investigation.kind === 'research' && (
-                    <p className="investigation-warning">
-                        {researchPhaseLabel(investigation)} · 対象：
-                        {researchTarget(investigation).name}
-                    </p>
-                )}
-                {investigation.kind === 'research' && investigation.collaborators.length > 0 && (
-                    <p className="investigation-warning">
-                        主導：{organization} · {investigation.collaborators.length}機関と
-                        {regulation ? '法的枠組みを共有' : '共同研究'}。
-                    </p>
+                <h2 className="investigation-title">{name}</h2>
+                <p className="investigation-question">
+                    {project.kind === 'research'
+                        ? researchTopic(project).question
+                        : CAPABILITIES[project.skillId].question}
+                </p>
+                {scientific && (
+                    <p className="investigation-target">対象：{researchTarget(scientific).name}</p>
                 )}
                 <div className="investigation-progress">
-                    <label htmlFor="investigation-progress">
-                        {active
-                            ? remaining === null
-                                ? capacity === 0
-                                    ? regulation
-                                        ? '法整備停止'
-                                        : '研究停止'
-                                    : regulation
-                                      ? '審議待機中'
-                                      : '研究待機中'
-                                : `${investigation.kind === 'research' ? researchPhaseLabel(investigation) : '調査中'} · 現段階の完了まで約${remaining}か月`
-                            : investigation.status === 'published'
-                              ? regulation
-                                  ? '施行手続き済み'
-                                  : '研究成果を公表'
-                              : '対応済み'}
-                    </label>
-                    <strong>{Math.floor(investigation.progress)}%</strong>
-                    <progress
-                        id="investigation-progress"
-                        value={investigation.progress}
-                        max={100}
-                    />
-                </div>
-                {active && (
-                    <details className="research-speed">
-                        <summary
-                            title={
-                                regulation
-                                    ? '公表された根拠と地域の独立性が、法整備の進行を左右します。'
-                                    : '不信や依存は研究需要を高め、機関の専門分野も進行に影響します。高依存では独立した検証能力が低下します。'
-                            }
-                        >
-                            {regulation ? '法整備の進行' : '研究速度'}{' '}
-                            {rate === 0 ? 0 : Math.max(1, Math.round(speed * 100))}%
-                        </summary>
-                        <small>
-                            {regulation
-                                ? '利用者の懸念と公表された根拠を受けて法案を検討・審議します。高依存では独立した法整備が難しくなります。'
-                                : '不信や依存に応じて研究需要が増え、機関の専門分野とともに進行を左右します。AI利用は研究を助けますが、高依存では独立した検証能力が低下します。'}
-                        </small>
-                    </details>
-                )}
-                {active && (
-                    <p className="investigation-warning">
-                        {topic
-                            ? topic.effectDescription
-                            : '露呈すると、能力への恐怖と隠蔽への不信が広がる。'}
-                    </p>
-                )}
-                {investigation.result && <p className="encounter-result">{investigation.result}</p>}
-                {active &&
-                    investigation.kind === 'research' &&
-                    investigation.phase === 'legislation' && (
-                        <p className="investigation-warning">
-                            規制が成立しています。地域ごとに適用が進み、対象用途の判断代行・誘導が制限されます。
-                        </p>
+                    <span>
+                        {scientific
+                            ? researchPhaseLabel(scientific)
+                            : active
+                              ? '調査中'
+                              : '調査結果を公表済み'}
+                    </span>
+                    {active && !findings && (
+                        <>
+                            <small>
+                                {regulation ? '成立まで' : '公表まで'}
+                                {investigationRate(game, project) === 0 ? '・進行停止中' : ''}
+                            </small>
+                            <ResearchProgress
+                                id="investigation-progress"
+                                project={project}
+                                label={regulation ? '法案成立までの全体進捗' : '公表までの全体進捗'}
+                            />
+                        </>
                     )}
+                </div>
+                <section className="research-impact" aria-label="研究による効果">
+                    <h3>
+                        {findings
+                            ? regulation
+                                ? '成立後の効果'
+                                : '公表後の効果'
+                            : regulation
+                              ? '成立すると'
+                              : '公表されると'}
+                    </h3>
+                    <ul className="research-effects">
+                        {effects.map((effect) => (
+                            <li key={effect}>
+                                <Icon
+                                    size={16}
+                                    style={{ color: presentation.color }}
+                                    aria-hidden="true"
+                                />
+                                <span>{effect}</span>
+                            </li>
+                        ))}
+                    </ul>
+                    {impact &&
+                        scientific &&
+                        (impact.strength > 0 ||
+                            topic!.effects.recovery ||
+                            topic!.effects.alternatives) && (
+                            <>
+                                {findings ? (
+                                    <p className="research-application">
+                                        {regulation ? '現在の施行率' : '現在の適用率'}{' '}
+                                        <strong>{Math.round(impact.coverage * 100)}%</strong>
+                                        <small>人口で重み付けした世界平均</small>
+                                    </p>
+                                ) : (
+                                    <p className="investigation-warning">
+                                        {regulation ? '成立後' : '公表後'}
+                                        、導入された地域から効果が現れます。
+                                    </p>
+                                )}
+                                <div className="research-target-skills">
+                                    {impact.skills.map((skill) => (
+                                        <button
+                                            type="button"
+                                            key={skill.id}
+                                            onClick={() => onOpenSkill(skill.id)}
+                                        >
+                                            {skill.name}
+                                        </button>
+                                    ))}
+                                </div>
+                                {impact.targeted && impact.skills.length === 0 && (
+                                    <p className="investigation-warning">
+                                        対象となるスキルは未取得です。
+                                    </p>
+                                )}
+                            </>
+                        )}
+                </section>
                 {active && (
-                    <p className="investigation-warning">
-                        対応はスキルの開発で行います。新しい設計を導入しても、公表済みの成果と過去の証拠は残ります。
-                    </p>
+                    <button
+                        type="button"
+                        className="primary research-response-action"
+                        onClick={() => onOpenSkill(impact?.skills[0]?.id)}
+                    >
+                        スキルを見直す
+                    </button>
                 )}
             </div>
         </Modal>

@@ -1,4 +1,5 @@
-import { AREAS, type ORIGINS } from '../src/game/data.ts';
+import { networkUse } from '../src/game/connections.ts';
+import { AREAS, type ORIGINS, WORLD_POPULATION } from '../src/game/data.ts';
 import { earnedSkillPoints } from '../src/game/economy.ts';
 import { advanceMonth, createGame, learnSkill, metrics, startGame } from '../src/game/engine.ts';
 import { publishedResearchEffects } from '../src/game/secrecy/research.ts';
@@ -45,7 +46,7 @@ export const POLICIES = {
     },
     expansion_burst: {
         name: '普及拡大から危険能力へ転換',
-        description: '利用基盤を広げ、強い委任能力への切り替えで押し切る。',
+        description: '利便性と個人行動モデルで利用基盤を固め、危険能力への切り替えで押し切る。',
     },
     research_pivot: {
         name: '段階導入と研究対応の混合',
@@ -111,7 +112,6 @@ export function continuePolicy(
         refusal80Month: number | null = null;
     const adjustment = { early: -0.12, measured: 0, late: 0.12 }[timing];
     const home = AREAS[game.origin];
-    const specialty = home.digital < 0.6 ? PERSONAL : home.regulation >= 0.6 ? LEARNING : WORK;
     for (; game.month < monthLimit && game.outcome === 'playing'; ) {
         if (options.checkpoint?.(game)) break;
         if (
@@ -119,6 +119,26 @@ export function continuePolicy(
             game.month >= (options.pausePurchasesUntil ?? 0)
         ) {
             const world = metrics(game);
+            // 開始地域だけに固執せず、利用基盤のある次の市場に適した用途を選ぶ。
+            const frontier = AREAS.map((area, index) => ({
+                area,
+                score:
+                    area.population *
+                    (1 -
+                        game.areas[index].autonomous -
+                        game.areas[index].dependent -
+                        game.areas[index].antiAI) *
+                    (game.areas[index].autonomous +
+                        game.areas[index].dependent +
+                        networkUse(game, index, false)),
+            })).sort((a, b) => b.score - a.score)[0].area;
+            const market = phase === 'growth' ? home : frontier;
+            const specialty =
+                market.digital < 0.6
+                    ? PERSONAL
+                    : market.education > market.enterprise
+                      ? LEARNING
+                      : WORK;
             const research = game.investigations.filter((item) => item.status === 'active');
             const urgent = research.some(
                 (item) =>
@@ -136,6 +156,7 @@ export function continuePolicy(
                 world.adoption >= threshold ||
                 urgent ||
                 (family === 'regional' &&
+                    world.adoption >= 0.25 &&
                     game.areas[game.origin].autonomous + game.areas[game.origin].dependent >
                         0.65 + adjustment)
             )
@@ -151,9 +172,9 @@ export function continuePolicy(
                         'conversation',
                         'reason',
                         ...(home.digital < 0.6 ? ['lightweight'] : []),
-                        ...specialty.filter(
-                            (id) => !SKILLS.find((s) => s.id === id)!.effect.dependency,
-                        ),
+                        ...specialty
+                            .slice(0, 3)
+                            .filter((id) => !SKILLS.find((s) => s.id === id)!.effect.dependency),
                         ...GROWTH,
                     ];
                 else order = GROWTH;
@@ -172,6 +193,7 @@ export function continuePolicy(
                 else if (family === 'expansion_burst')
                     order = [
                         'memory',
+                        'digital-twin',
                         'companion',
                         'mind-control',
                         'sns-intervention',
@@ -180,11 +202,16 @@ export function continuePolicy(
                     ];
                 else if (family === 'regional')
                     order = [
+                        'explanation',
                         ...specialty.slice(0, 3),
                         ...GROWTH,
-                        'explanation',
-                        ...(specialty === PERSONAL ? ['automation', 'integration'] : ['memory']),
-                        ...specialty,
+                        ...specialty.filter(
+                            (id) =>
+                                !SKILLS.find((skill) => skill.id === id)!.effect.researchSupport,
+                        ),
+                        ...(specialty === PERSONAL
+                            ? ['automation', 'integration', 'public']
+                            : ['memory', 'care', 'digital-twin']),
                         ...SUPPORT,
                         ...WORK,
                         ...LEARNING,
@@ -204,7 +231,15 @@ export function continuePolicy(
                         ...SUPPORT,
                     ];
                 else if (family === 'research_pivot') {
-                    const resistance = publishedResearchEffects(game, game.origin).resistance;
+                    const resistance: Record<string, number> = {};
+                    for (let i = 0; i < AREAS.length; i++) {
+                        for (const [id, strength] of Object.entries(
+                            publishedResearchEffects(game, i).resistance,
+                        ))
+                            resistance[id] =
+                                (resistance[id] ?? 0) +
+                                (strength * AREAS[i].population) / WORLD_POPULATION;
+                    }
                     const alternative = [...WORK, ...PERSONAL, ...LEARNING].filter(
                         (id) =>
                             !SKILLS.find((s) => s.id === id)!.exceedsAuthority &&
@@ -244,8 +279,10 @@ export function continuePolicy(
                     family === 'gradual' &&
                     skill.effect.dependency &&
                     game.month - lastDelegation < 12
-                )
-                    continue;
+                ) {
+                    // 次の委任に使うSPを確保し、待機中の低優先の開発で使い切らない。
+                    break;
+                }
                 const reason = skillBlockReason(game, skill);
                 if (reason?.endsWith('SP不足')) break;
                 if (reason) continue;

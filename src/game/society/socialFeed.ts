@@ -1,4 +1,3 @@
-import { WORLD_NEWS } from '../../content/news.ts';
 import { SOCIAL_COUNTRIES } from '../../content/socialAuthors.ts';
 import { SOCIAL_POSTS, type SocialTopic } from '../../content/socialPosts.ts';
 import { AREAS } from '../data.ts';
@@ -159,29 +158,6 @@ export function updateSocialFeed(
         seenEvents.add(key);
         append(capability.visibility === 'exposed' ? 'exposed' : 'disclosed', selectArea());
     }
-    for (const record of game.news) {
-        const key = `news:${record.id}`;
-        if (seenEvents.has(key)) continue;
-        seenEvents.add(key);
-        const news = WORLD_NEWS.find((item) => item.id === record.id)!;
-        const country = SOCIAL_COUNTRIES[news.areaId][0];
-        sequence++;
-        posts.unshift({
-            id: key,
-            sequence,
-            month: record.month,
-            author: news.author ?? '世界ニュース',
-            handle: 'world_news',
-            nationality: country.nationality,
-            countryCode: country.code,
-            headline: news.title,
-            text: news.summary,
-            likes: 0,
-            reposts: 0,
-            replies: 0,
-            intervention: false,
-        });
-    }
     if (scheduled) {
         const index = selectArea();
         const area = game.areas[index];
@@ -216,7 +192,6 @@ export function updateSocialFeed(
             game,
             index,
             research.pressure,
-            research.work + research.personal + research.learning + research.alternatives * 100,
             deployed.work + deployed.personal + deployed.learning,
         );
         if (pressure.dependency > 0.02) append('dependencyNorm', index);

@@ -15,11 +15,11 @@ export function skillReadiness(game: GameState, index: number, skill: Skill) {
     const use = area.autonomous + area.dependent;
     switch (DEPENDENCY_DOMAINS[skill.id]) {
         case 'work':
-            return clamp((use - 0.08) / 0.5) * (0.6 + definition.enterprise * 0.4);
+            return clamp((use - 0.08) / 0.5) * (0.35 + definition.enterprise * 0.9);
         case 'personal':
-            return clamp((use - 0.12) / 0.45);
+            return clamp((use - 0.12) / 0.45) * (0.8 + (1 - definition.enterprise) * 0.35);
         case 'learning':
-            return clamp((use - 0.08) / 0.45) * (0.5 + definition.education * 0.5);
+            return clamp((use - 0.08) / 0.45) * (0.3 + definition.education * 1.1);
     }
     return 0;
 }
@@ -29,15 +29,17 @@ export function deployedDependency(
     index: number,
     resistance: Record<string, number> = {},
 ) {
-    const deployed = { work: 0, personal: 0, learning: 0 };
+    const deployed = { work: 0, personal: 0, learning: 0, consensual: 0 };
     for (const skill of SKILLS) {
         const effect = skill.effect;
         if (!effect.dependency || !game.skills.includes(skill.id)) continue;
-        deployed[DEPENDENCY_DOMAINS[skill.id]] +=
+        const strength =
             effect.dependency *
             skillScale(game, skill.id) *
             skillReadiness(game, index, skill) *
             (1 - (resistance[skill.id] ?? 0));
+        deployed[DEPENDENCY_DOMAINS[skill.id]] += strength;
+        if (!skill.exceedsAuthority) deployed.consensual += strength;
     }
     return deployed;
 }

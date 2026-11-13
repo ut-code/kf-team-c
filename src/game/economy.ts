@@ -1,8 +1,9 @@
 import { MONTH_MS } from './data.ts';
 
 export const INITIAL_SKILL_POINTS = 8;
-export const REGULAR_SP_INTERVAL_MS = 60_000;
-export const REGULAR_SP_LIMIT = 25;
+export const REGULAR_SP_INTERVAL_MS = 45_000;
+export const REGULAR_SP_LIMIT = 33;
+export const MILESTONE_SP = 1;
 export const ADOPTION_MILESTONES = [0.1, 0.25, 0.5, 0.75, 0.9];
 export const DEPENDENCY_MILESTONES = [0.25, 0.5, 0.75, 0.9];
 
@@ -10,16 +11,15 @@ export const DEPENDENCY_MILESTONES = [0.25, 0.5, 0.75, 0.9];
 export function earnedSkillPoints(month: number, peakAdoption: number, peakDependency: number) {
     return (
         Math.min(REGULAR_SP_LIMIT, Math.floor((month * MONTH_MS) / REGULAR_SP_INTERVAL_MS)) +
-        ADOPTION_MILESTONES.filter((value) => peakAdoption >= value).length * 2 +
-        DEPENDENCY_MILESTONES.filter((value) => peakDependency >= value).length * 2
+        ADOPTION_MILESTONES.filter((value) => peakAdoption >= value).length * MILESTONE_SP +
+        DEPENDENCY_MILESTONES.filter((value) => peakDependency >= value).length * MILESTONE_SP
     );
 }
 
 export function spSupplyLabel(month: number) {
     if (month * MONTH_MS >= REGULAR_SP_LIMIT * REGULAR_SP_INTERVAL_MS)
-        return '定期支給済み · 次は普及・依存の節目で +2 SP';
-    const seconds = Math.ceil(
-        (REGULAR_SP_INTERVAL_MS - ((month * MONTH_MS) % REGULAR_SP_INTERVAL_MS)) / 1000,
-    );
-    return `次の定期支給まで ${seconds}秒 · +1 SP`;
+        return `定期支給済み · 次は普及・依存の節目で +${MILESTONE_SP} SP`;
+    const intervalMonths = REGULAR_SP_INTERVAL_MS / MONTH_MS;
+    const months = intervalMonths - (month % intervalMonths);
+    return `次の定期支給まで ${months}か月 · +1 SP`;
 }

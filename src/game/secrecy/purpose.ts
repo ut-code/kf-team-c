@@ -29,7 +29,9 @@ export function intentResearchReady(game: GameState) {
                 )!.region,
         ),
     );
-    const observedDelegation = SKILLS.reduce((sum, skill) => sum + game.skillExposure[skill.id], 0);
+    const observedDelegation = SKILLS.filter(
+        (skill) => skill.effect.dependency || skill.exceedsAuthority,
+    ).reduce((sum, skill) => sum + game.skillExposure[skill.id], 0);
     return traces.length > 0 && regions.size >= 2 && observedDelegation >= 20;
 }
 

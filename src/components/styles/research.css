@@ -55,16 +55,25 @@
     position: relative;
     min-width: 0;
     min-height: 0;
-    overflow: hidden;
+    overflow: auto;
     touch-action: auto;
-    cursor: default;
-    background-image: radial-gradient(#ffffff0b 1px, transparent 1px);
-    background-size: 24px 24px;
+    cursor: grab;
+    user-select: none;
+    background-image: linear-gradient(#101820ef, #101820ef), url("/images/skill-circuit.svg");
+    background-size:
+        auto,
+        608px 608px;
+    background-position: center;
+    background-repeat: no-repeat, repeat;
+    background-attachment: local;
 }
 .skill-tree {
     display: block;
     width: 100%;
     height: 100%;
+}
+.tree-viewport:active {
+    cursor: grabbing;
 }
 .tree-viewport:focus-visible {
     outline: 1px solid var(--accent);
@@ -93,6 +102,7 @@
     overflow: visible;
 }
 .tree-node {
+    scroll-margin: 12px;
     position: relative;
     cursor: pointer;
     width: 100%;
@@ -180,7 +190,7 @@
     gap: 24px;
     min-width: 0;
     min-height: 0;
-    overflow-y: auto;
+    overflow: hidden;
     padding: 20px;
     border-left: 1px solid var(--line);
     background: var(--surface-panel);
@@ -189,9 +199,45 @@
 }
 .skill-traits {
     display: flex;
-    gap: 18px;
+    flex-wrap: wrap;
+    gap: 5px 16px;
     color: var(--text-secondary);
     font-size: 12px;
+}
+.skill-details > div {
+    min-height: 0;
+    flex: 1;
+    overflow-y: auto;
+}
+.skill-details .skill-countermeasure {
+    color: var(--warning);
+}
+.skill-traits > span {
+    white-space: nowrap;
+}
+.skill-traits .harmful-trait {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    color: var(--warning);
+}
+.skill-restraints {
+    margin: 16px 0;
+}
+.skill-restraints > div {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 5px 0;
+    border-bottom: 1px solid var(--line);
+}
+.skill-restraints dt {
+    color: var(--text-secondary);
+}
+.skill-restraints dd {
+    margin: 0;
+    color: var(--warning);
+    white-space: nowrap;
 }
 .skill-traits strong {
     color: var(--accent);
@@ -262,8 +308,19 @@
     font-weight: 400;
 }
 .skill-details > .primary {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
     margin-top: auto;
     flex-shrink: 0;
+    width: 100%;
+}
+.skill-detail-lock {
+    flex-shrink: 0;
+}
+.skill-details progress {
+    display: block;
     width: 100%;
 }
 

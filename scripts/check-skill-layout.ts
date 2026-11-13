@@ -32,7 +32,7 @@ const bounds = (a: TreePoint, b: TreePoint, padding = 0): Box => ({
 const separate = (a: Box, b: Box) =>
     a.left > b.right || b.left > a.right || a.top > b.bottom || b.top > a.bottom;
 
-export function checkSkillLayout(branch: Branch) {
+export function checkSkillLayout(branch?: Branch) {
     const tree = skillLayout(undefined, branch);
     assert.equal(tree.centerX, 0);
     assert.equal(tree.centerY, 0);
@@ -164,7 +164,10 @@ export function checkSkillLayout(branch: Branch) {
 console.log(
     JSON.stringify(
         Object.fromEntries(
-            (['IQ', 'EQ', 'SYSTEM'] as const).map((branch) => [branch, checkSkillLayout(branch)]),
+            (['IQ', 'EQ', 'SYSTEM', undefined] as const).map((branch) => [
+                branch ?? 'ALL',
+                checkSkillLayout(branch),
+            ]),
         ),
     ),
 );

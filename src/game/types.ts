@@ -31,7 +31,7 @@ export interface AreaDefinition {
     enterprise: number;
     language: Language;
 }
-/** 地域内の排他的な人口比率。antiAIは依存拒否、未使用は残りの人口。 */
+/** 地域内の排他的な人口比率。antiAIは利用拒否、未使用は残りの人口。 */
 export interface AreaState {
     autonomous: number;
     dependent: number;

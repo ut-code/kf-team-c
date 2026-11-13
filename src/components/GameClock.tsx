@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { calendarParts } from '../game/calendar';
 import { MONTH_MS } from '../game/data';
 import { useGameStore } from '../state/gameStore';
+import { usePresentationClock } from '../state/presentationClock';
 
 /** 月内の経過時間を保持し、一時停止や速度変更でも日付を巻き戻さない。 */
 export function GameClock({ blocked }: { blocked: boolean }) {
@@ -10,28 +11,40 @@ export function GameClock({ blocked }: { blocked: boolean }) {
     const elapsed = useRef(0);
     const [fraction, setFraction] = useState(0);
     useEffect(() => {
+        usePresentationClock.setState({ fraction: 0 });
+    }, []);
+    useEffect(() => {
         if (blocked || game.speed === 0) return;
         let previous = performance.now();
         const visibilityChanged = () => {
             previous = performance.now();
         };
         document.addEventListener('visibilitychange', visibilityChanged);
-        const timer = window.setInterval(() => {
+        let frame = 0;
+        const animate = () => {
             const now = performance.now();
             // タブ復帰や処理落ちの遅れを、一度に大量の月次処理として取り戻さない。
             if (!document.hidden) elapsed.current += Math.min(now - previous, 250) * game.speed;
             previous = now;
-            if (document.hidden) return;
+            if (document.hidden) {
+                frame = requestAnimationFrame(animate);
+                return;
+            }
             while (elapsed.current >= MONTH_MS) {
                 const current = useGameStore.getState().game!;
                 if (current.outcome !== 'playing') break;
                 elapsed.current -= MONTH_MS;
+                usePresentationClock.setState({ fraction: 0 });
                 useGameStore.getState().tick();
             }
-            setFraction(Math.min(1, elapsed.current / MONTH_MS));
-        }, 100);
+            const nextFraction = Math.min(1, elapsed.current / MONTH_MS);
+            usePresentationClock.setState({ fraction: nextFraction });
+            setFraction(nextFraction);
+            frame = requestAnimationFrame(animate);
+        };
+        frame = requestAnimationFrame(animate);
         return () => {
-            window.clearInterval(timer);
+            cancelAnimationFrame(frame);
             document.removeEventListener('visibilitychange', visibilityChanged);
         };
     }, [blocked, game.speed]);

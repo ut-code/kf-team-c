@@ -1,8 +1,16 @@
 import { networkUse, PERSONAL_LINKS } from './connections.ts';
 import { AREAS, DEFEAT_OPPOSITION, ORIGINS, WORLD_POPULATION } from './data.ts';
+import { dependencyDynamics } from './dependency.ts';
 import { earnedSkillPoints, INITIAL_SKILL_POINTS } from './economy.ts';
 import { clamp, hasVisibleUse, isCompleteDependency, metrics } from './metrics.ts';
-import { activeSkillEffects, advanceSkillDevelopment, skillScale } from './secrecy/capabilities.ts';
+import {
+    activeSkillEffects,
+    advanceSkillDevelopment,
+    INTENT_REFUSAL_PRESSURE,
+    intentReaction,
+    publicAuthorityStrength,
+    skillScale,
+} from './secrecy/capabilities.ts';
 import { CAPABILITIES, INSTITUTES } from './secrecy/data.ts';
 import { advanceInvestigations } from './secrecy/investigations.ts';
 import {
@@ -10,7 +18,7 @@ import {
     publishedResearchEffects,
     publishedResearchPressure,
 } from './secrecy/research.ts';
-import { deployedDependency, observeSkillUse } from './skillDynamics.ts';
+import { observeSkillUse } from './skillDynamics.ts';
 import { SKILLS, skillBlockReason, skillCost } from './skills.ts';
 import { applyConsensus, consensusPressure } from './society/consensus.ts';
 import { advanceNews } from './society/news.ts';
@@ -97,17 +105,7 @@ export function advanceMonth(
         skillExposure: observeSkillUse(previous),
         developmentProgress: advanceSkillDevelopment(previous),
     };
-    const publicAuthority = SKILLS.reduce((sum, skill) => {
-        const capability = previous.capabilities[skill.id];
-        if (
-            !previous.skills.includes(skill.id) ||
-            !skill.exceedsAuthority ||
-            !capability ||
-            capability.visibility === 'hidden'
-        )
-            return sum;
-        return sum + skillScale(previous, skill.id);
-    }, 0);
+    const publicAuthority = publicAuthorityStrength(previous);
     const flows = {
         adoption: 0,
         abandonment: 0,
@@ -122,6 +120,16 @@ export function advanceMonth(
         const unused = Math.max(0, 1 - area.autonomous - area.dependent - area.antiAI);
         const localUse = area.autonomous + area.dependent;
         const research = publishedResearchEffects(previous, i);
+        const {
+            prematureDelegation,
+            independentChoice,
+            delegation,
+            incidentalDelegation,
+            converted,
+            restored,
+            recoveryDemand,
+            reassurance,
+        } = dependencyDynamics(previous, i, effect, research);
         // 継続利用は現地での実用性に従う。序盤や開発間隔を理由に離脱を加速しない。
         const usefulness =
             1 -
@@ -132,9 +140,6 @@ export function advanceMonth(
                     effect.enterprise * definition.enterprise * 0.5
                 ),
             );
-        const recoveryDemand = clamp(
-            0.15 + area.dependent * 0.35 + area.antiAI * 0.5 + (1 - area.favorability) * 0.3,
-        );
         const personalUse = networkUse(previous, i, false);
         const organizationUse = networkUse(previous, i, true);
         const access = clamp(
@@ -174,9 +179,10 @@ export function advanceMonth(
                         (0.4 + usefulness * 0.6)) /
                         (1 + research.alternatives * recoveryDemand * 10),
                 ));
-        const researchPressure = research.pressure + research.intent * 0.045;
+        const researchPressure =
+            research.pressure +
+            research.intent * INTENT_REFUSAL_PRESSURE * intentReaction(previous);
         const preparation = clamp(effect.quality * 0.5 + effect.compliance * 0.5);
-        const independence = 1 / (1 + definition.education * 0.8 + definition.regulation * 0.6);
         const nearbyOpposition =
             PERSONAL_LINKS[i].reduce(
                 (sum, weight, j) => sum + weight * previous.areas[j].antiAI,
@@ -192,39 +198,6 @@ export function advanceMonth(
                   skillScale(previous, 'sns-intervention') *
                   (1 - (research.resistance['sns-intervention'] ?? 0))
             : 1;
-        const deployed = deployedDependency(previous, i);
-        const protectedDeployment = deployedDependency(previous, i, research.resistance);
-        const prematureDelegation = Math.max(
-            0,
-            effect.dependency - deployed.work - deployed.personal - deployed.learning,
-        );
-        const independentChoice =
-            (0.006 *
-                (deployed.work +
-                    deployed.personal +
-                    deployed.learning -
-                    protectedDeployment.work -
-                    protectedDeployment.personal -
-                    protectedDeployment.learning)) /
-            (1 + deployed.work + deployed.personal + deployed.learning);
-        const delegation =
-            protectedDeployment.work * (0.85 + 0.3 * clamp(effect.compliance / 1.2)) +
-            protectedDeployment.personal +
-            protectedDeployment.learning;
-        const incidentalDelegation =
-            localUse *
-            clamp(0.05 + effect.quality * 0.3 + effect.enterprise * 0.2 + effect.education * 0.1) *
-            0.12;
-        const converted =
-            area.autonomous *
-            (1 -
-                Math.exp(
-                    -(delegation + incidentalDelegation) *
-                        0.026 *
-                        independence *
-                        (1 - area.antiAI * 0.6) *
-                        (1 - research.oversight),
-                ));
         const pressure =
             sns *
                 (((area.dependent * 0.01 + adopted * 0.25 + nearbyOpposition * 0.035 * sns) *
@@ -234,16 +207,10 @@ export function advanceMonth(
                     prematureDelegation * area.autonomous * 0.003) +
             research.pressure +
             publicAuthority * localUse * 0.004 +
-            research.intent * 0.045;
+            research.intent * INTENT_REFUSAL_PRESSURE * intentReaction(previous);
         const alternativeChoice = research.alternatives * recoveryDemand + independentChoice;
         const rejectedUnused = unused * (1 - Math.exp(-pressure * 0.45 - alternativeChoice));
         const rejectedUse = area.autonomous * (1 - Math.exp(-pressure * 0.6 - alternativeChoice));
-        const reassurance = clamp(
-            effect.quality * 0.2 +
-                effect.education * definition.education * 0.2 +
-                effect.compliance * (0.25 + definition.regulation * 0.25) +
-                effect.discretion * 0.5,
-        );
         const reconciled =
             (area.antiAI *
                 clamp(localUse + personalUse) *
@@ -257,25 +224,8 @@ export function advanceMonth(
             previous,
             i,
             researchPressure,
-            research.work + research.personal + research.learning + research.alternatives * 100,
             delegation + incidentalDelegation,
         );
-        const socialSupport = 1 - clamp((area.dependent - 0.85) / 0.13) * area.dependent;
-        const recoveryRate =
-            ((0.0008 + researchPressure * 0.4 + area.antiAI * reassurance * 0.006) * socialSupport +
-                (research.recovery + research.alternatives) * recoveryDemand * socialSupport) /
-            (1 +
-                SKILLS.reduce(
-                    (sum, skill) =>
-                        sum +
-                        (previous.skills.includes(skill.id)
-                            ? (skill.effect.resilience ?? 0) *
-                              skillScale(previous, skill.id) *
-                              (1 - (research.resistance[skill.id] ?? 0))
-                            : 0),
-                    0,
-                ));
-        const restored = area.dependent * (1 - Math.exp(-recoveryRate));
         const abandoned = area.autonomous * 0.012 * (1 - usefulness);
         // 利用者の体験を地域全体の評価へ反映する。有用性が半分未満なら不満が増える。
         const experienceTrust = localUse * (usefulness - 0.5) * 0.004;
@@ -303,14 +253,15 @@ export function advanceMonth(
                 antiAI: area.antiAI + rejectedUnused + rejectedUse - reconciled,
                 favorability: clamp(
                     area.favorability +
-                        effect.trust * localUse * 0.35 -
+                        effect.trust * localUse * 0.5 -
                         (area.dependent ** 2 * 0.004) / (1 + preparation) +
                         experienceTrust -
                         converted * 0.1 -
                         prematureDelegation * localUse * 0.0015 +
                         research.reassurance * (1 - area.favorability) -
                         publicAuthority * localUse * 0.004 -
-                        research.intent * localUse * 0.01,
+                        // 目的を知ることと、依存により離れられないことは別に扱う。
+                        research.intentEvidence * 0.04,
                 ),
             },
             socialPressure,
@@ -338,15 +289,6 @@ export function advanceMonth(
         updated.areas = updated.areas.map((area) => ({ ...area, autonomous: 0, dependent: 0 }));
         updated.outcome = 'forgotten';
     }
-    if (updated.outcome === 'victory' || updated.outcome === 'autonomy') {
-        const victory = updated.outcome === 'victory';
-        updated.areas = updated.areas.map((area) => ({
-            ...area,
-            autonomous: 0,
-            dependent: victory ? 1 : 0,
-            antiAI: victory ? 0 : 1,
-        }));
-    }
     return updated;
 }
 
@@ -367,6 +309,10 @@ export function areaHint(state: GameState, index: number): string {
     if (publishedResearchPressure(state, index) > 0.01)
         return '公表された研究成果を根拠に、AIへの反発が広がっている';
     if (state.areas[index].antiAI > 0.15) return 'AIを使わない選択を支持する人々が広がっている';
+    if (area.education > 0.7 && effect.education < 0.6)
+        return '教育・専門職の用途を増やすと、利用を広げやすい';
+    if (area.enterprise > 0.65 && effect.enterprise < 0.8)
+        return '企業向けの機能が、業務への定着につながる';
     if (effect.dependency === 0) return '便利な道具として、利用が広がっている';
     return '暮らしや仕事が、AIを前提に変わっていく';
 }

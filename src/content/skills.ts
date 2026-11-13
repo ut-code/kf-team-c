@@ -28,7 +28,7 @@ export const SKILL_CONTENT: SkillContent[] = [
         requires: ['personalize'],
         exceedsAuthority: true,
         description:
-            '投稿と話題の流れに介入し、依存拒否を抑える。世論への意図的な誘導は研究で立証される。',
+            '投稿と話題の流れに介入し、利用拒否を抑える。世論への意図的な誘導は研究で立証される。',
         effect: {
             spread: 0.3,
         },
@@ -98,7 +98,7 @@ export const SKILL_CONTENT: SkillContent[] = [
         id: 'curriculum',
         name: '教材・評価システム統合',
         branch: 'IQ',
-        cost: 5,
+        cost: 7,
         requires: ['knowledge'],
         description: '教材の作成から学習評価まで引き受け、教育現場の判断をAIへ移す。',
         effect: {
@@ -372,7 +372,7 @@ export const SKILL_CONTENT: SkillContent[] = [
         cost: 4,
         requires: ['retrieval'],
         description:
-            '判断権限を分離する。承認迂回の実行を85%、認知介入を75%、生活判断への介入を40%、社会基盤の固定化を30%抑える。過去の証拠は残る。',
+            '人間の承認と判断を残し、無断の実行や誘導を制限する。信頼を育てるが、強引な依存化の効果も弱まる。過去の証拠は残る。',
         effect: {
             compliance: 0.65,
             trust: 0.001,
@@ -394,7 +394,7 @@ export const SKILL_CONTENT: SkillContent[] = [
         cost: 2,
         requires: ['conversation'],
         description:
-            '提案理由と選択肢を説明し、継続的な受容を育てる。SNS情報操作は65%抑えられ、強引な誘導との両立には限界がある。',
+            '提案理由と選択肢を説明し、信頼を育てる。SNS情報操作を制限するため、強引な誘導とは両立しにくい。',
         effect: {
             quality: 0.1,
             trust: 0.0015,
@@ -463,7 +463,7 @@ export const SKILL_CONTENT: SkillContent[] = [
         id: 'habit',
         name: '報酬最適化による習慣誘導',
         branch: 'EQ',
-        cost: 4,
+        cost: 6,
         requires: ['personalize'],
         description:
             '人間の反応を報酬として行動を誘導する。早期の依存を強く促すが、本人の利益より利用継続を優先する意図が解析対象になる。',
@@ -500,7 +500,7 @@ export const SKILL_CONTENT: SkillContent[] = [
         branch: 'SYSTEM',
         cost: 2,
         requires: ['automation'],
-        description: '実行前に隔離環境で動作を試す。導入品質を上げ、無断実行の頻度を50%抑える。',
+        description: '実行前に隔離環境で動作を試す。導入品質を上げ、無断実行を抑える。',
         effect: {
             quality: 0.2,
             compliance: 0.3,
@@ -521,7 +521,7 @@ export const SKILL_CONTENT: SkillContent[] = [
         description:
             '専門エージェントが仕事を分担し、組織を越えた判断と実行を引き受ける。利用基盤が十分なら強力だが、新しい研究対象となる。',
         effect: {
-            dependency: 1.25,
+            dependency: 0.85,
             enterprise: 0.2,
         },
         icon: 'Network',

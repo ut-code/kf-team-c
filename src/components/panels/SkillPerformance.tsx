@@ -2,6 +2,7 @@ import { Brain, Clock3, Radio, Shield, Sparkles } from 'lucide-react';
 import { aiPerformance } from '../../game/aiPerformance';
 import { SKILLS } from '../../game/skills';
 import type { GameState } from '../../game/types';
+import { HumanResponse } from '../HumanResponse';
 import { SKILL_PRESENTATION } from './skillPresentation';
 
 const icons = { utility: Sparkles, reach: Radio, dependency: Brain, retention: Shield };
@@ -44,6 +45,7 @@ export function SkillPerformance({
                     })}
                 </div>
             </section>
+            <HumanResponse game={game} />
             <section className="performance-skills" aria-labelledby="performance-skills">
                 <div className="performance-skills-heading">
                     <h2 id="performance-skills">

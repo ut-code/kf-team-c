@@ -1,130 +1,130 @@
 {
-    "self-improvement": {
-        "x": 895,
-        "y": -276
-    },
-    "drug-design": {
-        "x": 1150,
-        "y": -180
-    },
-    "discovery": {
-        "x": 895,
-        "y": -180
-    },
-    "science": {
-        "x": 640,
-        "y": -228
-    },
-    "curriculum": {
-        "x": 640,
-        "y": -84
-    },
-    "code": {
-        "x": 640,
-        "y": 12
+    "reason": {
+        "x": 0,
+        "y": -140
     },
     "knowledge": {
-        "x": 385,
-        "y": -108
-    },
-    "permission": {
-        "x": 640,
-        "y": 108
+        "x": -100,
+        "y": -260
     },
     "retrieval": {
-        "x": 385,
-        "y": 108
+        "x": 180,
+        "y": -260
     },
-    "reason": {
-        "x": 130,
-        "y": 0
+    "science": {
+        "x": -280,
+        "y": -380
     },
-    "sns-intervention": {
-        "x": 640,
-        "y": -336
+    "curriculum": {
+        "x": -100,
+        "y": -380
     },
-    "mind-control": {
-        "x": 1150,
-        "y": -240
+    "code": {
+        "x": 80,
+        "y": -380
     },
-    "companion": {
-        "x": 895,
-        "y": -240
+    "discovery": {
+        "x": -370,
+        "y": -500
     },
-    "digital-twin": {
-        "x": 895,
-        "y": -144
+    "permission": {
+        "x": 260,
+        "y": -380
     },
-    "memory": {
-        "x": 640,
-        "y": -192
+    "self-improvement": {
+        "x": -190,
+        "y": -500
     },
-    "care": {
-        "x": 640,
-        "y": -48
-    },
-    "habit": {
-        "x": 640,
-        "y": 48
-    },
-    "personalize": {
-        "x": 385,
-        "y": -144
-    },
-    "negotiation": {
-        "x": 640,
-        "y": 144
-    },
-    "explanation": {
-        "x": 385,
-        "y": 144
+    "drug-design": {
+        "x": -370,
+        "y": -620
     },
     "conversation": {
-        "x": 130,
+        "x": -210,
         "y": 0
     },
-    "autonomous": {
-        "x": 1150,
-        "y": -276
+    "personalize": {
+        "x": -420,
+        "y": -40
     },
-    "swarm": {
-        "x": 1150,
-        "y": -180
+    "explanation": {
+        "x": -420,
+        "y": 300
     },
-    "decision": {
-        "x": 895,
-        "y": -228
+    "memory": {
+        "x": -630,
+        "y": -160
     },
-    "integration": {
-        "x": 640,
-        "y": -228
+    "care": {
+        "x": -630,
+        "y": 0
     },
-    "backbone": {
-        "x": 895,
-        "y": -84
+    "negotiation": {
+        "x": -630,
+        "y": 400
     },
-    "public": {
-        "x": 640,
-        "y": -84
+    "companion": {
+        "x": -840,
+        "y": -220
     },
-    "sandbox": {
-        "x": 640,
-        "y": 12
+    "habit": {
+        "x": -690,
+        "y": 160
     },
-    "automation": {
-        "x": 385,
-        "y": -108
+    "mind-control": {
+        "x": -1050,
+        "y": -220
     },
-    "federated": {
-        "x": 640,
-        "y": 108
+    "digital-twin": {
+        "x": -840,
+        "y": -100
     },
-    "distributed": {
-        "x": 385,
-        "y": 108
+    "sns-intervention": {
+        "x": -630,
+        "y": 280
     },
     "lightweight": {
-        "x": 130,
+        "x": 210,
+        "y": 0
+    },
+    "automation": {
+        "x": 420,
+        "y": -40
+    },
+    "distributed": {
+        "x": 420,
+        "y": 300
+    },
+    "integration": {
+        "x": 630,
+        "y": -160
+    },
+    "public": {
+        "x": 630,
+        "y": 0
+    },
+    "sandbox": {
+        "x": 630,
+        "y": 160
+    },
+    "decision": {
+        "x": 840,
+        "y": -220
+    },
+    "federated": {
+        "x": 630,
+        "y": 400
+    },
+    "autonomous": {
+        "x": 1050,
+        "y": -280
+    },
+    "swarm": {
+        "x": 1050,
+        "y": -160
+    },
+    "backbone": {
+        "x": 840,
         "y": 0
     }
 }

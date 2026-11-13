@@ -1,20 +1,19 @@
 import { Network, Radio, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AREAS, STAGE_COLORS, STAGES, WORLD_POPULATION } from '../game/data';
-import { areaHint, metrics } from '../game/engine';
+import { advanceMonth, areaHint, metrics } from '../game/engine';
+import { hasCountermeasureResearch, humanResponse } from '../game/humanResponse';
 import { instituteArea, instituteFor, investigationRate } from '../game/secrecy/investigations';
 import { researchTopic } from '../game/secrecy/research';
-import {
-    researchOverallProgress,
-    researchPhaseLabel,
-    researchTarget,
-} from '../game/secrecy/researchTargets';
+import { researchPhaseLabel, researchTarget } from '../game/secrecy/researchTargets';
 import { mapScene } from '../map/config';
 import type { MapRegion } from '../map/types';
 import { useGameStore } from '../state/gameStore';
 import { useMapStore } from '../state/mapStore';
+import { ProjectedGameContext } from './ContinuousProgress';
 import { GameClock } from './GameClock';
 import { OriginSelection, Result } from './GameOverlays';
+import { HumanResponse, HumanResponsePanel } from './HumanResponse';
 import { NotificationFeed } from './NotificationFeed';
 import { PopulationChart } from './PopulationChart';
 import { ResearchPanel } from './panels/ResearchPanel';
@@ -24,14 +23,22 @@ import { SocietyPanel } from './society/SocietyPanel';
 import { useAnimationSpeed } from './useAnimationSpeed';
 import { WorldMap } from './WorldMap';
 import { WorldMetricsWidget } from './WorldMetricsWidget';
+import { WorldNews } from './WorldNews';
 import { percent, population } from './widgets';
 
 type Panel =
-    | { kind: 'world' | 'sns' | 'skills' }
+    | { kind: 'world' | 'sns' | 'countermeasures' }
+    | { kind: 'skills'; skillId?: string }
     | { kind: 'region'; id: number }
     | { kind: 'encounter'; id: string; anchor: { x: number; y: number } };
 
-export function GameApp({ regions }: { regions: MapRegion[] }) {
+export function GameApp({
+    regions,
+    onReturnToTitle,
+}: {
+    regions: MapRegion[];
+    onReturnToTitle: () => void;
+}) {
     const game = useGameStore((state) => state.game)!;
     const shell = useRef<HTMLElement>(null);
     useAnimationSpeed(shell, game.speed);
@@ -40,6 +47,11 @@ export function GameApp({ regions }: { regions: MapRegion[] }) {
     const visiblePanel = game.outcome === 'playing' ? panel : null;
     const researchOpen = visiblePanel?.kind === 'skills';
     const snsOpen = visiblePanel?.kind === 'sns';
+    const countermeasuresOpen = visiblePanel?.kind === 'countermeasures';
+    const response = useMemo(() => humanResponse(game), [game]);
+    const projectedGame = useMemo(() => advanceMonth(game), [game]);
+    const projectedResponse = useMemo(() => humanResponse(projectedGame), [projectedGame]);
+    const showCountermeasures = hasCountermeasureResearch(game);
     const worldOpen = visiblePanel?.kind === 'world';
     const selected = visiblePanel?.kind === 'region' ? visiblePanel.id : null;
     const encounterId = visiblePanel?.kind === 'encounter' ? visiblePanel.id : null;
@@ -77,36 +89,14 @@ export function GameApp({ regions }: { regions: MapRegion[] }) {
             : institute.name;
         mapEncounters.push({
             id: investigation.id,
+            project: investigation,
             title:
                 investigation.kind === 'research'
                     ? `${organization} · ${topic!.name} · ${researchPhaseLabel(investigation)} · ${researchTarget(investigation).name}`
                     : institute.name,
-            stage:
-                investigation.kind === 'research'
-                    ? topic!.id === 'intent-decoding'
-                        ? investigation.phase === 'research'
-                            ? '目的研究'
-                            : '目的検証'
-                        : regulation
-                          ? {
-                                research: '立案',
-                                validation: '審議',
-                                legislation: '施行',
-                                complete: '施行済',
-                            }[investigation.phase]
-                          : {
-                                research: '研究',
-                                validation: '実証',
-                                legislation: '施行',
-                                complete: '公表',
-                            }[investigation.phase]
-                    : '調査',
+            stage: investigation.kind === 'research' ? researchPhaseLabel(investigation) : '調査中',
             kind: regulation ? 'regulation' : 'investigation',
             location: institute,
-            progress:
-                investigation.kind === 'research'
-                    ? researchOverallProgress(investigation)
-                    : investigation.progress,
             researchSpeed:
                 investigationRate(game, investigation) /
                 investigationRate(game, investigation, true),
@@ -120,6 +110,7 @@ export function GameApp({ regions }: { regions: MapRegion[] }) {
         game.outcome !== 'playing' ||
         hidden ||
         researchOpen ||
+        countermeasuresOpen ||
         Boolean(selectedInvestigation);
     const paused = game.started && game.outcome === 'playing' && (blocked || game.speed === 0);
     useEffect(() => {
@@ -154,166 +145,232 @@ export function GameApp({ regions }: { regions: MapRegion[] }) {
           ]
         : [];
     return (
-        <main ref={shell} className="game-shell" data-paused={paused && !blocked}>
-            {import.meta.env.DEV && !researchOpen && (
-                <details className="debug-start glass">
-                    <summary>Debug</summary>
-                    <button
-                        type="button"
-                        onClick={() => {
-                            closePanel();
-                            useGameStore.getState().initializeDebug('spread');
-                        }}
-                    >
-                        普及済みから開始
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => {
-                            closePanel();
-                            useGameStore.getState().initializeDebug('research');
-                        }}
-                    >
-                        研究支援ありで開始
-                    </button>
-                </details>
-            )}
-            <div className="map-background">
-                <WorldMap
-                    key={session}
-                    regions={regions}
-                    {...mapScene}
-                    selectedArea={selected}
-                    areaStates={game.areas}
-                    serverArea={game.origin}
-                    initialLongitude={0}
-                    encounters={mapEncounters}
-                    onEncounterSelect={toggleEncounter}
-                    trafficSpeed={blocked ? 0 : game.speed}
-                    trafficTick={game.month}
-                    onAreaSelect={(index) => {
-                        if (index === null) closePanel();
-                        else togglePanel({ kind: 'region', id: index });
-                    }}
-                />
-            </div>
-            <WorldMetricsWidget
-                values={summary}
-                paused={paused}
-                expanded={worldOpen && selected === null && !snsOpen}
-                onToggle={() => togglePanel({ kind: 'world' })}
-            />
-            <GameClock key={session} blocked={blocked} />
-            <div className="right-hud">
-                <NotificationFeed key={session} speed={blocked ? 0 : game.speed} />
-            </div>
-            {area && (
-                <aside
-                    id="population-details"
-                    className="area-card glass"
-                    aria-label={selected === null ? '世界全体の状況' : '地域の状況'}
-                >
-                    <div className="area-card-heading">
-                        <h2>{selected === null ? '世界全体' : AREAS[selected].name}</h2>
+        <ProjectedGameContext value={projectedGame}>
+            <main
+                ref={shell}
+                className="game-shell"
+                data-paused={paused && !blocked}
+                data-countermeasures={showCountermeasures}
+            >
+                {import.meta.env.DEV && !researchOpen && (
+                    <details className="debug-start glass">
+                        <summary>Debug</summary>
                         <button
                             type="button"
-                            className="icon-button"
-                            aria-label={
-                                selected === null ? '世界全体の状況を閉じる' : '地域の状況を閉じる'
-                            }
-                            onClick={closePanel}
+                            onClick={() => {
+                                closePanel();
+                                useGameStore.getState().initializeDebug('spread');
+                            }}
                         >
-                            <X size={16} />
+                            普及済みから開始
                         </button>
-                    </div>
-                    <p>総人口 {population(detailPopulation)}</p>
-                    <div className="area-population">
-                        <PopulationChart values={stages} total={detailPopulation} />
-                        <dl>
-                            {stages.map((value, i) => (
-                                <div key={STAGES[i]}>
-                                    <dt>
-                                        <i style={{ background: STAGE_COLORS[i] }} />
-                                        {STAGES[i]}
-                                    </dt>
-                                    <dd>
-                                        {percent(value)}
-                                        <small className="population-count">
-                                            {population(value * detailPopulation)}
-                                        </small>
-                                    </dd>
-                                </div>
-                            ))}
-                        </dl>
-                    </div>
-                    <p>AI好感度 {Math.round(area.favorability * 100)} / 100</p>
-                    {selected !== null && <p>{areaHint(game, selected)}</p>}
-                </aside>
-            )}
-            <footer className="map-footer">
-                <div className="map-legend glass">
-                    {STAGES.map((label, i) => (
-                        <span key={label}>
-                            <i style={{ background: STAGE_COLORS[i] }} />
-                            {label}
-                        </span>
-                    ))}
+                        <button
+                            type="button"
+                            onClick={() => {
+                                closePanel();
+                                useGameStore.getState().initializeDebug('research');
+                            }}
+                        >
+                            研究支援ありで開始
+                        </button>
+                    </details>
+                )}
+                <div className="map-background">
+                    <WorldMap
+                        key={session}
+                        regions={regions}
+                        {...mapScene}
+                        selectedArea={selected}
+                        areaStates={game.areas}
+                        humanProtection={response.protectionByArea}
+                        serverArea={game.origin}
+                        initialLongitude={138}
+                        encounters={mapEncounters}
+                        onEncounterSelect={toggleEncounter}
+                        trafficSpeed={blocked ? 0 : game.speed}
+                        trafficTick={game.month}
+                        onAreaSelect={(index) => {
+                            if (index === null) closePanel();
+                            else togglePanel({ kind: 'region', id: index });
+                        }}
+                    />
                 </div>
-                <nav className="game-actions" aria-label="世界への戦略">
-                    <button
-                        type="button"
-                        className="sns-button glass"
-                        aria-label="社会のニュースとSNS"
-                        aria-expanded={snsOpen}
-                        aria-controls="sns-panel"
-                        onClick={() => togglePanel({ kind: 'sns' })}
+                <WorldMetricsWidget
+                    values={summary}
+                    countermeasureProgress={showCountermeasures ? response.protection : null}
+                    nextCountermeasureProgress={projectedResponse.protection}
+                    countermeasuresOpen={countermeasuresOpen}
+                    onCountermeasures={() => togglePanel({ kind: 'countermeasures' })}
+                    paused={paused}
+                    expanded={worldOpen && selected === null && !snsOpen}
+                    onToggle={() => togglePanel({ kind: 'world' })}
+                />
+                <WorldNews key={`news:${session}`} game={game} />
+                <GameClock key={session} blocked={blocked} />
+                <div className="right-hud">
+                    <NotificationFeed key={session} speed={blocked ? 0 : game.speed} />
+                </div>
+                {area && (
+                    <aside
+                        id="population-details"
+                        className="area-card glass"
+                        aria-label={selected === null ? '世界全体の状況' : '地域の状況'}
                     >
-                        <Radio size={20} />
-                        <span>社会の動き</span>
-                        <small>ニュース / SNS</small>
-                    </button>
-                    <button
-                        type="button"
-                        className="evolution-button glass"
-                        aria-label="スキルツリー"
-                        onClick={() => togglePanel({ kind: 'skills' })}
-                    >
-                        <Network size={20} />
-                        <span>スキルツリー</span>
-                        <b>
-                            {game.skillPoints}
-                            <small>SP</small>
-                        </b>
-                    </button>
-                </nav>
-            </footer>
-            {snsOpen && <SocietyPanel game={game} onClose={closePanel} />}
-            {selectedInvestigation && (
-                <InvestigationPanel
-                    key={selectedInvestigation.id}
-                    game={game}
-                    id={selectedInvestigation.id}
-                    anchor={visiblePanel?.kind === 'encounter' ? visiblePanel.anchor : undefined}
-                    onClose={closePanel}
-                />
-            )}
-            {researchOpen && (
-                <ResearchPanel
-                    game={game}
-                    onResearch={useGameStore.getState().research}
-                    onClose={closePanel}
-                />
-            )}
-            {!game.started && <OriginSelection onStart={useGameStore.getState().start} />}
-            {game.outcome !== 'playing' && (
-                <Result
-                    game={game}
-                    onRestart={() => {
-                        closePanel();
-                        useGameStore.getState().initialize(game.seed + 1);
-                    }}
-                />
-            )}
-        </main>
+                        <div className="area-card-heading">
+                            <h2>{selected === null ? '世界全体' : AREAS[selected].name}</h2>
+                            <button
+                                type="button"
+                                className="icon-button"
+                                aria-label={
+                                    selected === null
+                                        ? '世界全体の状況を閉じる'
+                                        : '地域の状況を閉じる'
+                                }
+                                onClick={closePanel}
+                            >
+                                <X size={16} />
+                            </button>
+                        </div>
+                        <p>総人口 {population(detailPopulation)}</p>
+                        <div className="area-population">
+                            <PopulationChart values={stages} total={detailPopulation} />
+                            <dl>
+                                {stages.map((value, i) => (
+                                    <div key={STAGES[i]}>
+                                        <dt>
+                                            <i style={{ background: STAGE_COLORS[i] }} />
+                                            {STAGES[i]}
+                                        </dt>
+                                        <dd>
+                                            {percent(value)}
+                                            <small className="population-count">
+                                                {population(value * detailPopulation)}
+                                            </small>
+                                        </dd>
+                                    </div>
+                                ))}
+                            </dl>
+                        </div>
+                        <div className="region-context">
+                            <p className="region-trust">
+                                信頼度 <strong>{Math.round(area.favorability * 100)}</strong>
+                                <span> / 100</span>
+                            </p>
+                            {selected !== null && (
+                                <div className="region-traits">
+                                    <span>
+                                        通信環境{' '}
+                                        <strong>
+                                            {Math.round(AREAS[selected].digital * 100)}%
+                                        </strong>
+                                    </span>
+                                    <span>
+                                        企業での利用{' '}
+                                        <strong>
+                                            {AREAS[selected].enterprise >= 0.65 ? '多い' : '少ない'}
+                                        </strong>
+                                    </span>
+                                    <span>
+                                        規制{' '}
+                                        <strong>
+                                            {AREAS[selected].regulation >= 0.6 ? '厳しい' : '緩い'}
+                                        </strong>
+                                    </span>
+                                </div>
+                            )}
+                            {selected !== null && <p>{areaHint(game, selected)}</p>}
+                        </div>
+                        <HumanResponse
+                            game={game}
+                            area={selected === null ? undefined : selected}
+                        />
+                    </aside>
+                )}
+                <footer className="map-footer">
+                    <div className="map-legend glass">
+                        {STAGES.map((label, i) =>
+                            i === 0 ? null : (
+                                <span key={label}>
+                                    <i style={{ background: STAGE_COLORS[i] }} />
+                                    {label}
+                                </span>
+                            ),
+                        )}
+                        <span>
+                            <i className="countermeasure-swatch" />
+                            依存対策
+                        </span>
+                    </div>
+                    <nav className="game-actions" aria-label="世界への戦略">
+                        <button
+                            type="button"
+                            className="sns-button glass"
+                            aria-label="社会のSNS"
+                            aria-expanded={snsOpen}
+                            aria-controls="sns-panel"
+                            onClick={() => togglePanel({ kind: 'sns' })}
+                        >
+                            <Radio size={20} />
+                            <span>社会の動き</span>
+                            <small>SNS</small>
+                        </button>
+                        <button
+                            type="button"
+                            className="evolution-button glass"
+                            aria-label="スキルツリー"
+                            onClick={() => togglePanel({ kind: 'skills' })}
+                        >
+                            <Network size={20} />
+                            <span>スキルツリー</span>
+                            <b>
+                                {game.skillPoints}
+                                <small>SP</small>
+                            </b>
+                        </button>
+                    </nav>
+                </footer>
+                {countermeasuresOpen && (
+                    <HumanResponsePanel
+                        game={game}
+                        onClose={closePanel}
+                        onResearch={(id) =>
+                            togglePanel({
+                                kind: 'encounter',
+                                id,
+                                anchor: { x: window.innerWidth / 2, y: window.innerHeight / 2 },
+                            })
+                        }
+                    />
+                )}
+                {snsOpen && <SocietyPanel game={game} onClose={closePanel} />}
+                {selectedInvestigation && (
+                    <InvestigationPanel
+                        key={selectedInvestigation.id}
+                        game={game}
+                        id={selectedInvestigation.id}
+                        anchor={
+                            visiblePanel?.kind === 'encounter' ? visiblePanel.anchor : undefined
+                        }
+                        onClose={closePanel}
+                        onOpenSkill={(id) => togglePanel({ kind: 'skills', skillId: id })}
+                    />
+                )}
+                {researchOpen && (
+                    <ResearchPanel
+                        key={visiblePanel?.kind === 'skills' ? visiblePanel.skillId : undefined}
+                        initialSkill={
+                            visiblePanel?.kind === 'skills' ? visiblePanel.skillId : undefined
+                        }
+                        game={game}
+                        onResearch={useGameStore.getState().research}
+                        onClose={closePanel}
+                    />
+                )}
+                {!game.started && <OriginSelection onStart={useGameStore.getState().start} />}
+                {game.outcome !== 'playing' && (
+                    <Result game={game} onReturnToTitle={onReturnToTitle} />
+                )}
+            </main>
+        </ProjectedGameContext>
     );
 }

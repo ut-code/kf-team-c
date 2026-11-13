@@ -1,12 +1,15 @@
-import { Pause } from 'lucide-react';
+import { Pause, Search } from 'lucide-react';
+import type { Investigation } from '../../game/secrecy/types';
 import { project } from '../../map/geometry';
 import { type MapView, screenPoint } from '../../map/view';
+import { ResearchProgress } from './ResearchProgress';
+import { researchPresentation } from './researchPresentation';
 
 export interface MapEncounter {
     id: string;
+    project: Investigation;
     title: string;
     kind: 'investigation' | 'regulation';
-    progress?: number;
     stage?: string;
     researchSpeed?: number;
     paused?: boolean;
@@ -37,6 +40,11 @@ export function MapEncounterMarkers({
     return (
         <section className="map-encounters" aria-label="地図上の出来事">
             {markers.map(({ encounter, point }) => {
+                const presentation =
+                    encounter.project.kind === 'research'
+                        ? researchPresentation(encounter.project)
+                        : { Icon: Search, label: '能力の調査', color: 'var(--warning)' };
+                const Icon = presentation.Icon;
                 return (
                     <button
                         type="button"
@@ -55,14 +63,17 @@ export function MapEncounterMarkers({
                             );
                         }}
                     >
-                        <img
-                            src={`${import.meta.env.BASE_URL}images/${encounter.kind}-marker.svg`}
+                        <span
+                            className="map-research-icon"
+                            role="img"
                             style={{
+                                color: presentation.color,
                                 opacity: 0.35 + Math.min(1, encounter.researchSpeed ?? 1) * 0.65,
                             }}
-                            alt=""
-                            draggable={false}
-                        />
+                            aria-label={presentation.label}
+                        >
+                            <Icon size={20} />
+                        </span>
                         {encounter.paused && (
                             <Pause
                                 className="research-paused"
@@ -75,11 +86,10 @@ export function MapEncounterMarkers({
                             />
                         )}
                         <span className="map-research-stage">{encounter.stage}</span>
-                        <progress
+                        <ResearchProgress
+                            project={encounter.project}
                             className="map-research-progress"
-                            aria-label={`${encounter.title}の進捗`}
-                            value={encounter.progress ?? 0}
-                            max={100}
+                            label={`${encounter.title}の全体進捗`}
                         />
                     </button>
                 );

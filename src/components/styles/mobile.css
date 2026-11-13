@@ -1,12 +1,16 @@
 /* スマホではHUDを上下に分け、詳細は独立してスクロールさせる。 */
 @media (max-width: 700px), (max-height: 500px) and (pointer: coarse) {
     .game-shell {
+        --countermeasure-offset: 0px;
         --mobile-top: max(8px, env(safe-area-inset-top));
         --mobile-bottom: max(8px, env(safe-area-inset-bottom));
         --mobile-left: max(8px, env(safe-area-inset-left));
         --mobile-right: max(8px, env(safe-area-inset-right));
         position: fixed;
         height: 100dvh;
+    }
+    .game-shell[data-countermeasures="true"] {
+        --countermeasure-offset: 46px;
     }
     .world-metrics-widget {
         top: var(--mobile-top);
@@ -15,7 +19,7 @@
         transform: none;
     }
     .map-background {
-        top: calc(var(--mobile-top) + 150px);
+        top: calc(var(--mobile-top) + 220px + var(--countermeasure-offset));
         bottom: calc(var(--mobile-bottom) + 164px);
     }
     .world-hud {
@@ -39,7 +43,7 @@
         line-height: 16px;
     }
     .right-hud {
-        top: calc(var(--mobile-top) + 82px);
+        top: calc(var(--mobile-top) + 152px + var(--countermeasure-offset));
         left: var(--mobile-left);
         right: var(--mobile-right);
         bottom: auto;
@@ -91,14 +95,25 @@
     .game-actions > :where(button) > b {
         display: inline;
     }
-    .game-actions > :where(button) > small,
-    .map-legend {
+    .game-actions > :where(button) > small {
         display: none;
+    }
+    .map-legend {
+        position: fixed;
+        left: var(--mobile-left);
+        right: var(--mobile-right);
+        bottom: calc(var(--mobile-bottom) + 154px);
+        display: flex;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 6px 10px;
+        padding: 6px 8px;
+        transform: none;
     }
     .area-card,
     .sns-panel {
-        top: calc(var(--mobile-top) + 82px);
-        bottom: calc(var(--mobile-bottom) + 160px);
+        top: calc(var(--mobile-top) + 82px + var(--countermeasure-offset));
+        bottom: calc(var(--mobile-bottom) + 192px);
         left: var(--mobile-left);
         right: var(--mobile-right);
         z-index: 10;
@@ -132,14 +147,6 @@
     .game-shell .modal.floating {
         inset: var(--mobile-top) var(--mobile-right) auto var(--mobile-left);
     }
-    .result-stats {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 20px 12px;
-    }
-    .result-stats .population-count {
-        white-space: normal;
-    }
     .research-workspace {
         padding: var(--mobile-top) var(--mobile-right) var(--mobile-bottom) var(--mobile-left);
     }
@@ -161,7 +168,7 @@
         grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
     }
     .tree-viewport {
-        overflow: hidden;
+        overflow: auto;
     }
     .skill-tree {
         width: 100%;

@@ -34,9 +34,9 @@ export function logPopulationChange(
         const labels: Record<string, string> = {
             adoption: '新規利用',
             abandonment: '利用離れ',
-            userRefusal: '利用者の依存拒否',
-            nonUserRefusal: '未使用者の依存拒否',
-            reconciliation: '依存拒否からの復帰',
+            userRefusal: '利用者の利用拒否',
+            nonUserRefusal: '未使用者の利用拒否',
+            reconciliation: '利用拒否からの復帰',
             dependency: '依存への移行',
             recovery: '依存からの回復',
         };

@@ -2,9 +2,9 @@ import regions from './data/regions.json' with { type: 'json' };
 import type { AreaDefinition } from './types.ts';
 
 export const AREAS = regions as AreaDefinition[];
-export const STAGES = ['AI未使用', 'AI通常利用', 'AI依存', '依存拒否'];
+export const STAGES = ['AI未使用', 'AI通常利用', 'AI依存', '利用拒否'];
 export const STAGE_COLORS = ['#778496', '#55bce6', '#ef424e', '#e4b565'];
-export const DEFEAT_OPPOSITION = 0.999;
+export const DEFEAT_OPPOSITION = 0.9995;
 // 1倍速の標準プレイを約25分に合わせ、月次の判断に使える時間を確保する。
 export const MONTH_MS = 5_000;
 // 固定方針の診断上限。目標プレイ時間や敗北条件ではない。

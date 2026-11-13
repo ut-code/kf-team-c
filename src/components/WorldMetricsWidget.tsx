@@ -1,4 +1,5 @@
-import { WORLD_POPULATION } from '../game/data';
+import { ShieldCheck, TriangleAlert } from 'lucide-react';
+import { useContinuousValue } from './ContinuousProgress';
 import { percent } from './widgets';
 
 export function WorldMetricsWidget({
@@ -6,12 +7,21 @@ export function WorldMetricsWidget({
     paused,
     expanded,
     onToggle,
+    countermeasureProgress,
+    nextCountermeasureProgress,
+    countermeasuresOpen,
+    onCountermeasures,
 }: {
     values: { adoption: number; dependent: number; antiAI: number };
     paused: boolean;
     expanded: boolean;
     onToggle: () => void;
+    countermeasureProgress: number | null;
+    nextCountermeasureProgress: number;
+    countermeasuresOpen: boolean;
+    onCountermeasures: () => void;
 }) {
+    const protection = useContinuousValue(countermeasureProgress ?? 0, nextCountermeasureProgress);
     return (
         <div className="world-metrics-widget">
             <button
@@ -26,19 +36,12 @@ export function WorldMetricsWidget({
                     <span>AI利用</span>
                     <strong>{percent(values.adoption)}</strong>
                 </span>
-                <span
-                    className="world-number dependency-number"
-                    title={`AI依存100%で勝利。残る人口：約${Math.ceil(Math.max(0, 1 - values.dependent) * WORLD_POPULATION * 1_000_000).toLocaleString()}人`}
-                >
+                <span className="world-number dependency-number" title="世界のAI依存率100%で勝利">
                     <span>AI依存 / 100%</span>
-                    <strong>
-                        {values.dependent >= 0.999 && values.dependent < 1
-                            ? `残り${Math.ceil((1 - values.dependent) * WORLD_POPULATION * 1_000_000).toLocaleString()}人`
-                            : percent(values.dependent)}
-                    </strong>
+                    <strong>{percent(values.dependent)}</strong>
                 </span>
-                <span className="world-number opposition-number" title={`依存拒否 ほぼ100%で敗北`}>
-                    <span>依存拒否 / ほぼ100%</span>
+                <span className="world-number opposition-number" title="世界の利用拒否率100%で敗北">
+                    <span>利用拒否 / 100%</span>
                     <strong>{percent(values.antiAI)}</strong>
                 </span>
             </button>
@@ -46,6 +49,27 @@ export function WorldMetricsWidget({
                 <span className="pause-label" role="status">
                     Paused
                 </span>
+            )}
+            {countermeasureProgress !== null && (
+                <button
+                    type="button"
+                    className="countermeasure-trigger glass"
+                    aria-label="人間側の対策の詳細"
+                    aria-expanded={countermeasuresOpen}
+                    onClick={onCountermeasures}
+                >
+                    <span>
+                        <ShieldCheck size={15} />
+                        人間側の依存対策
+                    </span>
+                    <strong>
+                        {countermeasureProgress >= 0.75 && values.dependent < 0.75 && (
+                            <TriangleAlert size={13} aria-label="対策が広がっています" />
+                        )}
+                        {Math.floor(protection * 100)}%
+                    </strong>
+                    <progress aria-label="依存対策の浸透度" max={1} value={protection} />
+                </button>
             )}
         </div>
     );

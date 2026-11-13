@@ -11,29 +11,22 @@ export function consensusPressure(
     game: GameState,
     index: number,
     evidence: number,
-    countermeasures: number,
     delegation: number,
 ) {
     const world = metrics(game);
     const area = game.areas[index];
-    // 展示の終盤を収束させる補正。境界付近は滑らかにし、反発の根拠がある時に働く。
-    const opposition = clamp((world.antiAI - 0.1) / 0.5);
-    const cascade = opposition ** 3 * (opposition * (opposition * 6 - 15) + 10);
-    const exposedCount = Object.values(game.capabilities).filter(
-        (item) => item.visibility === 'exposed',
-    ).length;
-    const grounds =
-        1 - Math.exp(-(evidence + countermeasures * 0.01 + exposedCount * 0.02) / 0.004);
-    const finalDependency = ramp(world.dependent, 0.98, 1);
+    const finalDependency = ramp(world.dependent, 0.9, 0.98);
     const localResistance = ramp(area.antiAI, 0.1, 0.6) * (1 - ramp(world.dependent, 0.95, 0.99));
+    // 最後の2%だけ端数待ちを短くする。境界で増分も傾きも跳ねない。
     return {
         dependency:
             ((0.1 + 0.04 * finalDependency) *
                 (delegation / (0.6 + delegation)) *
                 ramp(world.dependent, 0.8, 0.98) *
                 (1 - localResistance)) /
-            (1 + evidence * 40 * (1 - finalDependency)),
-        refusal: 0.98 * cascade * grounds * (1 - world.favorability * 0.75),
+                (1 + evidence * 40 * (1 - finalDependency)) +
+            ramp(world.dependent, 0.98, 1) * 0.15,
+        refusal: ramp(world.antiAI, 0.98, 1) * 0.15,
     };
 }
 

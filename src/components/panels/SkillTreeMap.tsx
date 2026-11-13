@@ -3,22 +3,19 @@ import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { capabilityLabel } from '../../game/secrecy/capabilities';
 import { skillLayout } from '../../game/skillLayout';
 import { skillBlockReason, skillCost, skillReachable } from '../../game/skills';
-import { skillTreeView } from '../../game/skillTreeView';
-import type { Branch, GameState } from '../../game/types';
+import type { GameState } from '../../game/types';
 import { SKILL_PRESENTATION } from './skillPresentation';
 
 export function SkillTreeMap({
     game,
-    branch,
     selectedId,
     onSelect,
 }: {
     game: GameState;
-    branch: Branch;
     selectedId: string;
     onSelect: (id: string) => void;
 }) {
-    const tree = useMemo(() => skillLayout(undefined, branch), [branch]);
+    const tree = useMemo(() => skillLayout(), []);
     const viewport = useRef<HTMLDivElement>(null);
     const [size, setSize] = useState({ width: 1, height: 1 });
     useLayoutEffect(() => {
@@ -29,12 +26,54 @@ export function SkillTreeMap({
         observer.observe(element);
         return () => observer.disconnect();
     }, []);
-    const view = skillTreeView(tree, size.width, size.height);
+    const canvasWidth = Math.max(tree.width, size.width);
+    const canvasHeight = Math.max(tree.height, size.height);
+    const drag = useRef<{ x: number; y: number; left: number; top: number } | null>(null);
+    useLayoutEffect(() => {
+        viewport.current!.scrollTo(
+            (canvasWidth - size.width) / 2,
+            (canvasHeight - size.height) / 2,
+        );
+    }, [canvasWidth, canvasHeight, size.width, size.height]);
+    useLayoutEffect(() => {
+        if (size.width <= 1 || size.height <= 1) return;
+        viewport
+            .current!.querySelector(`[data-skill-id="${selectedId}"]`)
+            ?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    }, [selectedId, size.width, size.height]);
     return (
-        <div ref={viewport} className="tree-viewport">
+        <div
+            ref={viewport}
+            className="tree-viewport"
+            onPointerDown={(event) => {
+                if ((event.target as Element).closest('button') || event.pointerType === 'touch')
+                    return;
+                drag.current = {
+                    x: event.clientX,
+                    y: event.clientY,
+                    left: event.currentTarget.scrollLeft,
+                    top: event.currentTarget.scrollTop,
+                };
+                event.currentTarget.setPointerCapture(event.pointerId);
+            }}
+            onPointerMove={(event) => {
+                if (!drag.current) return;
+                event.currentTarget.scrollTo(
+                    drag.current.left + drag.current.x - event.clientX,
+                    drag.current.top + drag.current.y - event.clientY,
+                );
+            }}
+            onPointerUp={() => {
+                drag.current = null;
+            }}
+            onPointerCancel={() => {
+                drag.current = null;
+            }}
+        >
             <svg
-                viewBox={`${view.x} ${view.y} ${view.width} ${view.height}`}
+                viewBox={`${-canvasWidth / 2} ${-canvasHeight / 2} ${canvasWidth} ${canvasHeight}`}
                 className="skill-tree"
+                style={{ width: canvasWidth, height: canvasHeight }}
                 aria-label="AI機能の開発と接続を示すスキルツリー"
             >
                 <title>スキルツリー</title>

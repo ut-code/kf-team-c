@@ -8,7 +8,14 @@ import { AREAS } from '../data.ts';
 import { clamp, metrics } from '../metrics.ts';
 import { SKILLS } from '../skills.ts';
 import type { GameState } from '../types.ts';
-import { activeSkillEffects, discloseCapability, skillScale } from './capabilities.ts';
+import {
+    activeSkillEffects,
+    discloseCapability,
+    INTENT_REFUSAL_PRESSURE,
+    intentReaction,
+    publicAuthorityStrength,
+    skillScale,
+} from './capabilities.ts';
 import { INSTITUTES } from './data.ts';
 import { intentLockIn, intentResearchReady } from './purpose.ts';
 import { projectCapacity, researchCapacity, runningResearchIds } from './researchCapacity.ts';
@@ -22,6 +29,8 @@ import {
 } from './researchTargets.ts';
 import { canStartInvestigation, researchSiteAvailable } from './scheduling.ts';
 import type { ScientificInvestigation } from './types.ts';
+
+const RESEARCH_PROGRESS_MULTIPLIER = 1.1;
 
 export { RESEARCH_TOPICS } from '../../content/research.ts';
 
@@ -56,7 +65,6 @@ function responseSpreadRate(
     const host = INSTITUTES.find((item) => item.id === project.instituteId)!;
     const center = AREAS.findIndex((item) => item.id === host.areaId);
     const area = game.areas[index];
-    const independence = unimpeded ? 1 : clamp((0.98 - area.dependent) / 0.25);
     const age = game.month - project.publishedMonth!;
     const centers = [
         center,
@@ -69,11 +77,16 @@ function responseSpreadRate(
     const reach = clamp(
         centers.reduce((sum, source) => sum + researchReach(source, index, age), 0),
     );
+    // 現地の体制が失われても、他地域に残る人間の運用能力から支援を受けられる。
+    // 世界全体を依存させた場合は、この支援自体が成立しなくなる。
+    const localIndependence = clamp((0.98 - area.dependent) / 0.25);
+    const outsideSupport = (1 - metrics(game).dependent) * reach * 0.5;
+    const independence = unimpeded ? 1 : 1 - (1 - localIndependence) * (1 - outsideSupport);
     const local = centers.some((source) => AREAS[index].region === AREAS[source].region);
     // 研究成果は知識として共有する。法規制の適用は地域の法整備能力と独立性に従う。
     return (
         (1 - project.coverage[index]) *
-        0.065 *
+        0.08 *
         (0.5 +
             (researchTopic(project).category === 'regulation'
                 ? AREAS[index].regulation
@@ -123,6 +136,7 @@ export function researchRate(game: GameState, project: ScientificInvestigation, 
             (institute.researchFocus === topic.field ? 1.25 : 1) *
             activity *
             capacity *
+            RESEARCH_PROGRESS_MULTIPLIER *
             100) /
         (topic.work * (project.phase === 'validation' ? 0.65 : 1))
     );
@@ -131,6 +145,7 @@ export function researchRate(game: GameState, project: ScientificInvestigation, 
 /** 成果は対象の仕組みにだけ効く。地域導入率と、発見そのものの共有を分ける。 */
 export function publishedResearchEffects(game: GameState, index: number): ResearchEffects {
     const effects: ResearchEffects = {
+        intentEvidence: 0,
         intent: 0,
         pressure: 0,
         recovery: 0,
@@ -143,16 +158,7 @@ export function publishedResearchEffects(game: GameState, index: number): Resear
         resistance: {},
     };
     const area = game.areas[index];
-    const knownAuthority = SKILLS.reduce(
-        (sum, skill) =>
-            sum +
-            (skill.exceedsAuthority &&
-            game.skills.includes(skill.id) &&
-            game.capabilities[skill.id]?.visibility !== 'hidden'
-                ? skillScale(game, skill.id)
-                : 0),
-        0,
-    );
+    const knownAuthority = publicAuthorityStrength(game);
     const shared = new Map<
         string,
         { project: ScientificInvestigation; evidence: number; practice: number }
@@ -188,10 +194,20 @@ export function publishedResearchEffects(game: GameState, index: number): Resear
     for (const { project, evidence, practice } of shared.values()) {
         const topic = researchTopic(project);
         const target = researchTarget(project);
-        const harmful = targetIsHarmful(target.id);
+        const harmful = targetIsHarmful(target.id, game);
         const warning =
             (topic.effects.pressure ?? 0) * area.dependent +
-            (harmful ? (topic.authorityPressure ?? 0) : 0) * knownAuthority;
+            (harmful ? (topic.authorityPressure ?? 0) : 0) *
+                target.skills.reduce(
+                    (sum, id) =>
+                        sum +
+                        (SKILLS.find((skill) => skill.id === id)!.exceedsAuthority &&
+                        game.capabilities[id] &&
+                        game.capabilities[id].visibility !== 'hidden'
+                            ? skillScale(game, id)
+                            : 0),
+                    0,
+                );
         effects.pressure += warning * evidence * (1 - area.favorability * 0.7);
         effects.recovery += (topic.effects.recovery ?? 0) * practice;
         effects.alternatives += (topic.effects.alternatives ?? 0) * practice;
@@ -203,6 +219,7 @@ export function publishedResearchEffects(game: GameState, index: number): Resear
                 1 - (1 - (effects.resistance[id] ?? 0)) * (1 - strength * practice);
     }
     // 人間が判断を引き取れるようになった用途は、社会から切り離せない基盤として数えない。
+    effects.intentEvidence = purposeEvidence;
     effects.intent = purposeEvidence * (1 - intentLockIn(game, index, effects.resistance));
     for (const target of RESEARCH_TARGETS)
         if (target.domain !== 'general')
@@ -219,7 +236,7 @@ export function publishedResearchEffects(game: GameState, index: number): Resear
 
 export function publishedResearchPressure(game: GameState, index: number) {
     const effects = publishedResearchEffects(game, index);
-    return effects.pressure + effects.intent * 0.045;
+    return effects.pressure + effects.intent * INTENT_REFUSAL_PRESSURE * intentReaction(game);
 }
 
 function exposeAuthorityCapabilities(game: GameState) {
@@ -232,7 +249,11 @@ function exposeAuthorityCapabilities(game: GameState) {
         )
             continue;
         for (const id of researchTarget(project).skills)
-            if (game.skills.includes(id)) updated = discloseCapability(updated, id, true);
+            if (
+                game.skills.includes(id) &&
+                SKILLS.find((skill) => skill.id === id)!.exceedsAuthority
+            )
+                updated = discloseCapability(updated, id, true);
     }
     return updated;
 }
@@ -428,7 +449,7 @@ export function advanceResearch(previous: GameState): GameState {
                             // 具体的な介入の資料があるなら、一般調査の終了を待つ必要はない。
                             (required === 'dependence-study' &&
                                 topic.id === 'decision-tracing' &&
-                                targetIsHarmful(target.id) &&
+                                targetIsHarmful(target.id, previous) &&
                                 target.skills.some(
                                     (id) => (previous.capabilities[id]?.evidence ?? 0) >= 25,
                                 )) ||
@@ -514,7 +535,7 @@ export function advanceResearch(previous: GameState): GameState {
                             : topic.id === 'intent-decoding'
                               ? 2.5
                               : 1) *
-                        (targetIsHarmful(target.id) ? 2 : 1) *
+                        (targetIsHarmful(target.id, previous) ? 2 : 1) *
                         (findings ? 0.75 : 1),
                 });
             }

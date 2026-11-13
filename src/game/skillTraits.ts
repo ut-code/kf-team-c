@@ -17,6 +17,7 @@ export function skillTraits(skill: Skill) {
         (effect.resilience ?? 0) * 0.7 +
         (skill.id === 'sns-intervention' ? 0.15 : 0);
     return {
+        trust: (effect.trust ?? 0) >= 0.002 ? '大きく上昇' : (effect.trust ?? 0) > 0 ? '上昇' : '—',
         utility:
             utility >= 0.75
                 ? '極高'

@@ -1,6 +1,7 @@
 import type { SkillDomain } from '../game/types.ts';
 
 export interface ResearchEffects {
+    intentEvidence: number;
     intent: number;
     resistance: Record<string, number>;
     pressure: number;

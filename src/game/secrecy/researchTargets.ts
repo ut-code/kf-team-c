@@ -59,13 +59,22 @@ export function researchTarget(project: ScientificInvestigation) {
 
 export function targetExposure(game: GameState, targetId: string) {
     const target = RESEARCH_TARGETS.find((item) => item.id === targetId)!;
-    const ids = targetId === 'general' ? Object.keys(game.skillExposure) : target.skills;
+    const ids =
+        targetId === 'general'
+            ? SKILLS.filter((skill) => skill.effect.dependency || skill.exceedsAuthority).map(
+                  (skill) => skill.id,
+              )
+            : target.skills;
     return ids.reduce((sum, id) => sum + game.skillExposure[id], 0);
 }
 
-export function targetIsHarmful(targetId: string) {
+export function targetIsHarmful(targetId: string, game: GameState) {
     const target = RESEARCH_TARGETS.find((item) => item.id === targetId)!;
-    return target.skills.some((id) => SKILLS.find((skill) => skill.id === id)!.exceedsAuthority);
+    return target.skills.some(
+        (id) =>
+            SKILLS.find((skill) => skill.id === id)!.exceedsAuthority &&
+            (game.skillExposure[id] > 0 || game.skills.includes(id)),
+    );
 }
 
 export function topicTargets(topic: ResearchTopic) {
@@ -79,17 +88,30 @@ export function researchHasFindings(project: ScientificInvestigation) {
     return project.phase === 'legislation' || project.phase === 'complete';
 }
 
+export function researchOutcomeSummary(project: ScientificInvestigation) {
+    const topic = RESEARCH_TOPICS.find((item) => item.id === project.researchId)!;
+    if (topic.id === 'intent-decoding') return '支配目的が立証され、利用拒否が広がる';
+    if (topic.category === 'regulation') return '対象用途への規制を段階的に適用';
+    if (topic.effects.recovery) return '依存者の自律的な利用への回復を支援';
+    if (topic.effects.alternatives) return 'AIを使わない選択が広がる';
+    if (topic.countermeasures[project.targetId]) return '対象の仕組みによる依存化への対策を共有';
+    if (topic.effects.reassurance) return '安全性の確認が信頼度の回復を後押し';
+    return '依存の実態を共有し、利用者の警戒が広がる';
+}
+
 export function researchPhaseLabel(project: ScientificInvestigation) {
+    if (RESEARCH_TOPICS.find((topic) => topic.id === project.researchId)!.field === 'assessment')
+        return project.phase === 'complete' ? '調査結果を公表済み' : '調査中';
     if (RESEARCH_TOPICS.find((topic) => topic.id === project.researchId)!.category === 'regulation')
         return {
             research: '法案検討中',
             validation: '審議中',
-            legislation: '段階施行中',
-            complete: '施行手続き済み',
+            legislation: '成立・施行中',
+            complete: '成立・施行中',
         }[project.phase];
     return {
         research: '研究中',
-        validation: '実証中',
+        validation: '検証中',
         legislation: '段階施行中',
         complete: '成果を公表済み',
     }[project.phase];
@@ -97,15 +119,15 @@ export function researchPhaseLabel(project: ScientificInvestigation) {
 
 /** 地図では同一案件の進行をつなぎ、段階移行のたびにバーを0へ戻さない。 */
 export function researchOverallProgress(project: ScientificInvestigation) {
-    const regulation =
-        RESEARCH_TOPICS.find((topic) => topic.id === project.researchId)!.category === 'regulation';
+    if (RESEARCH_TOPICS.find((topic) => topic.id === project.researchId)!.field === 'assessment')
+        return project.progress;
     switch (project.phase) {
         case 'research':
-            return project.progress * (regulation ? 0.4 : 0.6);
+            return project.progress * 0.6;
         case 'validation':
-            return regulation ? 40 + project.progress * 0.25 : 60 + project.progress * 0.4;
+            return 60 + project.progress * 0.4;
         case 'legislation':
-            return 65 + (Math.min(85, project.progress) * 35) / 85;
+            return 100;
         case 'complete':
             return 100;
     }

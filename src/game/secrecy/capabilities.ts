@@ -4,6 +4,25 @@ import type { GameState } from '../types.ts';
 import { CAPABILITIES } from './data.ts';
 
 const RESTRAINT_SKILLS = SKILLS.filter((skill) => skill.restrains);
+export const INTENT_REFUSAL_PRESSURE = 0.045;
+
+export function publicAuthorityStrength(game: GameState) {
+    return SKILLS.reduce(
+        (sum, skill) =>
+            sum +
+            (skill.exceedsAuthority &&
+            game.capabilities[skill.id] &&
+            game.capabilities[skill.id].visibility !== 'hidden'
+                ? skillScale(game, skill.id)
+                : 0),
+        0,
+    );
+}
+
+/** 目的の証拠と、その公表に対する反応を区別する。安全な用途は同じ強さで糾弾しない。 */
+export function intentReaction(game: GameState) {
+    return 0.35 + 0.65 * clamp(publicAuthorityStrength(game));
+}
 
 /** 開発は自動で進む。制約技術は将来の挙動を抑えるが、開発履歴と証拠は残す。 */
 export function skillScale(game: GameState, id: string) {

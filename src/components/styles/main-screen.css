@@ -147,7 +147,7 @@
     top: 44%;
     right: 18px;
     transform: translateY(-50%);
-    width: 335px;
+    width: 380px;
     max-width: calc(100% - 36px);
     max-height: calc(100% - 160px);
     overflow-y: auto;
@@ -371,4 +371,131 @@
         width: 100%;
         justify-content: space-between;
     }
+}
+
+.map-legend .countermeasure-swatch {
+    width: 13px;
+    height: 10px;
+    border-radius: 2px;
+    border: 1px solid #4a94ad;
+    background:
+        repeating-linear-gradient(135deg, transparent 0 3px, #4a94ad 3px 4px, transparent 4px 6px),
+        #294d5a;
+}
+
+.countermeasure-trigger {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 6px 12px;
+    width: 100%;
+    margin-top: 6px;
+    padding: 7px 12px;
+    text-align: left;
+}
+.countermeasure-trigger > span,
+.countermeasure-trigger strong {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 11px;
+}
+.countermeasure-trigger strong {
+    font-size: 13px;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+}
+.countermeasure-trigger strong svg {
+    color: var(--warning);
+}
+.countermeasure-trigger progress {
+    grid-column: 1 / -1;
+    width: 100%;
+    height: 4px;
+    appearance: none;
+    border: 0;
+    background: var(--line);
+    color: var(--accent);
+}
+.countermeasure-trigger progress::-webkit-progress-bar {
+    background: var(--line);
+}
+.countermeasure-trigger progress::-webkit-progress-value {
+    background: var(--accent);
+}
+.countermeasure-trigger progress::-moz-progress-bar {
+    background: var(--accent);
+}
+
+/* 人口構成と地域の条件をまとめ、同じ情報に別々の区切り線を付けない。 */
+.area-card .area-population {
+    display: grid;
+    grid-template-columns: 160px minmax(0, 1fr);
+    align-items: center;
+    gap: 14px;
+    margin: 16px 0;
+}
+.area-card .population-chart {
+    width: 160px;
+    height: 160px;
+}
+.area-card .area-population :where(dl) > div {
+    margin: 10px 0;
+}
+.area-card .area-population dt {
+    font-size: 11px;
+}
+.area-card .area-population .population-count {
+    font-size: 10px;
+}
+.area-card > p {
+    border: 0;
+    padding: 0;
+}
+.region-context {
+    padding: 14px 0;
+    border-block: 1px solid var(--line);
+}
+.area-card .region-context p {
+    border: 0;
+    padding: 0;
+}
+.region-context .region-trust {
+    display: flex;
+    align-items: baseline;
+    gap: 5px;
+}
+.region-trust strong {
+    color: var(--text);
+    font-size: 20px;
+    font-weight: 500;
+}
+.region-context .region-traits {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 7px 14px;
+    margin: 12px 0;
+}
+.region-traits span {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 6px;
+}
+.area-card .human-response {
+    margin-top: 0;
+    padding-top: 16px;
+    border: 0;
+}
+.area-card .response-values {
+    display: grid;
+    gap: 9px;
+    margin: 14px 0 0;
+}
+.area-card .response-values > div {
+    margin: 0;
+}
+.area-card .response-caption {
+    margin-top: 8px;
+    padding: 0;
+    border: 0;
 }

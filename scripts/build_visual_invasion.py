@@ -1,6 +1,5 @@
-"""Rebuild visual fronts from cached GHSL city seeds, without the source raster.
-Population remains a simulation metric; coverage is a visual land-area budget.
-Uses only Python's standard library. Run after build_invasion.py when updating seeds.
+"""保存済みの都市起点から侵食画像を再生成する。人口原本は読み直さない。
+表示面積だけを扱い、ゲームの人口計算は変更しない。Python標準ライブラリーのみで動作する。
 """
 import heapq
 import json
@@ -8,6 +7,7 @@ import math
 import struct
 import zlib
 from pathlib import Path
+from invasion_connectivity import communication_links, wrapped_delta
 
 ROOT = Path(__file__).resolve().parents[1]
 TEXTURES = ROOT / 'public/maps/textures'
@@ -72,17 +72,19 @@ def landscape_cost(areas, width, height, groups):
     for region, cities in enumerate(groups, 1):
         # Join nearby urban centers with wide bands, allowing fronts to merge.
         for order, city in enumerate(cities[1:], 1):
-            parent = min(cities[:order], key=lambda c: (c['x'] - city['x']) ** 2 + (c['y'] - city['y']) ** 2)
-            ax, ay, bx, by = parent['x'], parent['y'], city['x'], city['y']
+            parent = min(cities[:order], key=lambda c: wrapped_delta(c['x'] - city['x'], width) ** 2 + (c['y'] - city['y']) ** 2)
+            ax, ay = parent['x'], parent['y']
+            bx, by = ax + int(wrapped_delta(city['x'] - ax, width)), city['y']
             dx, dy = bx - ax, by - ay
             length = max(1, dx * dx + dy * dy)
             for y in range(max(0, min(ay, by) - 12), min(height, max(ay, by) + 13)):
-                for x in range(max(0, min(ax, bx) - 12), min(width, max(ax, bx) + 13)):
+                for unwrapped_x in range(min(ax, bx) - 12, max(ax, bx) + 13):
+                    x = unwrapped_x % width
                     i = y * width + x
                     if areas[i] != region:
                         continue
-                    t = max(0, min(1, ((x - ax) * dx + (y - ay) * dy) / length))
-                    d2 = (x - ax - t * dx) ** 2 + (y - ay - t * dy) ** 2
+                    t = max(0, min(1, ((unwrapped_x - ax) * dx + (y - ay) * dy) / length))
+                    d2 = (unwrapped_x - ax - t * dx) ** 2 + (y - ay - t * dy) ** 2
                     corridor[i] = max(corridor[i], math.exp(-d2 / 50))
     cost = [1.] * len(areas)
     for i, area in enumerate(areas):
@@ -100,6 +102,11 @@ def build():
     sw, sh, channels, source = read_png(TEXTURES / 'small-region-index.png')
     areas = bytearray(source[(min(sh - 1, int((y + .5) * sh / height)) * sw + min(sw - 1, int((x + .5) * sw / width))) * channels] for y in range(height) for x in range(width))
     regions = [[i for i, area in enumerate(areas) if area == region] for region in range(1, 38)]
+    connections = communication_links(areas, width, height, report['urbanCenters'])
+    connected = {}
+    for source, target, length in connections:
+        connected.setdefault(source, []).append((target, length))
+    print(f'離れた陸塊への通信接続: {len(connections)}件', flush=True)
     passage = landscape_cost(areas, width, height, report['urbanCenters'])
     fronts = []
     for kind in range(3):
@@ -120,10 +127,15 @@ def build():
             value, index = heapq.heappop(queue)
             if value != distance[index]:
                 continue
+            for target, length in connected.get(index, ()):
+                candidate = value + length * (passage[index] + passage[target]) * .5
+                if candidate < distance[target]:
+                    distance[target] = candidate
+                    heapq.heappush(queue, (candidate, target))
             y, x = divmod(index, width)
             for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (-1, 1), (1, -1), (-1, -1)):
-                nx, ny = x + dx, y + dy
-                if not (0 <= nx < width and 0 <= ny < height):
+                nx, ny = (x + dx) % width, y + dy
+                if not 0 <= ny < height:
                     continue
                 target = ny * width + nx
                 if areas[target] != areas[index]:
@@ -137,11 +149,12 @@ def build():
                     distance[target] = candidate
                     heapq.heappush(queue, (candidate, target))
         rank = [65535] * len(areas)
+        if any(area and not math.isfinite(distance[i]) for i, area in enumerate(areas)):
+            raise ValueError('都市から到達できない陸地が残っています')
         for region, cells in enumerate(regions, 1):
             exponent = report['areaBudgetExponents'][str(region)]
             for order, index in enumerate(sorted(cells, key=lambda i: (distance[i], i)), 1):
-                if math.isfinite(distance[index]):
-                    rank[index] = math.ceil((order / len(cells)) ** (1 / exponent) * 65535)
+                rank[index] = math.ceil((order / len(cells)) ** (1 / exponent) * 65535)
         if kind == 1:
             rank = [max(a, b) for a, b in zip(fronts[0], rank)]
         fronts.append(rank)
@@ -155,6 +168,7 @@ def build():
     write_png(pending, width * 3, height, pixels)
     pending.replace(TEXTURES / 'invasion-rank.png')
     report['visualCoverage'] = {'generator': 'scripts/build_visual_invasion.py', 'budget': 'land fraction with regional density exponent', 'cityDelay': 'first three: index * 8; later: 45 + (index - 3) * 22', 'population': 'used for cached city seeds only; not a coverage constraint', 'passage': 'coherent multiscale roughness and broad urban connection bands; not measured roads'}
+    report['visualCoverage']['connectivity'] = {'horizontalWrap': True, 'communicationLinks': len(connections), 'unreachableLandCells': 0}
     report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n')
     # Reviewable Japan progression, and basic rank/containment checks.
     for k, rank in enumerate(fronts):

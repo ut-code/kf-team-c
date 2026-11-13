@@ -32,16 +32,20 @@
     background: transparent;
     filter: brightness(1.15) drop-shadow(0 2px 3px #000b);
 }
-.map-encounter-marker img {
+.map-research-icon {
     position: absolute;
     left: 5px;
     bottom: 0;
-    display: block;
+    display: grid;
+    place-items: center;
     pointer-events: none;
     user-select: none;
     width: 30px;
-    height: 33.75px;
-    object-fit: contain;
+    height: 30px;
+    border: 2px solid currentColor;
+    border-radius: 50%;
+    color: var(--danger);
+    background: #0d1a22cc;
 }
 .encounter-result > svg {
     flex-shrink: 0;
@@ -132,8 +136,131 @@
     background: var(--text);
 }
 .investigation-question {
-    font-size: 16px;
+    font-size: 13px;
+    color: var(--text-secondary);
     line-height: 1.6;
+}
+.investigation-title {
+    font-size: 23px;
+    font-weight: 500;
+    line-height: 1.5;
+    margin: 0 0 12px;
+}
+.research-phases {
+    list-style: none;
+    display: flex;
+    gap: 6px;
+    padding: 0;
+    margin: 24px 0 14px;
+}
+.research-phases li {
+    flex: 1;
+    padding: 8px 0;
+    border-top: 3px solid var(--line);
+    font-size: 12px;
+    color: var(--muted);
+}
+.research-phases li[aria-current] {
+    border-color: var(--warning);
+    color: var(--text);
+}
+.research-phases li[data-complete="true"] {
+    border-color: var(--accent);
+}
+.research-impact,
+.human-response {
+    margin-top: 22px;
+    padding-top: 18px;
+    border-top: 1px solid var(--line);
+}
+.response-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 16px;
+    margin-bottom: 12px;
+}
+.response-heading h3 {
+    font-size: 13px;
+    font-weight: 500;
+    margin: 0;
+    color: var(--text-secondary);
+}
+.response-heading strong {
+    font-size: 25px;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+}
+.response-heading small {
+    font-size: 11px;
+    margin-left: 4px;
+    color: var(--muted);
+}
+:is(.human-response, .research-impact) meter {
+    display: block;
+    width: 100%;
+    height: 7px;
+    border: 0;
+    border-radius: 3px;
+    background: var(--line);
+}
+:is(.human-response, .research-impact) meter::-webkit-meter-bar {
+    border: 0;
+    background: var(--line);
+}
+:is(.human-response, .research-impact) meter::-webkit-meter-optimum-value {
+    background: var(--warning);
+}
+.response-values {
+    display: grid;
+    gap: 9px;
+    margin: 16px 0;
+    font-size: 12px;
+}
+.response-values > div {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+}
+.response-values dt {
+    color: var(--text-secondary);
+}
+.response-values dd {
+    margin: 0;
+    font-variant-numeric: tabular-nums;
+}
+.response-values small {
+    margin-left: 5px;
+    color: var(--muted);
+    font-size: 10px;
+}
+.response-caption {
+    color: var(--muted);
+    font-size: 11px;
+    line-height: 1.7;
+    margin: 8px 0 0;
+}
+.research-target-skills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+    margin: 14px 0;
+}
+.research-target-skills button {
+    padding: 8px 10px;
+    font-size: 12px;
+}
+.research-target-skills > span {
+    color: var(--muted);
+    font-size: 12px;
+}
+.research-response-action {
+    width: 100%;
+    margin-top: 16px;
+}
+.skill-performance-view > .human-response {
+    max-width: 680px;
+    margin: 28px 0;
 }
 .investigation-progress {
     display: grid;
@@ -187,4 +314,116 @@
     display: block;
     margin-top: 6px;
     padding: 6px;
+}
+
+.region-traits {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+    margin: 12px 0;
+    font-size: 11px;
+    color: var(--muted);
+}
+.region-traits strong {
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+.countermeasure-intro {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 13px;
+    line-height: 1.8;
+}
+.countermeasure-list-heading {
+    margin: 24px 0 12px;
+    font-size: 13px;
+    font-weight: 500;
+}
+.countermeasure-projects {
+    display: grid;
+    gap: 8px;
+}
+.countermeasure-projects button {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 7px 12px;
+    padding: 12px;
+    text-align: left;
+}
+.countermeasure-projects strong {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 500;
+}
+.countermeasure-projects :where(strong) svg {
+    flex-shrink: 0;
+    color: var(--accent);
+}
+.research-impact > h3 {
+    margin: 0 0 14px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+.research-effects {
+    display: grid;
+    gap: 12px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    font-size: 13px;
+    line-height: 1.7;
+}
+.research-effects li {
+    display: flex;
+    align-items: baseline;
+    gap: 9px;
+}
+.research-effects svg {
+    flex-shrink: 0;
+    align-self: flex-start;
+    margin-top: 3px;
+    color: var(--warning);
+}
+.research-application {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 8px;
+    font-size: 12px;
+    margin: 18px 0 0;
+}
+.research-application strong {
+    margin-left: auto;
+    font-size: 21px;
+    font-weight: 500;
+}
+.research-application small {
+    flex-basis: 100%;
+    color: var(--muted);
+    font-size: 10px;
+}
+.investigation-target {
+    font-size: 12px;
+    color: var(--muted);
+}
+.countermeasure-projects span {
+    grid-column: 1;
+    color: var(--muted);
+    font-size: 11px;
+}
+.countermeasure-projects small {
+    grid-column: 2;
+    grid-row: 1 / 3;
+    align-self: center;
+    color: var(--accent);
+    font-size: 11px;
+}
+.countermeasure-projects progress {
+    grid-column: 1 / -1;
+    width: 100%;
+    height: 4px;
+    accent-color: var(--accent);
 }

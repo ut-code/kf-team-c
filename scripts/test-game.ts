@@ -34,7 +34,7 @@ test('開発ツリーには循環・欠落・重なるノードがなく、委�
     for (const node of skillLayout().positions) {
         const skill = node.skill;
         assert.ok(skill.developmentMonths >= 0 && skill.cost > 0);
-        const position = `${skill.branch}:${node.x}:${node.y}`;
+        const position = `${node.x}:${node.y}`;
         assert.ok(!positions.has(position));
         positions.add(position);
         const visit = (id: string, path: string[]) => {
@@ -103,19 +103,22 @@ test('基礎支給は普及しなくても続き、節目報酬は有限で再�
     );
 });
 
-test('PR #6のニュースは実際の用途から一度だけ発生し、続報は先行報道を必要とする', () => {
-    assert.equal(WORLD_NEWS.length, 11);
+test('ニュースは実際の用途から一度だけ発生し、続報は先行報道を必要とする', () => {
+    assert.equal(WORLD_NEWS.length, 31);
     const initial = startGame(createGame(), 0);
     const game = {
         ...initial,
         month: 100,
         skills: ['discovery'],
+        news: WORLD_NEWS.filter(
+            (item) => !['breakthrough-discovery', 'discovery-followup'].includes(item.id),
+        ).map((item) => ({ id: item.id, month: 0 })),
         developmentProgress: { ...initial.developmentProgress, discovery: 1 },
         areas: initial.areas.map((area) => ({ ...area, autonomous: 0.5 })),
     };
     const result = advanceNews(game);
     assert.deepEqual(
-        result.news.map((item) => item.id),
+        result.news.slice(-1).map((item) => item.id),
         ['breakthrough-discovery'],
     );
     assert.deepEqual(result.areas, game.areas);
@@ -123,12 +126,12 @@ test('PR #6のニュースは実際の用途から一度だけ発生し、続報
     assert.equal(advanceNews(result), result);
     const follow = advanceNews({ ...result, month: result.month + 18 });
     assert.deepEqual(
-        follow.news.map((item) => item.id),
+        follow.news.slice(-2).map((item) => item.id),
         ['breakthrough-discovery', 'discovery-followup'],
     );
     const feed = createSocialFeed(follow);
     assert.equal(updateSocialFeed(follow, follow, feed), feed);
-    assert.equal(feed.posts.filter((post) => post.headline).length, 2);
+    assert.equal(feed.posts.filter((post) => post.headline).length, 0);
 });
 
 function assertPopulation(game: GameState) {
@@ -430,6 +433,17 @@ test('目的の立証は通常利用者の拒否を促すが、高依存や社�
         })),
     };
     assert.equal(publishedResearchEffects(captured, 0).intent, 0);
+    assert.equal(
+        publishedResearchEffects(captured, 0).intentEvidence,
+        publishedResearchEffects(noInfrastructure, 0).intentEvidence,
+        '離脱できなくても、公表された支配目的を知らなくなるわけではない',
+    );
+    assert.ok(
+        advanceMonth(captured).areas[0].favorability <
+            advanceMonth({ ...captured, investigations: base.investigations }).areas[0]
+                .favorability,
+        '高依存の地域でも、目的の立証は信頼度を下げる',
+    );
     assert.ok(metrics(advanceMonth(known)).antiAI > metrics(advanceMonth(base)).antiAI);
     assert.deepEqual(advanceResearch(known).capabilities, {});
 });
@@ -477,15 +491,17 @@ test('配置編集中にノードを起点や親と重ねても線の座標は�
     }
 });
 
-test('系統別のツリーは同じ起点から右へ進み、別系統のノードや線を含まない', () => {
+test('統合ツリーの各系統は共通の起点から外側へ伸び、全32スキルが一度ずつ現れる', () => {
     const seen = new Set<string>();
     for (const branch of ['IQ', 'EQ', 'SYSTEM'] as const) {
         const tree = skillLayout(undefined, branch);
         assert.equal(tree.centerX, 0);
         assert.equal(tree.centerY, 0);
         const root = tree.positions.find((node) => !node.skill.requires.length)!;
-        assert.equal(root.x, 130);
-        assert.equal(root.y, 0);
+        assert.deepEqual(
+            [root.x, root.y],
+            { IQ: [0, -140], EQ: [-210, 0], SYSTEM: [210, 0] }[branch],
+        );
         for (const node of tree.positions) {
             assert.equal(node.skill.branch, branch);
             assert.ok(!seen.has(node.skill.id));
@@ -494,7 +510,7 @@ test('系統別のツリーは同じ起点から右へ進み、別系統のノ�
                 const parent = tree.positions.find(
                     (item) => item.skill.id === node.skill.requires[0],
                 );
-                assert.ok(parent && parent.x < node.x);
+                assert.ok(parent && Math.hypot(parent.x, parent.y) < Math.hypot(node.x, node.y));
             }
         }
         assert.equal(tree.edges.length, tree.positions.length);
