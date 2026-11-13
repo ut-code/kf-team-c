@@ -1,0 +1,144 @@
+.stack {
+    position: absolute;
+    top: 16px;
+    left: 18px;
+    z-index: 6;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: min(440px, calc(100% - 36px));
+    pointer-events: none;
+}
+.banner {
+    display: flex;
+    align-items: stretch;
+    height: 34px;
+    padding: 0;
+    border: 1px solid #ffffff22;
+    border-radius: 4px;
+    overflow: hidden;
+    cursor: pointer;
+    pointer-events: auto;
+    text-align: left;
+    background: none;
+    box-shadow: 0 6px 26px #000a;
+    animation: news-banner 14s linear both;
+}
+.banner:hover {
+    border-color: #ffffff44;
+}
+.tag,
+.tag-follow {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    flex: 0 0 auto;
+    padding: 0 12px;
+    color: #fff;
+    font-weight: 700;
+}
+.tag {
+    background: linear-gradient(180deg, #ff3b42, #c2141b);
+    font-size: 12px;
+    letter-spacing: 0.18em;
+}
+.tag-follow {
+    background: linear-gradient(180deg, #7a1015, #4c0a0d);
+    font-size: 11px;
+    letter-spacing: 0.14em;
+}
+.dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #fff;
+    animation: dot-blink 1s steps(2, start) infinite;
+}
+.tag-follow .dot {
+    opacity: 0.7;
+    animation: none;
+}
+.headline {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    min-width: 0;
+    padding: 0 12px;
+    background: #0b151be8;
+    font-size: 12px;
+    font-weight: 600;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.close {
+    flex: 0 0 auto;
+    color: #9aabba;
+}
+@keyframes news-banner {
+    0% {
+        transform: translateY(-12px);
+        opacity: 0;
+    }
+    4% {
+        transform: translateY(0);
+        opacity: 1;
+    }
+    8%,
+    20% {
+        box-shadow: 0 6px 26px #000a;
+    }
+    14% {
+        box-shadow: 0 6px 34px #e8262e88;
+    }
+    86% {
+        transform: translateY(0);
+        opacity: 1;
+    }
+    100% {
+        transform: translateY(-10px);
+        opacity: 0;
+    }
+}
+@keyframes dot-blink {
+    50% {
+        opacity: 0;
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    .banner {
+        animation: news-banner-still 14s linear both;
+    }
+    .dot {
+        animation: none;
+    }
+}
+@keyframes news-banner-still {
+    0%,
+    92% {
+        transform: none;
+        opacity: 1;
+    }
+    100% {
+        opacity: 0;
+    }
+}
+/* 狭い画面では指標ウィジェットが左上へ移るため、その下へずらす。 */
+@media (max-width: 1150px) {
+    .stack {
+        top: 92px;
+    }
+}
+@media (max-width: 700px) {
+    .stack {
+        top: 8px;
+        left: var(--mobile-left, 8px);
+        right: var(--mobile-right, 8px);
+        width: auto;
+    }
+    .banner {
+        height: 32px;
+    }
+}

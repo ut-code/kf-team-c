@@ -1,0 +1,108 @@
+.ticker {
+    position: absolute;
+    left: 18px;
+    right: 18px;
+    bottom: 96px;
+    z-index: 5;
+    display: flex;
+    align-items: stretch;
+    height: 28px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    overflow: hidden;
+    background: #050b10e6;
+    backdrop-filter: blur(6px);
+    box-shadow: 0 4px 20px #0008;
+    animation: ticker-in 0.4s ease-out both;
+}
+.tag {
+    display: flex;
+    align-items: center;
+    flex: 0 0 auto;
+    padding: 0 12px 0 10px;
+    background: linear-gradient(180deg, #ff3b42, #c2141b);
+    color: #fff;
+    font-weight: 700;
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    clip-path: polygon(0 0, 100% 0, calc(100% - 7px) 100%, 0 100%);
+}
+.viewport {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+}
+.track {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    display: inline-flex;
+    white-space: nowrap;
+    animation: ticker-scroll 40s linear infinite;
+}
+.copy {
+    display: inline-flex;
+}
+.item {
+    display: inline-flex;
+    align-items: center;
+    padding: 0 26px;
+    font-size: 10.5px;
+    line-height: 28px;
+    color: #cdd9e4;
+}
+.warn {
+    color: #ffc9c4;
+}
+.warn::before {
+    content: "▲ ";
+    color: var(--danger);
+    font-size: 8px;
+}
+.evt::before {
+    content: "● ";
+    color: #8fd3ff;
+    font-size: 8px;
+}
+.item time {
+    margin-right: 6px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+}
+@keyframes ticker-scroll {
+    from {
+        transform: translateX(0);
+    }
+    to {
+        transform: translateX(-50%);
+    }
+}
+@keyframes ticker-in {
+    from {
+        transform: translateY(8px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    .track {
+        animation: none;
+    }
+}
+/* スマホでは地図がHUDを避けて縮むため、その下端に寄せる。 */
+@media (max-width: 700px) {
+    .ticker {
+        left: var(--mobile-left, 8px);
+        right: var(--mobile-right, 8px);
+        bottom: 8px;
+        height: 26px;
+    }
+    .item {
+        line-height: 26px;
+    }
+}
