@@ -13,7 +13,7 @@ import {
     WORLD_WIDTH,
 } from '../map/geometry';
 import { type MapTarget, WorldRenderer } from '../map/rendering/WorldRenderer';
-import type { MapRegion } from '../map/types';
+import type { MapRegion, PublishedResearch } from '../map/types';
 import type { MapView } from '../map/view';
 import { useMapStore } from '../state/mapStore';
 import { MapMetricChanges } from './MapMetricChanges';
@@ -65,6 +65,9 @@ export const WorldMap = memo(function WorldMap({
     initialLongitude,
     trafficSpeed,
     trafficTick,
+    showTraffic = true,
+    showNetwork = true,
+    publishedResearch,
     onAreaInspect,
     encounters = [],
     onEncounterSelect,
@@ -83,6 +86,9 @@ export const WorldMap = memo(function WorldMap({
     initialLongitude?: number;
     trafficSpeed: number;
     trafficTick: number;
+    showTraffic?: boolean;
+    showNetwork?: boolean;
+    publishedResearch: PublishedResearch[];
     onAreaInspect?: (id: number | null) => void;
     encounters?: MapEncounter[];
     onEncounterSelect?: (id: string, anchorX?: number, anchorY?: number) => void;
@@ -135,8 +141,21 @@ export const WorldMap = memo(function WorldMap({
             selectedArea,
             speed: trafficSpeed,
             tick: trafficTick,
+            showTraffic,
+            showNetwork,
+            publishedResearch,
         });
-    }, [regions, areaStates, serverArea, selectedArea, trafficSpeed, trafficTick]);
+    }, [
+        regions,
+        areaStates,
+        serverArea,
+        selectedArea,
+        trafficSpeed,
+        trafficTick,
+        showTraffic,
+        showNetwork,
+        publishedResearch,
+    ]);
 
     useEffect(() => {
         if (!renderer.current) return;
@@ -423,7 +442,7 @@ export const WorldMap = memo(function WorldMap({
             data-animation-speed={trafficSpeed}
             tabIndex={0}
             role="region"
-            aria-label="世界地図。ドラッグと矢印キーで移動。2本指のピンチとホイールで拡大縮小、Homeで世界全体へ、Escapeで小地域の選択解除。"
+            aria-label={`世界地図。通信線は${showTraffic ? '表示' : '非表示'}。ドラッグと矢印キーで移動。2本指のピンチとホイールで拡大縮小、Homeで世界全体へ、Escapeで小地域の選択解除。`}
             aria-busy={!ready}
             onPointerDown={pointerDown}
             onPointerMove={pointerMove}

@@ -1,6 +1,6 @@
 import { AREAS, MONTH_MS } from '../../game/data';
 import type { AreaState } from '../../game/types';
-import type { MapRegion } from '../types';
+import type { MapRegion, PublishedResearch } from '../types';
 import {
     type MapView,
     parseRegions,
@@ -12,7 +12,9 @@ import {
 } from '../view';
 import { ChatTraffic } from './ChatTraffic';
 import { createTexture, GLProgram, loadImage, quadVertex } from './gl';
+import { NetworkLines } from './NetworkLines';
 import oceanSettings from './ocean-surface.json';
+import { ResearchRipples } from './ResearchRipples';
 import { fragmentShader as waveFragment, vertexShader as waveVertex } from './shaders/ocean';
 import { compositeFragment, staticFragment } from './shaders/world';
 import { ColorReader, type MapTone, readMapTone } from './tone';
@@ -33,6 +35,9 @@ export interface MapData {
     selectedArea: number | null;
     speed: number;
     tick: number;
+    showTraffic: boolean;
+    showNetwork: boolean;
+    publishedResearch: PublishedResearch[];
 }
 export interface MapTarget {
     kind: 'area';
@@ -55,6 +60,11 @@ const MAX_INVASION_CHANGE_PER_SECOND = 0.015;
 export class WorldRenderer {
     private gl: WebGLRenderingContext;
     private chatTraffic: ChatTraffic;
+    private networkLines: NetworkLines;
+    private researchRipples: ResearchRipples;
+    private showTraffic = true;
+    private showNetwork = true;
+    private month = 0;
     private programs: {
         base: GLProgram;
         wave: GLProgram;
@@ -143,6 +153,8 @@ export class WorldRenderer {
         if (!gl) throw new Error('世界地図の描画にはWebGLが必要です。');
         this.gl = gl;
         this.chatTraffic = new ChatTraffic(gl);
+        this.networkLines = new NetworkLines(gl);
+        this.researchRipples = new ResearchRipples(gl);
         this.programs = {
             base: new GLProgram(gl, quadVertex, staticFragment),
             wave: new GLProgram(gl, waveVertex, waveFragment),
@@ -359,12 +371,25 @@ export class WorldRenderer {
         const old = this.data;
         if (!old || old.selectedArea !== data.selectedArea) this.staticDirty = true;
         const reset = !old || data.tick < old.tick;
-        if (reset || old.areaStates !== data.areaStates) {
-            this.chatTraffic.update(data.serverArea, reset);
+        const trafficChanged = !old || old.showTraffic !== data.showTraffic;
+        this.showTraffic = data.showTraffic;
+        this.showNetwork = data.showNetwork;
+        this.month = data.tick;
+        if (!this.showNetwork) {
+            this.networkLines.clear();
+            this.researchRipples.clear();
+        } else {
+            this.researchRipples.sync(data.publishedResearch, data.tick, reset, this.elapsed);
+        }
+        if (!this.showTraffic) {
+            this.chatTraffic.clear();
+        } else if (trafficChanged || reset || old.areaStates !== data.areaStates) {
+            this.chatTraffic.update(data.serverArea, reset || trafficChanged);
         }
         if (reset) {
             this.shown = data.areaStates.map((area) => ({ ...area }));
             this.transitionProgress = 1;
+            this.networkLines.clear();
         } else if (old.areaStates !== data.areaStates) {
             this.transitionFrom = this.shown.map((area) => ({ ...area }));
             this.transitionProgress = 0;
@@ -384,15 +409,28 @@ export class WorldRenderer {
             );
             // 月次更新は次の月まで等速でつなぎ、操作による大きな増減も急変させない。
             this.transitionDuration = this.transitionInGameTime ? MONTH_MS / 1000 : 2;
-            this.chatTraffic.beginExpansion(
-                this.transitionFrom,
-                data.areaStates,
-                this.elapsed,
-                Math.max(
-                    this.transitionDuration,
-                    this.transitionDistance / MAX_INVASION_CHANGE_PER_SECOND,
-                ),
-            );
+            if (this.showTraffic) {
+                this.chatTraffic.beginExpansion(
+                    this.transitionFrom,
+                    data.areaStates,
+                    this.elapsed,
+                    Math.max(
+                        this.transitionDuration,
+                        this.transitionDistance / MAX_INVASION_CHANGE_PER_SECOND,
+                    ),
+                );
+            }
+            if (this.showNetwork) {
+                this.networkLines.begin(
+                    this.transitionFrom,
+                    data.areaStates,
+                    this.elapsed,
+                    Math.max(
+                        this.transitionDuration,
+                        this.transitionDistance / MAX_INVASION_CHANGE_PER_SECOND,
+                    ),
+                );
+            }
         }
         if (reset || old.areaStates !== data.areaStates) this.paletteDirty = true;
         if (old && data.tick < old.tick) {
@@ -623,7 +661,13 @@ export class WorldRenderer {
         gl.uniform2fv(composite.location('boundaryTexelSize'), this.boundaryTexelSize);
         gl.uniform1f(composite.location('animated'), 1);
         gl.drawArrays(gl.TRIANGLES, 0, 6);
-        // 通信線と発着点の目印は一時的に非表示。
+        // 通信線と発着点の目印は、合成した地図の上へ同じフレームで重ねる。
+        // 交流経路(案A/D)と研究の波紋(案C)は、通信線の下に敷く。
+        if (this.showNetwork) {
+            this.networkLines.draw(this.view, this.elapsed);
+            this.researchRipples.draw(this.view, this.month, this.elapsed);
+        }
+        if (this.showTraffic) this.chatTraffic.draw(this.view, this.elapsed);
         // HTMLマーカーも、実際に描き終えたカメラに揃えて同じフレームで更新する。
         if (this.viewDirty) {
             this.viewDirty = false;
@@ -659,6 +703,8 @@ export class WorldRenderer {
         this.canvas.removeEventListener('webglcontextlost', this.contextLost);
         const gl = this.gl;
         this.chatTraffic.dispose();
+        this.networkLines.dispose();
+        this.researchRipples.dispose();
         for (const program of Object.values(this.programs)) program.dispose();
         for (const texture of Object.values(this.textures)) gl.deleteTexture(texture);
         for (const target of [this.baseTarget, this.waveTarget]) {
