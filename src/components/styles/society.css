@@ -355,8 +355,16 @@ fieldset.encounter-choices {
 .debug-start summary {
     cursor: pointer;
 }
-.debug-start button {
+.debug-start button,
+.debug-start a {
     display: block;
     margin-top: 6px;
     padding: 6px;
+}
+.debug-start a {
+    color: var(--accent);
+    text-decoration: none;
+}
+.debug-start a:hover {
+    text-decoration: underline;
 }

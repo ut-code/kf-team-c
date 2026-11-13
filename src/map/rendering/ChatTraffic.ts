@@ -6,6 +6,8 @@ import { type MapView, screenPoint, viewTransform } from '../view';
 import { GLProgram } from './gl';
 
 type City = (typeof citiesByArea)[number][number];
+type TransmissionKind = 'adoption' | 'dependency';
+
 interface Route {
     source: City;
     target: City;
@@ -18,12 +20,15 @@ interface Route {
 interface Transmission {
     route: Route;
     startedAt: number;
+    kind: TransmissionKind;
+    impact: number;
 }
 
 interface ExpansionCandidate {
     route: Route;
     startedAt: number;
     impact: number;
+    kind: TransmissionKind;
 }
 
 const ARRIVAL_SECONDS = 0.15;
@@ -35,6 +40,10 @@ const MIN_IMPACT_POPULATION = 0.1;
 const HOLD_SECONDS = 3;
 const FADE_SECONDS = 1;
 const MARKER_RADIUS = 2;
+const MIN_LINE_WIDTH = 0.9;
+const MAX_LINE_WIDTH = 3.2;
+const LINE_ALPHA = 0.5;
+const MARKER_ALPHA = 0.66;
 
 // 大陸間通信の拠点。地域内の短距離接続は作らない。
 const HUB_REGIONS = [
@@ -55,15 +64,17 @@ const HUB_REGIONS = [
 
 const vertex = `
 attribute vec2 position, ribbon;
-attribute float opacity, marker;
+attribute float opacity, marker, tint;
 uniform vec2 viewport;
 varying vec2 local;
 varying float alpha;
 varying float isMarker;
+varying float tintValue;
 void main() {
     local = ribbon;
     alpha = opacity;
     isMarker = marker;
+    tintValue = tint;
     gl_Position = vec4(position / viewport * vec2(2., -2.) + vec2(-1., 1.), 0., 1.);
 }`;
 
@@ -72,16 +83,19 @@ precision mediump float;
 varying vec2 local;
 varying float alpha;
 varying float isMarker;
+varying float tintValue;
 void main() {
+    // 自律利用は青、依存は赤。到達点と線を同じ色で揃える。
+    vec3 color = mix(vec3(.333, .737, .902), vec3(.937, .259, .306), tintValue);
     if (isMarker > .5) {
         float radius = length(local);
-        float dot = 1. - smoothstep(.65, 1., radius);
-        gl_FragColor = vec4(.48, .74, .79, dot * .45 * alpha);
+        float dot = 1. - smoothstep(.55, 1., radius);
+        gl_FragColor = vec4(color, dot * ${MARKER_ALPHA.toFixed(2)} * alpha);
         return;
     }
     float stroke = 1. - smoothstep(.25, .8, abs(local.y));
     float revealed = 1. - smoothstep(0., .015, local.x);
-    gl_FragColor = vec4(.48, .74, .79, stroke * revealed * .3 * alpha);
+    gl_FragColor = vec4(color, stroke * revealed * ${LINE_ALPHA.toFixed(2)} * alpha);
 }`;
 
 /** 大陸を隔てた都市の通信。画面上の太さはズームしても一定に保つ。 */
@@ -126,7 +140,14 @@ export class ChatTraffic {
         return dx * dx + (((a.y - b.y) * WORLD_HEIGHT) / WORLD_WIDTH) ** 2;
     }
 
-    private appendMarker(vertices: number[], x: number, y: number, opacity: number) {
+    private appendMarker(
+        vertices: number[],
+        x: number,
+        y: number,
+        opacity: number,
+        tint: number,
+        radius = MARKER_RADIUS,
+    ) {
         for (const [sx, sy] of [
             [-1, -1],
             [1, -1],
@@ -135,7 +156,7 @@ export class ChatTraffic {
             [1, -1],
             [1, 1],
         ]) {
-            vertices.push(x + sx * MARKER_RADIUS, y + sy * MARKER_RADIUS, sx, sy, opacity, 1);
+            vertices.push(x + sx * radius, y + sy * radius, sx, sy, opacity, 1, tint);
         }
     }
 
@@ -144,6 +165,11 @@ export class ChatTraffic {
             this.connectServer(origin);
             this.transmissions = [];
         }
+    }
+
+    /** 非表示に切り替えたとき、次に表示するまで通信の計算も止める。 */
+    clear() {
+        this.transmissions = [];
     }
 
     /** 都市の到達順から月の途中の到達時刻を求め、影響人口が大きい通信を選ぶ。 */
@@ -182,6 +208,7 @@ export class ChatTraffic {
                     route,
                     startedAt: elapsed + arrivalOffset - ARRIVAL_SECONDS,
                     impact,
+                    kind,
                 });
             }
         }
@@ -212,7 +239,12 @@ export class ChatTraffic {
                 )
             )
                 continue;
-            this.transmissions.push({ route: candidate.route, startedAt: candidate.startedAt });
+            this.transmissions.push({
+                route: candidate.route,
+                startedAt: candidate.startedAt,
+                kind: candidate.kind,
+                impact: candidate.impact,
+            });
             selectedAreas.add(candidate.route.targetArea);
         }
     }
@@ -223,16 +255,23 @@ export class ChatTraffic {
             (item) => elapsed - item.startedAt < lifetime,
         );
         if (this.transmissions.length === 0) return;
+        const reducedMotion = this.prefersReducedMotion();
         const transform = viewTransform(view);
         const vertices: number[] = [];
         // 到達イベントからの経過時間は、線の表示とフェードだけに使う。
         const fadeStart = ARRIVAL_SECONDS + HOLD_SECONDS;
         const fadeEnd = fadeStart + FADE_SECONDS;
-        for (const { route, startedAt } of this.transmissions) {
+        for (const { route, startedAt, kind, impact } of this.transmissions) {
             const age = elapsed - startedAt;
             if (age < 0) continue;
-            const travel = Math.min(age / ARRIVAL_SECONDS, 1);
+            const travel = reducedMotion ? 1 : Math.min(age / ARRIVAL_SECONDS, 1);
             const opacity = Math.min(1, age / 0.03, (fadeEnd - age) / FADE_SECONDS);
+            const tint = kind === 'dependency' ? 1 : 0;
+            // 影響人口が多い通信ほど太くする。ズームしても画面上の太さは変えない。
+            const width =
+                MIN_LINE_WIDTH +
+                Math.min(MAX_LINE_WIDTH - MIN_LINE_WIDTH, Math.log1p(impact) * 0.5);
+            const markerRadius = MARKER_RADIUS * (0.8 + width * 0.2);
             const from = screenPoint(
                 view,
                 route.source.x * WORLD_WIDTH,
@@ -251,33 +290,68 @@ export class ChatTraffic {
                     Math.min(from.y, from.y + dy) - bend > view.height
                 )
                     continue;
-                for (let segment = 0; segment < 64; segment++) {
-                    for (const [step, side] of [
-                        [0, -1],
-                        [0, 1],
-                        [1, -1],
-                        [1, -1],
-                        [0, 1],
-                        [1, 1],
-                    ]) {
-                        const t = (segment + step) / 64;
-                        const arc = 4 * t * (1 - t) * bend;
-                        const tangentX = dx;
-                        const tangentY = dy - 4 * (1 - 2 * t) * bend;
-                        const tangentLength = Math.hypot(tangentX, tangentY);
-                        vertices.push(
-                            startX + dx * t - (tangentY / tangentLength) * side,
-                            from.y + dy * t - arc + (tangentX / tangentLength) * side,
-                            t - travel,
-                            side,
-                            opacity,
-                            0,
-                        );
+                // 太い低不透明度の帯を先に敷き、細い芯を重ねて暗い海の上でも輪郭を読めるようにする。
+                for (const [ribbonWidth, ribbonOpacity] of [
+                    [width * 3.2, opacity * 0.26],
+                    [width, opacity],
+                ] as const) {
+                    for (let segment = 0; segment < 64; segment++) {
+                        for (const [step, side] of [
+                            [0, -1],
+                            [0, 1],
+                            [1, -1],
+                            [1, -1],
+                            [0, 1],
+                            [1, 1],
+                        ]) {
+                            const t = (segment + step) / 64;
+                            const arc = 4 * t * (1 - t) * bend;
+                            const tangentX = dx;
+                            const tangentY = dy - 4 * (1 - 2 * t) * bend;
+                            const tangentLength = Math.hypot(tangentX, tangentY);
+                            vertices.push(
+                                startX + dx * t - (tangentY / tangentLength) * side * ribbonWidth,
+                                from.y +
+                                    dy * t -
+                                    arc +
+                                    (tangentX / tangentLength) * side * ribbonWidth,
+                                t - travel,
+                                side,
+                                ribbonOpacity,
+                                0,
+                                tint,
+                            );
+                        }
                     }
                 }
-                this.appendMarker(vertices, startX, from.y, opacity);
+                this.appendMarker(
+                    vertices,
+                    startX,
+                    from.y,
+                    opacity * 0.62,
+                    tint,
+                    markerRadius * 0.85,
+                );
                 if (travel === 1) {
-                    this.appendMarker(vertices, endX, from.y + dy, opacity);
+                    const pulse = reducedMotion
+                        ? 0.5
+                        : (Math.sin(((age - ARRIVAL_SECONDS) * Math.PI * 2) / 0.9) + 1) / 2;
+                    this.appendMarker(
+                        vertices,
+                        endX,
+                        from.y + dy,
+                        opacity * (0.22 + 0.22 * pulse),
+                        tint,
+                        markerRadius * 2.9,
+                    );
+                    this.appendMarker(
+                        vertices,
+                        endX,
+                        from.y + dy,
+                        opacity * 0.92,
+                        tint,
+                        markerRadius,
+                    );
                 }
             }
         }
@@ -291,10 +365,11 @@ export class ChatTraffic {
             ['ribbon', 2, 8],
             ['opacity', 1, 16],
             ['marker', 1, 20],
+            ['tint', 1, 24],
         ] as const) {
             const attribute = gl.getAttribLocation(this.program.program, name);
             gl.enableVertexAttribArray(attribute);
-            gl.vertexAttribPointer(attribute, size, gl.FLOAT, false, 24, offset);
+            gl.vertexAttribPointer(attribute, size, gl.FLOAT, false, 28, offset);
         }
         gl.uniform2f(this.program.location('viewport'), view.width, view.height);
         gl.enable(gl.BLEND);
@@ -307,9 +382,16 @@ export class ChatTraffic {
             Math.floor(transform.width * ratio),
             gl.drawingBufferHeight,
         );
-        gl.drawArrays(gl.TRIANGLES, 0, vertices.length / 6);
+        gl.drawArrays(gl.TRIANGLES, 0, vertices.length / 7);
         gl.disable(gl.SCISSOR_TEST);
         gl.disable(gl.BLEND);
+    }
+
+    private prefersReducedMotion() {
+        return (
+            typeof window !== 'undefined' &&
+            window.matchMedia('(prefers-reduced-motion: reduce)').matches
+        );
     }
 
     dispose() {
