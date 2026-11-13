@@ -1,4 +1,4 @@
-import { Network, Radio, X } from 'lucide-react';
+import { Network, Radio, Waypoints, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AREAS, STAGE_COLORS, STAGES, WORLD_POPULATION } from '../game/data';
 import { areaHint, metrics } from '../game/engine';
@@ -6,7 +6,7 @@ import { instituteFor, investigationRate } from '../game/secrecy/investigations'
 import { socialStrategy } from '../game/society/strategies';
 import { encounterDefinition } from '../game/society/system';
 import { mapScene } from '../map/config';
-import type { MapRegion } from '../map/types';
+import type { MapRegion, PublishedResearch } from '../map/types';
 import { useGameStore } from '../state/gameStore';
 import { useMapStore } from '../state/mapStore';
 import { GameClock } from './GameClock';
@@ -34,6 +34,26 @@ export function GameApp({ regions }: { regions: MapRegion[] }) {
     useAnimationSpeed(shell, game.speed);
     const session = useGameStore((state) => state.session);
     const [panel, setPanel] = useState<Panel | null>(null);
+    const [showTraffic, setShowTraffic] = useState(true);
+    const [showNetwork, setShowNetwork] = useState(true);
+    // 公表済みの研究だけを地図の波紋(伝播)表示へ渡す。closedMonthは公表月。
+    const publishedResearch = useMemo<PublishedResearch[]>(
+        () =>
+            game.investigations.flatMap((item) =>
+                item.kind === 'research' &&
+                item.status === 'published' &&
+                item.closedMonth !== undefined
+                    ? [
+                          {
+                              id: item.id,
+                              instituteId: item.instituteId,
+                              closedMonth: item.closedMonth,
+                          },
+                      ]
+                    : [],
+            ),
+        [game.investigations],
+    );
     const visiblePanel = game.outcome === 'playing' ? panel : null;
     const researchOpen = visiblePanel?.kind === 'skills';
     const snsOpen = visiblePanel?.kind === 'sns';
@@ -162,6 +182,9 @@ export function GameApp({ regions }: { regions: MapRegion[] }) {
                     >
                         研究支援ありで開始
                     </button>
+                    <a href="/mock/chat-traffic.html" target="_blank" rel="noreferrer">
+                        通信線モックを開く
+                    </a>
                 </details>
             )}
             <div className="map-background">
@@ -177,6 +200,9 @@ export function GameApp({ regions }: { regions: MapRegion[] }) {
                     onEncounterSelect={toggleEncounter}
                     trafficSpeed={blocked ? 0 : game.speed}
                     trafficTick={game.month}
+                    showTraffic={showTraffic}
+                    showNetwork={showNetwork}
+                    publishedResearch={publishedResearch}
                     onAreaSelect={(index) => {
                         if (index === null) closePanel();
                         else togglePanel({ kind: 'region', id: index });
@@ -244,6 +270,26 @@ export function GameApp({ regions }: { regions: MapRegion[] }) {
                             {label}
                         </span>
                     ))}
+                    <button
+                        type="button"
+                        className="traffic-toggle"
+                        aria-pressed={showTraffic}
+                        aria-label={showTraffic ? '通信線を非表示にする' : '通信線を表示する'}
+                        onClick={() => setShowTraffic((value) => !value)}
+                    >
+                        <i className="traffic-line" aria-hidden="true" />
+                        通信線
+                    </button>
+                    <button
+                        type="button"
+                        className="traffic-toggle"
+                        aria-pressed={showNetwork}
+                        aria-label={showNetwork ? '交流経路を非表示にする' : '交流経路を表示する'}
+                        onClick={() => setShowNetwork((value) => !value)}
+                    >
+                        <i className="traffic-line routes-line" aria-hidden="true" />
+                        交流経路
+                    </button>
                 </div>
                 <nav className="game-actions" aria-label="世界への戦略">
                     <button
@@ -270,6 +316,16 @@ export function GameApp({ regions }: { regions: MapRegion[] }) {
                             {game.skillPoints}
                             <small>SP</small>
                         </b>
+                    </button>
+                    <button
+                        type="button"
+                        className="traffic-button glass"
+                        aria-pressed={showTraffic}
+                        aria-label={showTraffic ? '通信線を非表示にする' : '通信線を表示する'}
+                        onClick={() => setShowTraffic((value) => !value)}
+                    >
+                        <Waypoints size={20} />
+                        <span>通信線</span>
                     </button>
                 </nav>
             </footer>

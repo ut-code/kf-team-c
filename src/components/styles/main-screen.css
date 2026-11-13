@@ -253,6 +253,42 @@
     border-radius: 50%;
     flex-shrink: 0;
 }
+.map-legend .traffic-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 7px;
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    background: #ffffff06;
+    font-size: 9px;
+    color: #bfccd6;
+    white-space: nowrap;
+    pointer-events: auto;
+}
+.map-legend .traffic-toggle:hover {
+    background: var(--surface-hover);
+}
+.map-legend .traffic-toggle .traffic-line {
+    width: 14px;
+    height: 2px;
+    margin: 0;
+    border-radius: 2px;
+    background: linear-gradient(90deg, #55bce6, #ef424e);
+    flex-shrink: 0;
+}
+.map-legend .traffic-toggle .routes-line {
+    background: linear-gradient(90deg, #f0c75e, #55bce6);
+}
+.map-legend .traffic-toggle[aria-pressed="false"] {
+    color: var(--muted);
+}
+.map-legend .traffic-toggle[aria-pressed="false"] .traffic-line {
+    background: #6f8492;
+}
+.game-actions > .traffic-button {
+    display: none;
+}
 .game-actions {
     display: flex;
     align-items: stretch;

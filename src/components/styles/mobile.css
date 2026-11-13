@@ -91,6 +91,15 @@
     .game-actions > :where(button) > b {
         display: inline;
     }
+    .game-actions > .traffic-button {
+        display: flex;
+    }
+    .game-actions > .traffic-button[aria-pressed="false"] {
+        color: var(--muted);
+    }
+    .game-actions > .traffic-button[aria-pressed="false"] svg {
+        color: var(--muted);
+    }
     .game-actions > :where(button) > small,
     .map-credit,
     .map-legend {
