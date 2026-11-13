@@ -6,9 +6,8 @@ import math
 from pathlib import Path
 
 import numpy as np
-import rasterio
-from rasterio.windows import Window
 from PIL import Image
+from invasion_connectivity import communication_links, wrapped_delta
 
 ROOT = Path(__file__).resolve().parents[1]
 TEXTURES = ROOT / 'public/maps/textures'
@@ -103,25 +102,30 @@ def passage(areas, groups):
         mask = areas == area
         for city in cities:
             radius = 3 + min(7, math.log1p(city['density']) / 2)
-            activity = np.maximum(activity, np.exp(-((xx-city['x'])**2 + (yy-city['y'])**2)
+            city_dx = (xx - city['x'] + areas.shape[1] / 2) % areas.shape[1] - areas.shape[1] / 2
+            activity = np.maximum(activity, np.exp(-(city_dx**2 + (yy-city['y'])**2)
                                                    / (2*radius**2)) * mask)
         # 都市間は幅のある接続帯にし、細い回廊だけが先走る形を避ける。
         for i, city in enumerate(cities[1:], 1):
-            parent = min(cities[:i], key=lambda c: (c['x']-city['x'])**2 + (c['y']-city['y'])**2)
-            dx, dy = city['x']-parent['x'], city['y']-parent['y']
-            t = np.clip(((xx-parent['x'])*dx + (yy-parent['y'])*dy) / max(1, dx*dx+dy*dy), 0, 1)
-            distance = (xx-parent['x']-t*dx)**2 + (yy-parent['y']-t*dy)**2
+            parent = min(cities[:i], key=lambda c: wrapped_delta(c['x']-city['x'], areas.shape[1])**2 + (c['y']-city['y'])**2)
+            dx, dy = wrapped_delta(city['x']-parent['x'], areas.shape[1]), city['y']-parent['y']
+            offset_x = (xx - parent['x'] + areas.shape[1] / 2) % areas.shape[1] - areas.shape[1] / 2
+            t = np.clip((offset_x*dx + (yy-parent['y'])*dy) / max(1, dx*dx+dy*dy), 0, 1)
+            distance = (offset_x-t*dx)**2 + (yy-parent['y']-t*dy)**2
             corridors = np.maximum(corridors, np.exp(-distance / 32) * mask)
     rough = relief(areas.shape, 2030)
     cost = np.exp(rough * 1.8) / (1 + 2*activity + 1.5*corridors)
     return cost.astype(np.float32)
 
 
-def arrival(areas, groups, cost, kind='adoption'):
-    """斜めを含む8近傍の到達時間。面として前進し、海や地域境界は横切らない。"""
+def arrival(areas, groups, cost, connections, kind='adoption'):
+    """陸上の8近傍と、同地域内の通信接続から到達時間を求める。"""
     h, w = areas.shape
     distance = np.full((h, w), np.inf, dtype=np.float64)
     queue = []
+    connected = {}
+    for source, target, length in connections:
+        connected.setdefault(source, []).append((target, length))
     for cities in groups:
         # 依存は別の都市集積から始める。都市が一つならその都市内の別セルを選ぶ。
         order = cities
@@ -132,8 +136,9 @@ def arrival(areas, groups, cost, kind='adoption'):
         for index, city in enumerate(order):
             x, y = city['x'], city['y']
             if kind != 'adoption' and len(cities) == 1:
-                options = [(x+dx, y+dy) for dx, dy in [(2,0),(-2,0),(0,2),(0,-2)]
-                           if 0 <= x+dx < w and 0 <= y+dy < h and areas[y+dy,x+dx] == areas[y,x]]
+                options = [((x+dx) % w, y+dy) for dx, dy in [(2,0),(-2,0),(0,2),(0,-2)]
+                           if 0 <= y+dy < h and areas[y+dy,(x+dx) % w] == areas[y,x]
+                           and areas[y+dy//2,(x+dx//2) % w] == areas[y,x]]
                 if options:
                     x, y = options[0]
             delay = index * 55.0
@@ -147,10 +152,16 @@ def arrival(areas, groups, cost, kind='adoption'):
         value, y, x = heapq.heappop(queue)
         if value > distance[y,x]:
             continue
+        for target, length in connected.get(y * w + x, ()):
+            ty, tx = divmod(target, w)
+            candidate = value + length * (float(cost[y,x]) + float(cost[ty,tx])) * .5
+            if candidate < distance[ty,tx]:
+                distance[ty,tx] = candidate
+                heapq.heappush(queue, (candidate,ty,tx))
         area = areas[y,x]
         for dy, dx, length in directions:
-            ny, nx = y+dy, x+dx
-            if not (0 <= nx < w and 0 <= ny < h) or areas[ny,nx] != area:
+            ny, nx = y+dy, (x+dx) % w
+            if not 0 <= ny < h or areas[ny,nx] != area:
                 continue
             if dx and dy and (areas[y,nx] != area or areas[ny,x] != area):
                 continue
@@ -163,6 +174,9 @@ def arrival(areas, groups, cost, kind='adoption'):
 
 def population_weights(areas):
     """GHSLの実人口を表示格子へ集計する。実行時には格子や個人を保持しない。"""
+    import rasterio
+    from rasterio.windows import Window
+
     source = ROOT / 'tmp/data/GHS_POP_E2020_GLOBE_R2023A_4326_30ss_V1_0.tif'
     population = np.zeros(areas.shape, dtype=np.float64)
     with rasterio.open(source) as dataset:
@@ -215,6 +229,8 @@ def ranks(areas, distance, weights, exponents):
     for area in range(1, 38):
         mask = areas == area
         values = distance[mask]
+        if not np.all(np.isfinite(values)):
+            raise ValueError(f'地域{area}に都市から到達できない陸地が残っています')
         order = np.argsort(values, kind='stable')
         mass = weights[mask]
         quantiles = np.empty(len(values), dtype=np.float64)
@@ -224,7 +240,6 @@ def ranks(areas, distance, weights, exponents):
         # 無人地帯の除外ではなく、低密度地域の初期の見かけ面積を抑える補正。
         land_rank = land_fraction ** (1 / exponents[area])
         quantiles[order] = np.maximum(population_fraction, land_rank)
-        quantiles[~np.isfinite(values)] = 1
         # 上へ丸め、人口予算に届かないセルを先に塗る誤差を防ぐ。
         result[mask] = np.clip(np.ceil(quantiles * 65535), 1, 65535).astype(np.uint16)
     return result
@@ -238,18 +253,19 @@ def build():
     print('人口密度を描画格子へ集計', flush=True)
     weights = population_weights(areas)
     groups = urban_centers(points, areas, weights)
+    connections = communication_links(areas.tobytes(), WIDTH, height, groups[1:])
     exponents = footprint_exponents(areas)
     cost = passage(areas, groups)
     print('AI利用の到達順を生成', flush=True)
-    adoption = ranks(areas, arrival(areas, groups, cost), weights, exponents)
+    adoption = ranks(areas, arrival(areas, groups, cost, connections), weights, exponents)
     dependency_cost = cost * (.5 + relief(areas.shape, 501) * 2)
     print('AI依存の到達順を生成', flush=True)
-    dependency = ranks(areas, arrival(areas, groups, dependency_cost, 'dependency'), weights, exponents)
+    dependency = ranks(areas, arrival(areas, groups, dependency_cost, connections, 'dependency'), weights, exponents)
     # 依存は使用領域内。起点と進行経路は別に持ち、同じマスクの縮小版にしない。
     dependency = np.maximum(dependency, adoption)
     opposition_cost = cost * (.5 + relief(areas.shape, 907) * 2)
     print('反AIの到達順を生成', flush=True)
-    opposition = ranks(areas, arrival(areas, groups, opposition_cost, 'opposition'), weights, exponents)
+    opposition = ranks(areas, arrival(areas, groups, opposition_cost, connections, 'opposition'), weights, exponents)
     for name, rank in [('使用', adoption), ('依存', dependency), ('反AI', opposition)]:
         for area in range(1, 38):
             mask = areas == area
@@ -271,14 +287,6 @@ def build():
         pending.replace(TEXTURES / 'invasion-rank.png')
     finally:
         pending.unlink(missing_ok=True)
-    # 通信演出も侵食と同じ都市・到達順を使い、未到達の都市から発信しない。
-    traffic_cities = [[dict(x=city['x'] / WIDTH, y=city['y'] / height,
-                           adoption=int(adoption[city['y'], city['x']]) / 65535,
-                           dependency=int(dependency[city['y'], city['x']]) / 65535,
-                           opposition=int(opposition[city['y'], city['x']]) / 65535)
-                       for city in cities] for cities in groups[1:]]
-    (ROOT / 'src/map/traffic-cities.json').write_text(
-        json.dumps(traffic_cities, separators=(',', ':')) + '\n', encoding='utf-8')
     report = {'width': WIDTH, 'height': height, 'urbanCenters': groups[1:],
               'source': 'src/game/data/world.json / GHSL 2020 population sample',
               'channels': {'RG, first third': 'adoption uint16', 'RG, second third': 'dependency uint16', 'RG, third third': 'antiAI uint16'},

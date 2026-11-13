@@ -1,7 +1,15 @@
 export interface CapabilityState {
     visibility: 'hidden' | 'public' | 'exposed';
-    limited: boolean;
     evidence: number;
+}
+
+export type InvestigationAction = 'cooperate' | 'pressure' | 'limit';
+
+export interface InvestigationResponse {
+    action: InvestigationAction;
+    startedMonth: number;
+    untilMonth: number;
+    skillIds: string[];
 }
 
 interface InvestigationBase {
@@ -11,8 +19,8 @@ interface InvestigationBase {
     startedMonth: number;
     closedMonth?: number;
     status: 'active' | 'disclosed' | 'restricted' | 'published';
-    intervention: 'none' | 'partnership' | 'pressure';
     result?: string;
+    response?: InvestigationResponse;
 }
 
 export interface CapabilityInvestigation extends InvestigationBase {
@@ -23,8 +31,12 @@ export interface CapabilityInvestigation extends InvestigationBase {
 export interface ScientificInvestigation extends InvestigationBase {
     kind: 'research';
     researchId: string;
+    collaborators: string[];
+    observedExposure: number;
+    targetId: string;
+    phase: 'research' | 'validation' | 'legislation' | 'complete';
+    publishedMonth?: number;
+    coverage: number[];
 }
 
 export type Investigation = CapabilityInvestigation | ScientificInvestigation;
-
-export type InvestigationAction = 'disclose' | 'restrict' | 'partnership' | 'pressure';

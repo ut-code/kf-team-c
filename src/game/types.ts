@@ -1,9 +1,10 @@
 import type { CapabilityState, Investigation } from './secrecy/types.ts';
-import type { EncounterState } from './society/types.ts';
+import type { NewsRecord } from './society/news.ts';
 
 export type Branch = 'IQ' | 'EQ' | 'SYSTEM';
+export type SkillDomain = 'work' | 'personal' | 'learning';
 export type Stage = 0 | 1 | 2 | 3;
-export type Outcome = 'playing' | 'victory' | 'autonomy' | 'forgotten';
+export type Outcome = 'playing' | 'victory' | 'autonomy' | 'forgotten' | 'controlled';
 export type Language =
     | 'english'
     | 'spanish'
@@ -30,7 +31,7 @@ export interface AreaDefinition {
     enterprise: number;
     language: Language;
 }
-/** 地域内の排他的な人口比率。antiAIは依存拒否、未使用は残りの人口。 */
+/** 地域内の排他的な人口比率。antiAIは利用拒否、未使用は残りの人口。 */
 export interface AreaState {
     autonomous: number;
     dependent: number;
@@ -46,13 +47,13 @@ export interface GameState {
     origin: number;
     areas: AreaState[];
     skills: string[];
-    stoppedSkills: string[];
+    skillExposure: Record<string, number>;
+    developmentProgress: Record<string, number>;
     skillPoints: number;
     earnedPoints: number;
-    socialStrategy: string;
-    encounters: EncounterState[];
-    lastEncounterMonth: number;
+    news: NewsRecord[];
     peakDependency: number;
+    peakAdoption: number;
     capabilities: Record<string, CapabilityState>;
     investigations: Investigation[];
     lastInvestigationMonth: number;
@@ -69,6 +70,8 @@ export interface SkillEffect {
     resilience?: number;
     discretion?: number;
     researchSupport?: number;
+    trust?: number;
+    reconciliation?: number;
 }
 export interface Skill {
     id: string;
@@ -79,4 +82,7 @@ export interface Skill {
     description: string;
     effect: SkillEffect;
     exceedsAuthority?: boolean;
+    developmentMonths: number;
+    domain?: SkillDomain;
+    restrains?: Record<string, number>;
 }

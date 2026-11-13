@@ -1,61 +1,65 @@
-import { Eye, FlaskConical, Handshake, Pause, X } from 'lucide-react';
+import { Search, X } from 'lucide-react';
+import { controlResearchOversight } from '../../game/control';
+import { AREAS } from '../../game/data';
 import { CAPABILITIES } from '../../game/secrecy/data';
-import {
-    instituteFor,
-    investigationRate,
-    regionalDependency,
-    regionalDependencyMetrics,
-} from '../../game/secrecy/investigations';
+import { instituteArea, instituteFor, investigationRate } from '../../game/secrecy/investigations';
 import { researchTopic } from '../../game/secrecy/research';
-import { researchCapacity } from '../../game/secrecy/researchCapacity';
+import { researchImpact } from '../../game/secrecy/researchImpact';
+import {
+    researchHasFindings,
+    researchPhaseLabel,
+    researchTarget,
+} from '../../game/secrecy/researchTargets';
 import { SKILLS } from '../../game/skills';
 import type { GameState } from '../../game/types';
-import { useGameStore } from '../../state/gameStore';
-import { Modal, population } from '../widgets';
+import { Modal } from '../widgets';
+import { InvestigationResponses } from './InvestigationResponses';
+import { ResearchProgress } from './ResearchProgress';
+import { researchEffectLabels, researchPresentation } from './researchPresentation';
 
 export function InvestigationPanel({
     game,
     id,
     onClose,
-    anchor,
+    onOpenSkill,
 }: {
     game: GameState;
     id: string;
     onClose: () => void;
-    anchor?: { x: number; y: number };
+    onOpenSkill: (id?: string) => void;
 }) {
-    const investigation = game.investigations.find((item) => item.id === id);
-    if (!investigation) return null;
-    const institute = instituteFor(investigation);
-    const topic = investigation.kind === 'research' ? researchTopic(investigation) : null;
+    const project = game.investigations.find((item) => item.id === id);
+    if (!project) return null;
+    const scientific = project.kind === 'research' ? project : null;
+    const topic = scientific ? researchTopic(scientific) : null;
+    const regulation = topic?.category === 'regulation';
+    const presentation = scientific
+        ? researchPresentation(scientific)
+        : { Icon: Search, label: '能力の調査', color: 'var(--warning)' };
+    const Icon = presentation.Icon;
+    const institute = instituteFor(project);
+    const organization = regulation
+        ? `${AREAS[instituteArea(project)].name}の規制当局`
+        : institute.name;
     const name =
-        investigation.kind === 'capability'
-            ? SKILLS.find((item) => item.id === investigation.skillId)!.name
-            : topic!.name;
-    const question =
-        investigation.kind === 'capability'
-            ? CAPABILITIES[investigation.skillId].question
-            : topic!.question;
-    const active = investigation.status === 'active';
-    const rate = investigationRate(game, investigation);
-    const capacity = researchCapacity(game, institute.id);
-    const speed = rate / investigationRate(game, investigation, true);
-    const remaining = rate > 0 ? Math.ceil((100 - investigation.progress) / rate) : null;
-    const pressure = Math.round(regionalDependency(game, investigation) * 100);
-    const surrounding = regionalDependencyMetrics(game, investigation);
-    const intervene = (action: 'disclose' | 'restrict' | 'partnership' | 'pressure') =>
-        useGameStore.getState().investigate(id, action);
+        project.kind === 'research'
+            ? researchTopic(project).name
+            : SKILLS.find((skill) => skill.id === project.skillId)!.name;
+    const active = project.status === 'active';
+    const findings = scientific ? researchHasFindings(scientific) : !active;
+    const impact = scientific ? researchImpact(game, scientific) : null;
+    const effects = scientific
+        ? researchEffectLabels(scientific)
+        : ['権限を超えた介入が明らかになり、利用拒否が広がる'];
     return (
-        <Modal modal={false} label={institute.name} onClose={onClose} anchor={anchor}>
+        <Modal modal={false} label={name} onClose={onClose} mapLocation={institute}>
             <div className="investigation-panel">
                 <div className="society-heading">
                     <div className="contact-heading">
-                        <FlaskConical size={28} />
+                        <Icon size={28} style={{ color: presentation.color }} />
                         <div>
-                            <span className="eyebrow">
-                                {institute.specialty} · {name}
-                            </span>
-                            <h2>{institute.name}</h2>
+                            <span className="eyebrow">{presentation.label}</span>
+                            <h2>{organization}</h2>
                         </div>
                     </div>
                     <button
@@ -67,116 +71,102 @@ export function InvestigationPanel({
                         <X size={20} />
                     </button>
                 </div>
-                <p className="investigation-question">{question}</p>
+                <h2 className="investigation-title">{name}</h2>
+                <p className="investigation-question">
+                    {project.kind === 'research'
+                        ? researchTopic(project).question
+                        : CAPABILITIES[project.skillId].question}
+                </p>
+                {scientific && (
+                    <p className="investigation-target">対象：{researchTarget(scientific).name}</p>
+                )}
                 <div className="investigation-progress">
-                    <label htmlFor="investigation-progress">
-                        {active
-                            ? remaining === null
-                                ? capacity === 0
-                                    ? '研究停止'
-                                    : '研究待機中'
-                                : `公表まで約${remaining}か月`
-                            : investigation.status === 'published'
-                              ? '調査結果を公表'
-                              : '対応済み'}
-                    </label>
-                    <strong>{Math.floor(investigation.progress)}%</strong>
-                    <progress
-                        id="investigation-progress"
-                        value={investigation.progress}
-                        max={100}
-                    />
+                    <span>
+                        {scientific
+                            ? researchPhaseLabel(scientific)
+                            : active
+                              ? '調査中'
+                              : '調査結果を公表済み'}
+                    </span>
+                    {active && !findings && (
+                        <>
+                            <small>
+                                {regulation ? '成立まで' : '公表まで'}
+                                {investigationRate(game, project) === 0 ? '・進行停止中' : ''}
+                            </small>
+                            <ResearchProgress
+                                id="investigation-progress"
+                                project={project}
+                                label={regulation ? '法案成立までの全体進捗' : '公表までの全体進捗'}
+                            />
+                        </>
+                    )}
                 </div>
-                {active && (
-                    <details className="research-speed">
-                        <summary title="AI利用は研究を助けますが、高依存では独立した検証能力が低下します。研究支援の習得で両方の効果が強まります。">
-                            研究速度 {rate === 0 ? 0 : Math.max(1, Math.round(speed * 100))}%
-                        </summary>
-                        <small>
-                            AI利用は研究を助けますが、高依存では独立した検証能力が低下します。研究支援の習得で両方の効果が強まります。100%は研究支援・依存・介入の影響がない状態です。
-                        </small>
-                    </details>
-                )}
-                {active && (
-                    <p className="investigation-warning">
-                        {topic
-                            ? topic.resistance >= 8
-                                ? '権限逸脱能力があれば独自目的が立証され、秘匿能力が露呈します。依存と公知の権限逸脱に応じて反発が続き、好感度が高いほど軽減されます。'
-                                : '成果は共有され、実際の依存に応じて警戒が広がります。依存がなければ反発は生じません。'
-                            : '露呈すると、能力への恐怖と隠蔽への不信が広がる。'}
-                    </p>
-                )}
-                {investigation.result && <p className="encounter-result">{investigation.result}</p>}
-                {active && (
-                    <div className="investigation-actions">
-                        {!topic && (
+                <InvestigationResponses game={game} project={project} onClose={onClose} />
+                <section
+                    className="research-impact investigation-findings"
+                    aria-label="研究による効果"
+                >
+                    <h3>
+                        {findings
+                            ? regulation
+                                ? '成立後の効果'
+                                : '公表後の効果'
+                            : regulation
+                              ? '成立すると'
+                              : '公表されると'}
+                    </h3>
+                    <ul className="research-effects">
+                        {effects.map((effect) => (
+                            <li key={effect}>
+                                <Icon
+                                    size={16}
+                                    style={{ color: presentation.color }}
+                                    aria-hidden="true"
+                                />
+                                <span>{effect}</span>
+                            </li>
+                        ))}
+                    </ul>
+                    {impact &&
+                        scientific &&
+                        ((controlResearchOversight(topic!.id) > 0 &&
+                            topic!.id !== 'managed-deployment') ||
+                            impact.strength > 0 ||
+                            topic!.effects.recovery ||
+                            topic!.effects.alternatives) && (
                             <>
-                                <button type="button" onClick={() => intervene('disclose')}>
-                                    <Eye size={18} />
-                                    <span>
-                                        <strong>正直に開示</strong>
-                                        <small>能力への警戒は残る · 隠蔽の発覚を回避</small>
-                                    </span>
-                                </button>
-                                <button type="button" onClick={() => intervene('restrict')}>
-                                    <Pause size={18} />
-                                    <span>
-                                        <strong>機能を制限</strong>
-                                        <small>調査を中断 · この研究の効果を20%に</small>
-                                    </span>
-                                </button>
+                                {findings ? (
+                                    <p className="research-application">
+                                        {regulation ? '現在の施行率' : '現在の適用率'}{' '}
+                                        <strong>{Math.round(impact.coverage * 100)}%</strong>
+                                        <small>人口で重み付けした世界平均</small>
+                                    </p>
+                                ) : (
+                                    <p className="investigation-warning">
+                                        {regulation ? '成立後' : '公表後'}
+                                        、導入された地域から効果が現れます。
+                                    </p>
+                                )}
+                                <div className="research-target-skills">
+                                    {impact.skills.map((skill) => (
+                                        <button
+                                            type="button"
+                                            key={skill.id}
+                                            onClick={() => onOpenSkill(skill.id)}
+                                        >
+                                            {skill.name}
+                                        </button>
+                                    ))}
+                                </div>
+                                {impact.targeted && impact.skills.length === 0 && (
+                                    <p className="investigation-warning">
+                                        対象となるスキルは未取得です。
+                                    </p>
+                                )}
                             </>
                         )}
-                        {topic && (
-                            <p className="investigation-warning">
-                                {topic.resistance >= 8
-                                    ? '独立再現により、圧力・共同検証の遅延効果は小さい。'
-                                    : '能力を公開・制限しても、この研究は終了しない。'}
-                            </p>
-                        )}
-                        {investigation.intervention === 'none' && (
-                            <>
-                                <button
-                                    type="button"
-                                    disabled={game.skillPoints < 2}
-                                    onClick={() => intervene('partnership')}
-                                >
-                                    <Handshake size={18} />
-                                    <span>
-                                        <strong>共同検証 · 2 SP</strong>
-                                        <small>
-                                            {topic
-                                                ? '検証協力で進行を遅らせる · 成果は消せない'
-                                                : game.skills.includes('privacy')
-                                                  ? '保護された検証環境で調査を遅らせる'
-                                                  : '現地導入↑ · 情報保護なしでは調査も加速'}
-                                        </small>
-                                    </span>
-                                </button>
-                                <button
-                                    type="button"
-                                    disabled={game.skillPoints < 2}
-                                    onClick={() => intervene('pressure')}
-                                >
-                                    <FlaskConical size={18} />
-                                    <span>
-                                        <strong>周辺企業から圧力 · 2 SP</strong>
-                                        <small>
-                                            周辺依存 {pressure}%（
-                                            {population(surrounding.dependent)}） ·{' '}
-                                            {topic?.resistance === 8
-                                                ? '独立再現により遅延効果は小さい'
-                                                : pressure >= 30
-                                                  ? '遅延効果 大'
-                                                  : '遅延効果 小'}
-                                            {!topic && ' · 発覚時の不信↑'}
-                                        </small>
-                                    </span>
-                                </button>
-                            </>
-                        )}
-                    </div>
-                )}
+                </section>
             </div>
         </Modal>
     );

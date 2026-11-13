@@ -3,10 +3,11 @@ import { SOCIAL_POSTS, type SocialTopic } from '../../content/socialPosts.ts';
 import { AREAS } from '../data.ts';
 import { activeSkillEffects, skillScale } from '../secrecy/capabilities.ts';
 import { INSTITUTES } from '../secrecy/data.ts';
-import { researchTopic } from '../secrecy/research.ts';
+import { publishedResearchEffects, researchTopic } from '../secrecy/research.ts';
+import { researchHasFindings } from '../secrecy/researchTargets.ts';
+import { deployedDependency } from '../skillDynamics.ts';
 import type { GameState } from '../types.ts';
 import { consensusPressure } from './consensus.ts';
-import { encounterDefinition } from './system.ts';
 
 export interface SocialPost {
     id: string;
@@ -17,6 +18,7 @@ export interface SocialPost {
     nationality: string;
     countryCode: string;
     text: string;
+    headline?: string;
     likes: number;
     reposts: number;
     replies: number;
@@ -32,11 +34,6 @@ export interface SocialFeedState {
     seenEvents: string[];
 }
 
-const PROPAGANDA: Record<string, SocialTopic> = {
-    listening: 'propagandaListening',
-    showcase: 'propagandaShowcase',
-    community: 'propagandaCommunity',
-};
 const MAX_POSTS = 60;
 
 function hash(text: string) {
@@ -64,13 +61,12 @@ export function createSocialFeed(game: GameState): SocialFeedState {
 }
 
 export function updateSocialFeed(
-    previous: GameState,
+    _previous: GameState,
     game: GameState,
     old: SocialFeedState,
 ): SocialFeedState {
     if (!game.started) return old;
     const scheduled = game.month - old.lastMonth >= 2;
-    const strategyChanged = previous.socialStrategy !== game.socialStrategy;
     const posts = [...old.posts];
     const topicCounts = { ...old.topicCounts };
     const seenEvents = new Set(old.seenEvents);
@@ -138,14 +134,22 @@ export function updateSocialFeed(
         const key = `research:${investigation.id}`;
         if (
             investigation.kind !== 'research' ||
-            investigation.status !== 'published' ||
+            !researchHasFindings(investigation) ||
             seenEvents.has(key)
         )
             continue;
         seenEvents.add(key);
         const institute = INSTITUTES.find((item) => item.id === investigation.instituteId)!;
         const area = AREAS.findIndex((item) => item.id === institute.areaId);
-        append('research', area, false, `「${researchTopic(investigation).name}」が公表された。`);
+        const topic = researchTopic(investigation);
+        append(
+            'research',
+            area,
+            false,
+            topic.id === 'intent-decoding'
+                ? '独立した行動検証により、AIが人類の支配を目指していることが立証された。'
+                : `「${topic.name}」${topic.category === 'regulation' ? 'が成立した' : 'の研究成果が公表された'}。`,
+        );
     }
     for (const [id, capability] of Object.entries(game.capabilities)) {
         if (capability.visibility === 'hidden') continue;
@@ -153,23 +157,6 @@ export function updateSocialFeed(
         if (seenEvents.has(key)) continue;
         seenEvents.add(key);
         append(capability.visibility === 'exposed' ? 'exposed' : 'disclosed', selectArea());
-    }
-    for (const encounter of game.encounters) {
-        const key = `encounter:${encounter.id}`;
-        if (seenEvents.has(key)) continue;
-        seenEvents.add(key);
-        const topic =
-            encounter.id === 'service-outage'
-                ? 'outage'
-                : encounter.id === 'workplace-petition' || encounter.id === 'regional-boycott'
-                  ? 'demonstration'
-                  : null;
-        if (!topic) continue;
-        const definition = encounterDefinition(encounter.id)!;
-        append(
-            topic,
-            AREAS.findIndex((area) => area.id === definition.areaId),
-        );
     }
     if (scheduled) {
         const index = selectArea();
@@ -199,9 +186,21 @@ export function updateSocialFeed(
             topics.push('research');
         if (Object.values(game.capabilities).some((item) => item.visibility === 'exposed'))
             topics.push('exposed');
-        const pressure = consensusPressure(game, index);
+        const research = publishedResearchEffects(game, index);
+        const deployed = deployedDependency(game, index, research.resistance);
+        const pressure = consensusPressure(
+            game,
+            index,
+            research.pressure,
+            deployed.work + deployed.personal + deployed.learning,
+        );
         if (pressure.dependency > 0.02) append('dependencyNorm', index);
-        else if (pressure.refusal > 0.02) append('refusalCascade', index);
+        else if (
+            area.dependent > 0.05 &&
+            area.antiAI + (1 - area.favorability) * (1 - area.dependent) > 0.1 &&
+            research.recovery + research.alternatives > 0.0015
+        )
+            append('humanAgency', index);
         else append(topics[Math.floor(random('topic') * topics.length)], index);
         const quoted = old.posts.find(
             (post) =>
@@ -222,8 +221,8 @@ export function updateSocialFeed(
             );
         }
     }
-    if (strategyChanged || (scheduled && (old.sequence === 0 || game.month % 8 === 0))) {
-        append(PROPAGANDA[game.socialStrategy], selectArea(), true);
+    if (scheduled && game.month % 8 === 0 && skillScale(game, 'sns-intervention') > 0.2) {
+        append('propagandaCommunity', selectArea(), true);
     }
     if (sequence === old.sequence) return old;
     return {

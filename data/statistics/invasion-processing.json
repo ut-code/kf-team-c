@@ -4623,6 +4623,11 @@
     "budget": "land fraction with regional density exponent",
     "cityDelay": "first three: index * 8; later: 45 + (index - 3) * 22",
     "population": "used for cached city seeds only; not a coverage constraint",
-    "passage": "coherent multiscale roughness and broad urban connection bands; not measured roads"
+    "passage": "coherent multiscale roughness and broad urban connection bands; not measured roads",
+    "connectivity": {
+      "horizontalWrap": true,
+      "communicationLinks": 1287,
+      "unreachableLandCells": 0
+    }
   }
 }

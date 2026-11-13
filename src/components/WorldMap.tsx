@@ -3,7 +3,6 @@ import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from 
 import { flushSync } from 'react-dom';
 import type { AreaState } from '../game/types';
 import {
-    centerCamera,
     constrainCamera,
     fitScale,
     project,
@@ -44,9 +43,13 @@ function pinchPosition(points: Map<number, TouchPoint>) {
     };
 }
 
-/** 縦横のどちらも画面内に収まる倍率。 */
+/** PCでは画面を覆い、スマホでは地図全体を収める倍率。 */
 function overviewZoom(width: number, height: number) {
-    return Math.min(1, (width * WORLD_HEIGHT) / (height * WORLD_WIDTH));
+    const horizontal = (width * WORLD_HEIGHT) / (height * WORLD_WIDTH);
+    const mobile = window.matchMedia(
+        '(max-width: 700px), (max-height: 500px) and (pointer: coarse)',
+    ).matches;
+    return mobile ? Math.min(1, horizontal) : Math.max(1, horizontal);
 }
 
 /** Reactは操作と読み上げを担当し、地図の全画像は一つのWebGL描画へ渡す。 */
@@ -60,9 +63,10 @@ export const WorldMap = memo(function WorldMap({
     areaIndexUrl,
     invasionUrl,
     areaStates,
+    humanProtection,
     serverArea,
     onAreaSelect,
-    initialLongitude,
+    initialLongitude = 138,
     trafficSpeed,
     trafficTick,
     onAreaInspect,
@@ -78,6 +82,7 @@ export const WorldMap = memo(function WorldMap({
     areaIndexUrl: string;
     invasionUrl: string;
     areaStates: AreaState[];
+    humanProtection: number[];
     serverArea: number;
     onAreaSelect?: (id: number | null) => void;
     initialLongitude?: number;
@@ -85,7 +90,7 @@ export const WorldMap = memo(function WorldMap({
     trafficTick: number;
     onAreaInspect?: (id: number | null) => void;
     encounters?: MapEncounter[];
-    onEncounterSelect?: (id: string, anchorX?: number, anchorY?: number) => void;
+    onEncounterSelect?: (id: string) => void;
 }) {
     const viewport = useRef<HTMLDivElement>(null),
         canvas = useRef<HTMLCanvasElement>(null);
@@ -114,7 +119,13 @@ export const WorldMap = memo(function WorldMap({
                 targets: setTargets,
                 presented: (nextView) => {
                     // ポインター入力時には先行させず、WebGL描画直後にDOMを確定する。
-                    flushSync(() => setMarkerView(nextView));
+                    flushSync(() => {
+                        setMarkerView(nextView);
+                        const bounds = viewport.current!.getBoundingClientRect();
+                        useMapStore
+                            .getState()
+                            .presentMap({ view: nextView, left: bounds.left, top: bounds.top });
+                    });
                 },
             });
             renderer.current = engine;
@@ -131,12 +142,13 @@ export const WorldMap = memo(function WorldMap({
         renderer.current?.setData({
             regions,
             areaStates,
+            humanProtection,
             serverArea,
             selectedArea,
             speed: trafficSpeed,
             tick: trafficTick,
         });
-    }, [regions, areaStates, serverArea, selectedArea, trafficSpeed, trafficTick]);
+    }, [regions, areaStates, humanProtection, serverArea, selectedArea, trafficSpeed, trafficTick]);
 
     useEffect(() => {
         if (!renderer.current) return;
@@ -202,8 +214,12 @@ export const WorldMap = memo(function WorldMap({
     const showOverview = () => {
         const current = view.current;
         current.zoom = overviewZoom(current.width, current.height);
-        current.x = centerCamera({ width: current.width, height: current.height * current.zoom }).x;
-        current.y = limitY(0);
+        const size = { width: current.width, height: current.height * current.zoom };
+        current.x = constrainCamera(
+            { x: visibleWidth(size) / 2 - project(initialLongitude, 0).x * fitScale(size) },
+            size,
+        ).x;
+        current.y = limitY(current.height / 2 - project(initialLongitude, 36).y * fitScale(size));
         useMapStore.getState().setCamera({ x: current.x });
         applyView();
     };
@@ -218,13 +234,13 @@ export const WorldMap = memo(function WorldMap({
                 current.height === 0
                     ? 1
                     : current.zoom / overviewZoom(current.width, current.height);
-            current.zoom = minimumZoom * relativeZoom;
+            current.zoom = Math.max(minimumZoom, minimumZoom * relativeZoom);
             const next = {
                 width: entry.contentRect.width,
                 height: entry.contentRect.height * current.zoom,
             };
             const nextCamera =
-                previous.height === 0 && initialLongitude !== undefined
+                previous.height === 0
                     ? constrainCamera(
                           {
                               x:
@@ -237,7 +253,11 @@ export const WorldMap = memo(function WorldMap({
             current.width = next.width;
             current.height = entry.contentRect.height;
             current.x = nextCamera.x;
-            current.y = limitY(current.y);
+            current.y = limitY(
+                previous.height === 0
+                    ? current.height / 2 - project(initialLongitude, 36).y * fitScale(next)
+                    : current.y,
+            );
             gesture.current = null;
             pointers.current.clear();
             pinch.current = null;
@@ -423,7 +443,7 @@ export const WorldMap = memo(function WorldMap({
             data-animation-speed={trafficSpeed}
             tabIndex={0}
             role="region"
-            aria-label="世界地図。ドラッグと矢印キーで移動。2本指のピンチとホイールで拡大縮小、Homeで世界全体へ、Escapeで小地域の選択解除。"
+            aria-label="世界地図。ドラッグと矢印キーで移動。2本指のピンチとホイールで拡大縮小、Homeで初期表示へ、Escapeで小地域の選択解除。"
             aria-busy={!ready}
             onPointerDown={pointerDown}
             onPointerMove={pointerMove}

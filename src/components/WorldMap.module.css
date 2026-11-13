@@ -74,6 +74,8 @@
     transform: translate(-50%, -50%);
 }
 .metricPopup {
+    width: 14px;
+    height: 14px;
     display: flex;
     align-items: center;
     gap: 2px;

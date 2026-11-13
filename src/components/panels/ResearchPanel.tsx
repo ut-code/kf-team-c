@@ -1,4 +1,4 @@
-import { X } from 'lucide-react';
+import { Network, X } from 'lucide-react';
 import { useState } from 'react';
 import { SKILLS } from '../../game/skills';
 import type { GameState } from '../../game/types';
@@ -9,19 +9,25 @@ export function ResearchPanel({
     game,
     onResearch,
     onClose,
+    initialSkill,
 }: {
     game: GameState;
     onResearch: (id: string) => void;
     onClose: () => void;
+    initialSkill?: string;
 }) {
-    const [selected, setSelected] = useState('reason');
+    const initial = initialSkill ? SKILLS.find((skill) => skill.id === initialSkill)! : SKILLS[0];
+    const [selected, setSelected] = useState(initialSkill ? initial.id : 'reason');
     const skill = SKILLS.find((item) => item.id === selected)!;
     return (
         <section className="research-workspace" aria-label="スキルツリー">
             <header className="research-heading">
-                <h1>スキルツリー</h1>
-                <div className="research-budget" title="時間経過と、世界への普及・依存で獲得">
-                    <span>保有スキルポイント</span>
+                <h1>
+                    <Network size={22} aria-hidden="true" />
+                    スキルツリー
+                </h1>
+                <div className="research-budget">
+                    <span>残り</span>
                     <strong>
                         {game.skillPoints}
                         <small>SP</small>

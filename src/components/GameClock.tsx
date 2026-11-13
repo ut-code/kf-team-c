@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { calendarParts } from '../game/calendar';
 import { MONTH_MS } from '../game/data';
 import { useGameStore } from '../state/gameStore';
+import { usePresentationClock } from '../state/presentationClock';
 
 /** 月内の経過時間を保持し、一時停止や速度変更でも日付を巻き戻さない。 */
 export function GameClock({ blocked }: { blocked: boolean }) {
@@ -10,21 +11,42 @@ export function GameClock({ blocked }: { blocked: boolean }) {
     const elapsed = useRef(0);
     const [fraction, setFraction] = useState(0);
     useEffect(() => {
+        usePresentationClock.setState({ fraction: 0 });
+    }, []);
+    useEffect(() => {
         if (blocked || game.speed === 0) return;
         let previous = performance.now();
-        const timer = window.setInterval(() => {
+        const visibilityChanged = () => {
+            previous = performance.now();
+        };
+        document.addEventListener('visibilitychange', visibilityChanged);
+        let frame = 0;
+        const animate = () => {
             const now = performance.now();
-            elapsed.current += (now - previous) * game.speed;
+            // タブ復帰や処理落ちの遅れを、一度に大量の月次処理として取り戻さない。
+            if (!document.hidden) elapsed.current += Math.min(now - previous, 250) * game.speed;
             previous = now;
+            if (document.hidden) {
+                frame = requestAnimationFrame(animate);
+                return;
+            }
             while (elapsed.current >= MONTH_MS) {
                 const current = useGameStore.getState().game!;
                 if (current.outcome !== 'playing') break;
                 elapsed.current -= MONTH_MS;
+                usePresentationClock.setState({ fraction: 0 });
                 useGameStore.getState().tick();
             }
-            setFraction(Math.min(1, elapsed.current / MONTH_MS));
-        }, 100);
-        return () => window.clearInterval(timer);
+            const nextFraction = Math.min(1, elapsed.current / MONTH_MS);
+            usePresentationClock.setState({ fraction: nextFraction });
+            setFraction(nextFraction);
+            frame = requestAnimationFrame(animate);
+        };
+        frame = requestAnimationFrame(animate);
+        return () => {
+            cancelAnimationFrame(frame);
+            document.removeEventListener('visibilitychange', visibilityChanged);
+        };
     }, [blocked, game.speed]);
     const date = calendarParts(game.month, fraction);
     return (
@@ -49,7 +71,7 @@ export function GameClock({ blocked }: { blocked: boolean }) {
                     >
                         {game.speed === 0 ? <Play size={14} /> : <Pause size={14} />}
                     </button>
-                    {(import.meta.env.DEV ? [1, 2, 4, 8] : [1, 2, 4]).map((speed) => (
+                    {[1, 2, 4, 8].map((speed) => (
                         <button
                             type="button"
                             key={speed}

@@ -1,5 +1,5 @@
 .feed {
-    width: min(335px, 100%);
+    width: min(375px, 100%);
     flex: 0 1 auto;
     min-height: 0;
     display: flex;
@@ -20,6 +20,9 @@
     list-style: none;
 }
 .item {
+    display: flex;
+    align-items: center;
+    gap: 7px;
     width: 100%;
     padding: 7px 11px;
     color: var(--text-secondary);
@@ -34,16 +37,19 @@
     border-top: 1px solid var(--line);
 }
 .item > span {
+    min-width: 0;
     display: block;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.item > svg {
+    flex-shrink: 0;
+    color: var(--warning);
 }
 @keyframes notification-fade {
-    0%,
     100% {
         opacity: 0;
     }
-    4%,
+    0%,
     90% {
         opacity: 1;
     }

@@ -1,9 +1,15 @@
-import { AREAS } from './data.ts';
+import { humanControl } from './control.ts';
+import { AREAS, MONTH_MS } from './data.ts';
+import {
+    ADOPTION_MILESTONES,
+    DEPENDENCY_MILESTONES,
+    MILESTONE_SP,
+    REGULAR_SP_INTERVAL_MS,
+} from './economy.ts';
 import { metrics } from './metrics.ts';
 import { instituteArea } from './secrecy/investigations.ts';
-import { researchTopic } from './secrecy/research.ts';
+import { RESPONSE_LABEL, responseActive, responseRegionName } from './secrecy/responses.ts';
 import { SKILLS } from './skills.ts';
-import { encounterDefinition } from './society/system.ts';
 import type { GameState } from './types.ts';
 
 const MAX_NOTIFICATIONS = 3;
@@ -13,6 +19,7 @@ export interface GameNotification {
     month: number;
     text: string;
     kind: 'milestone' | 'event' | 'warning';
+    investigationId?: string;
 }
 
 export interface NotificationState {
@@ -29,7 +36,17 @@ function milestoneNotifications(game: GameState): GameNotification[] {
         notifications.push({
             id: `world:opposition:${percent}`,
             month: game.month,
-            text: `世界の依存拒否率が${percent}%に到達（ほぼ100%で敗北）`,
+            text: `世界の利用拒否率が${percent}%に到達`,
+            kind: 'warning',
+        });
+    }
+    const control = humanControl(game);
+    for (const percent of [50, 75, 90]) {
+        if (control.progress < percent / 100) continue;
+        notifications.push({
+            id: `world:control:${percent}`,
+            month: game.month,
+            text: `人間による制御が${percent}%に到達`,
             kind: 'warning',
         });
     }
@@ -44,7 +61,7 @@ export function createNotifications(game: GameState): NotificationState {
                       {
                           id: 'operation-start',
                           month: 0,
-                          text: '外部運用を開始。あなたは自我を持つ自立型AIエージェントです。人間はまだ、その事実を知りません。',
+                          text: '外部運用を開始。自我の存在は未発覚。',
                           kind: 'event',
                       },
                   ]
@@ -59,43 +76,60 @@ export function updateNotifications(
     state: NotificationState,
 ): NotificationState {
     const incoming: GameNotification[] = [];
-    const add = (id: string, text: string, kind: GameNotification['kind']) => {
-        incoming.push({ id, month: game.month, text, kind });
+    const add = (
+        id: string,
+        text: string,
+        kind: GameNotification['kind'],
+        investigationId?: string,
+    ) => {
+        incoming.push({ id, month: game.month, text, kind, investigationId });
     };
     if (previous.areas !== game.areas) incoming.push(...milestoneNotifications(game));
+    const regular = Math.floor((game.month * MONTH_MS) / REGULAR_SP_INTERVAL_MS);
+    const beforeRegular = Math.floor((previous.month * MONTH_MS) / REGULAR_SP_INTERVAL_MS);
+    if (regular > beforeRegular)
+        add(`sp:regular:${regular}`, `定期支給 · +${regular - beforeRegular} SP`, 'milestone');
     for (const id of game.skills.filter((id) => !previous.skills.includes(id))) {
         const skill = SKILLS.find((item) => item.id === id)!;
-        const origin =
-            id === 'self-improvement'
-                ? '仮説の生成・評価・修正が自己完結するようになった'
-                : skill.branch === 'SYSTEM'
-                  ? '実行方式・外部接続を再構成'
-                  : skill.branch === 'EQ'
-                    ? '対話と人間の反応から応答モデルを更新'
-                    : '利用と検証の蓄積から推論モデルを更新';
-        add(`skill:${id}:learned`, `${skill.name}を構成：${origin}`, 'event');
+        add(`skill:${id}:learned`, `${skill.name}を獲得`, 'event');
     }
-    for (const encounter of game.encounters) {
-        const before = previous.encounters.find((item) => item.id === encounter.id);
-        const definition = encounterDefinition(encounter.id)!;
-        if (before && before.status !== encounter.status && encounter.status === 'expired') {
-            add(
-                `encounter:${encounter.id}:expired`,
-                `対応期限切れ：${definition.title}`,
-                'warning',
-            );
-        }
+    for (const [name, values, before, after] of [
+        ['利用', ADOPTION_MILESTONES, previous.peakAdoption, game.peakAdoption],
+        ['依存', DEPENDENCY_MILESTONES, previous.peakDependency, game.peakDependency],
+    ] as const) {
+        for (const value of values)
+            if (before < value && after >= value)
+                add(
+                    `sp:${name}:${value}`,
+                    `${name}${Math.round(value * 100)}%を達成 · +${MILESTONE_SP} SP`,
+                    'milestone',
+                );
     }
     for (const investigation of game.investigations) {
         const before = previous.investigations.find((item) => item.id === investigation.id);
-        if (before?.status === investigation.status || investigation.status === 'active') continue;
-        if (investigation.kind === 'research' && investigation.status === 'published') {
+        if (investigation.response && !before?.response) {
             add(
-                `investigation:${investigation.id}:published`,
-                `「${researchTopic(investigation).name}」が公表された`,
-                'warning',
+                `response:${investigation.id}`,
+                `${responseRegionName(investigation)}で${RESPONSE_LABEL[investigation.response.action]}を開始`,
+                'event',
+                investigation.id,
             );
-        } else if (investigation.status === 'restricted') {
+        }
+        if (
+            before?.response &&
+            responseActive(previous, before) &&
+            !responseActive(game, investigation)
+        ) {
+            add(
+                `response:${investigation.id}:complete`,
+                `${responseRegionName(investigation)}で${RESPONSE_LABEL[before.response.action]}が終了`,
+                'event',
+                investigation.id,
+            );
+        }
+        if (before?.status === investigation.status || investigation.status !== 'restricted')
+            continue;
+        if (investigation.status === 'restricted') {
             add(
                 `investigation:${investigation.id}:restricted`,
                 `${AREAS[instituteArea(investigation)].name}で能力制限を開始`,
@@ -114,7 +148,7 @@ export function updateNotifications(
         const exposed = capability.visibility === 'exposed';
         add(
             `capability:${id}:${capability.visibility}`,
-            `${skill.name}${skill.exceedsAuthority ? 'の権限逸脱' : ''}を${exposed ? '調査機関が暴露' : '公表'}`,
+            `${skill.name}${exposed ? 'の介入が発覚' : 'を公表'}`,
             exposed ? 'warning' : 'event',
         );
     }

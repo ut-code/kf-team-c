@@ -2,6 +2,11 @@ import { AREAS, WORLD_POPULATION } from './data.ts';
 import type { GameState } from './types.ts';
 
 export const clamp = (value: number, min = 0, max = 1) => Math.max(min, Math.min(max, value));
+export const percentage = (value: number) => `${(value * 100).toFixed(1)}%`;
+export const hasVisibleUse = (value: number) => percentage(value) !== '0.0%';
+// 小数1桁の人口比率で100.0%に達した時点を、全体への定着とみなす。
+export const VICTORY_DEPENDENCY = 0.9995;
+export const isCompleteDependency = (value: number) => value >= VICTORY_DEPENDENCY;
 export function metrics(state: GameState) {
     let autonomous = 0;
     let dependent = 0;

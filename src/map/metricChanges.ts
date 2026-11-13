@@ -39,3 +39,26 @@ export function accumulateMetricChanges(baseline: AreaState[], current: AreaStat
     }
     return { changes, baseline: nextBaseline };
 }
+
+/** 一斉変化では全地域を先に一巡させ、一部地域の大量通知による表示枠の独占を防ぐ。 */
+export function spreadMetricChanges(changes: MetricChange[], capacity: number): MetricChange[] {
+    const groups = new Map<number, MetricChange[]>();
+    for (const change of changes) {
+        const group = groups.get(change.area);
+        if (group) group.push(change);
+        else groups.set(change.area, [change]);
+    }
+    const queues = [...groups.values()];
+    const selected: MetricChange[] = [];
+    for (let round = 0; selected.length < capacity; round++) {
+        let found = false;
+        for (const queue of queues) {
+            if (!queue[round]) continue;
+            found = true;
+            selected.push(queue[round]);
+            if (selected.length >= capacity) break;
+        }
+        if (!found) break;
+    }
+    return selected;
+}

@@ -2,7 +2,7 @@ import './components/game.css';
 import './map/rendering/tone.css';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { GameApp } from './components/GameApp';
+import { GameEntry } from './components/GameEntry';
 import { mapScene } from './map/config';
 import { loadRegions } from './map/loadRegions';
 import { useGameStore } from './state/gameStore';
@@ -22,7 +22,7 @@ loadRegions(mapScene.regionsUrl)
         useGameStore.getState().initialize();
         root.render(
             <StrictMode>
-                <GameApp regions={regions} />
+                <GameEntry regions={regions} />
             </StrictMode>,
         );
     })

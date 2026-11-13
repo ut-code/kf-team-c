@@ -1,9 +1,10 @@
 import { useLayoutEffect, useRef } from 'react';
+import { type MapLocation, useMapAnchor } from './useMapAnchor';
 
 const populationFormatter = new Intl.NumberFormat('ja-JP', { maximumFractionDigits: 0 });
 export const population = (millions: number) =>
     `${populationFormatter.format(Math.max(0, millions) * 1_000_000)}人`;
-export const percent = (value: number) => `${(value * 100).toFixed(1)}%`;
+export { percentage as percent } from '../game/metrics';
 export function Modal({
     children,
     label,
@@ -12,7 +13,7 @@ export function Modal({
     onClose,
     modal = true,
     closeOnEscape = true,
-    anchor,
+    mapLocation,
 }: {
     children: React.ReactNode;
     label: string;
@@ -21,7 +22,7 @@ export function Modal({
     onClose?: () => void;
     modal?: boolean;
     closeOnEscape?: boolean;
-    anchor?: { x: number; y: number };
+    mapLocation?: MapLocation;
 }) {
     const dialog = useRef<HTMLDialogElement>(null);
     useLayoutEffect(() => {
@@ -30,41 +31,16 @@ export function Modal({
         else element.show();
         return () => element.close();
     }, [modal]);
-    useLayoutEffect(() => {
-        if (modal || !anchor) return;
-        const element = dialog.current!;
-        const position = () => {
-            if (
-                window.matchMedia('(max-width: 700px), (max-height: 500px) and (pointer: coarse)')
-                    .matches
-            ) {
-                element.style.removeProperty('left');
-                element.style.removeProperty('top');
-                return;
-            }
-            const { width, height } = element.getBoundingClientRect();
-            const margin = 18;
-            const gap = 28;
-            const right = anchor.x + gap;
-            const left = anchor.x - gap - width;
-            const preferred = right + width <= window.innerWidth - margin ? right : left;
-            element.style.left = `${Math.max(margin, Math.min(window.innerWidth - width - margin, preferred))}px`;
-            element.style.top = `${Math.max(margin, Math.min(window.innerHeight - height - margin, anchor.y - 32))}px`;
-        };
-        position();
-        const observer = new ResizeObserver(position);
-        observer.observe(element);
-        window.addEventListener('resize', position);
-        return () => {
-            observer.disconnect();
-            window.removeEventListener('resize', position);
-        };
-    }, [modal, anchor]);
+    useMapAnchor(dialog, mapLocation);
     return (
         <dialog
             ref={dialog}
             className={`modal ${wide ? 'wide' : ''} ${modal ? '' : 'floating'} ${className}`}
             aria-label={label}
+            onKeyDown={(event) => {
+                // モーダルを閉じるキーを、背後のゲームパネルへ伝えない。
+                if (modal && event.key === 'Escape') event.stopPropagation();
+            }}
             onCancel={(event) => {
                 event.preventDefault();
                 if (closeOnEscape) onClose?.();

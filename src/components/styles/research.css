@@ -16,21 +16,21 @@
     flex-shrink: 0;
 }
 .research-heading h1 {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    white-space: nowrap;
     margin: 0;
     font-size: clamp(17px, 1.8vw, 23px);
     font-weight: 500;
 }
 .research-budget {
-    display: grid;
-    align-content: start;
-    gap: 3px;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
     margin-left: auto;
     flex-shrink: 0;
     text-align: right;
-}
-.research-budget > span {
-    color: var(--muted);
-    font-size: 10px;
 }
 .research-budget > strong {
     color: var(--text);
@@ -51,18 +51,70 @@
     min-height: 0;
     border-top: 1px solid var(--line);
 }
-.tree-viewport {
+.tree-map {
     position: relative;
     min-width: 0;
     min-height: 0;
     overflow: hidden;
-    background-image: radial-gradient(#ffffff0b 1px, transparent 1px);
-    background-size: 24px 24px;
+}
+.tree-viewport {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    min-width: 0;
+    min-height: 0;
+    overflow: auto;
+    touch-action: none;
+    cursor: grab;
+    user-select: none;
+    background-image: linear-gradient(#101820ef, #101820ef), url("/images/skill-circuit.svg");
+    background-size:
+        auto,
+        608px 608px;
+    background-position: center;
+    background-repeat: no-repeat, repeat;
+    background-attachment: local;
+}
+.tree-layout-editor {
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    width: fit-content;
+    max-width: calc(100% - 24px);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    padding: 6px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-panel);
+    background: var(--surface-panel);
+    font-size: 11px;
+}
+.tree-layout-editor label {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px;
+}
+.tree-layout-editor button {
+    padding: 6px 8px;
+}
+.tree-layout-editor small {
+    color: var(--muted);
 }
 .skill-tree {
     display: block;
     width: 100%;
     height: 100%;
+}
+.tree-viewport:active {
+    cursor: grabbing;
+}
+.tree-viewport:focus-visible {
+    outline: 1px solid var(--accent);
+    outline-offset: -2px;
 }
 .tree-branch {
     fill: none;
@@ -87,30 +139,32 @@
     overflow: visible;
 }
 .tree-node {
+    scroll-margin: 12px;
     position: relative;
+    cursor: pointer;
     width: 100%;
     height: 100%;
-    padding: 8px;
+    padding: 7px;
     text-align: left;
     border: 1px solid var(--line-strong);
     background: var(--surface-panel);
     border-radius: var(--radius-panel);
 }
-:is(.tree-node, .tree-ability, .skill-details).iq {
+:is(.tree-node, .skill-details).iq {
     --accent: var(--branch-iq);
 }
-:is(.tree-node, .tree-ability, .skill-details).eq {
+:is(.tree-node, .skill-details).eq {
     --accent: var(--branch-eq);
 }
-:is(.tree-node, .tree-ability, .skill-details).system {
+:is(.tree-node, .skill-details).system {
     --accent: var(--branch-system);
 }
 .tree-node-title {
     display: flex;
     gap: 7px;
     align-items: center;
-    font-size: 14px;
-    white-space: nowrap;
+    font-size: 12px;
+    line-height: 1.2;
 }
 .tree-node-title svg {
     color: var(--accent);
@@ -120,8 +174,9 @@
     display: flex;
     align-items: center;
     gap: 4px;
-    margin: 6px 0 0 20px;
+    margin: 2px 0 0 20px;
     font-size: 9px;
+    line-height: 1;
     color: var(--muted);
 }
 .tree-node.locked {
@@ -166,45 +221,142 @@
     background: color-mix(in srgb, var(--accent) 15%, var(--surface-panel));
     color: var(--text);
 }
+.tree-viewport[data-layout-editing="true"] .tree-node {
+    cursor: move;
+    touch-action: none;
+}
 .skill-details {
     display: flex;
     flex-direction: column;
     gap: 24px;
     min-width: 0;
     min-height: 0;
-    overflow-y: auto;
+    overflow: hidden;
     padding: 20px;
     border-left: 1px solid var(--line);
     background: var(--surface-panel);
     font-size: 11px;
     line-height: 1.8;
 }
-/* 未解放の段階でも、秘匿対象の重要能力は識別できるようにする。 */
-.tree-node.important {
-    border: 2px solid #d7ad65;
-    box-shadow:
-        inset 0 0 0 2px #d7ad6518,
-        0 0 12px #d7ad6518;
-}
-.tree-node.important:hover:not(:disabled) {
-    border-color: #f3cd8b;
-}
-.tree-node-importance {
-    position: absolute;
-    top: -12px;
-    left: 7px;
+.skill-traits {
     display: flex;
-    align-items: center;
-    gap: 4px;
-    padding: 2px 6px;
-    border: 1px solid #d7ad65;
-    border-radius: 4px;
-    background: #302719;
-    color: #f3cd8b;
+    flex-wrap: wrap;
+    gap: 5px 16px;
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+.skill-details > div {
+    min-height: 0;
+    flex: 1;
+    overflow-y: auto;
+}
+.skill-details .skill-countermeasure {
+    color: var(--warning);
+}
+.tree-node-content .tree-suppression {
+    margin-left: auto;
+    color: var(--warning);
     font-size: 10px;
-    line-height: 15px;
+    font-weight: 600;
+}
+.skill-effectiveness {
+    padding: 12px 0;
+    margin: 14px 0 4px;
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+}
+.skill-effectiveness-heading {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+.skill-effectiveness-heading strong {
+    color: var(--text);
+    font-size: 22px;
+    line-height: 1.3;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+}
+.skill-effectiveness-heading small {
+    margin-left: 3px;
+    color: var(--muted);
+    font-size: 11px;
+}
+.skill-effectiveness-bar {
+    display: block;
+    width: 100%;
+    overflow: hidden;
+    height: 6px;
+    margin: 9px 0;
+    border-radius: 3px;
+    background: var(--line);
+    border: 0;
+}
+.skill-effectiveness-bar::-webkit-meter-bar {
+    border: 0;
+    background: var(--line);
+}
+.skill-effectiveness-bar::-webkit-meter-optimum-value {
+    background: var(--accent);
+}
+.skill-effectiveness-bar::-moz-meter-bar {
+    background: var(--accent);
+}
+.skill-effectiveness-causes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+    font-size: 11px;
+}
+.skill-effectiveness-causes .research {
+    color: var(--warning);
+}
+.skill-effectiveness-causes .decision {
+    color: var(--text-secondary);
+}
+.skill-effectiveness-causes b {
+    font-weight: 500;
+}
+.skill-details .skill-local-limit {
+    margin: 5px 0;
+    color: var(--text-secondary);
+    font-size: 11px;
+}
+.performance-skill-info .performance-skill-suppression {
+    color: var(--warning);
+}
+.skill-traits > span {
     white-space: nowrap;
-    pointer-events: none;
+}
+.skill-traits .harmful-trait {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    color: var(--warning);
+}
+.skill-restraints {
+    margin: 16px 0;
+}
+.skill-restraints > div {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 5px 0;
+    border-bottom: 1px solid var(--line);
+}
+.skill-restraints dt {
+    color: var(--text-secondary);
+}
+.skill-restraints dd {
+    margin: 0;
+    color: var(--warning);
+    white-space: nowrap;
+}
+.skill-traits strong {
+    color: var(--accent);
 }
 .skill-importance-note {
     padding: 10px;
@@ -249,12 +401,42 @@
     font-weight: 500;
 }
 .skill-detail-cost {
-    font-size: 20px;
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    margin-top: 20px;
+}
+.skill-detail-cost > span {
+    color: var(--muted);
+    font-size: 11px;
+}
+.skill-detail-cost > strong {
+    color: var(--text);
+    font-size: 24px;
     font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+}
+.skill-detail-cost small {
+    margin-left: 5px;
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 400;
 }
 .skill-details > .primary {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
     margin-top: auto;
     flex-shrink: 0;
+    width: 100%;
+}
+.skill-detail-lock {
+    flex-shrink: 0;
+}
+.skill-details progress {
+    display: block;
     width: 100%;
 }
 
@@ -289,87 +471,12 @@
         font-size: 18px;
     }
 }
-
-/* 能力値は表示専用。進捗バーや最大値は表示しない。 */
-.tree-ability {
-    height: 100%;
-    justify-content: center;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    color: var(--accent);
-}
-.tree-ability-value {
-    display: flex;
-    align-items: baseline;
-    gap: 8px;
-}
-.tree-ability-value > span {
-    font-size: 14px;
-    letter-spacing: 0.5px;
-}
-.tree-ability-value > strong {
-    font-size: 26px;
-    font-weight: 400;
-    font-variant-numeric: tabular-nums;
-}
-.tree-ability p {
-    margin: 3px 0 0;
-    color: var(--muted);
-    font-size: 12px;
-}
 .skill-detail-icon {
     display: block;
     margin-bottom: 16px;
     color: var(--accent);
 }
-.capability-controls {
-    margin-top: 20px;
-    padding-top: 12px;
-    border-top: 1px solid var(--line);
-}
-.capability-controls p,
-.capability-controls button {
-    display: flex;
-    align-items: center;
-    gap: 7px;
-}
-.capability-controls > small {
-    display: block;
+.research-budget > span {
     color: var(--muted);
-    line-height: 1.7;
-}
-.capability-controls button {
-    margin-top: 10px;
-    width: 100%;
-    padding: 9px;
     font-size: 11px;
-}
-.skill-operation-controls > small {
-    color: var(--muted);
-}
-.capability-controls button small {
-    margin-left: auto;
-    color: var(--warning);
-}
-
-/* 既存の詳細欄に運用切替だけを追加する。全体図の寸法・カード・配色は変更しない。 */
-.skill-operation-controls {
-    margin-top: 20px;
-    padding-top: 12px;
-    border-top: 1px solid var(--line);
-}
-.skill-operation-controls > div {
-    display: flex;
-    gap: 5px;
-    margin-top: 8px;
-}
-.skill-operation-controls button {
-    flex: 1;
-    padding: 7px;
-    font-size: 11px;
-}
-.skill-operation-controls button[aria-pressed="true"] {
-    border-color: var(--accent);
-    background: var(--surface-selected);
 }
