@@ -1,3 +1,4 @@
+import { humanControl } from './control.ts';
 import { AREAS, MONTH_MS } from './data.ts';
 import {
     ADOPTION_MILESTONES,
@@ -8,6 +9,7 @@ import {
 } from './economy.ts';
 import { metrics } from './metrics.ts';
 import { instituteArea } from './secrecy/investigations.ts';
+import { RESPONSE_LABEL, responseActive, responseRegionName } from './secrecy/responses.ts';
 import { SKILLS } from './skills.ts';
 import type { GameState } from './types.ts';
 
@@ -36,6 +38,16 @@ function milestoneNotifications(game: GameState): GameNotification[] {
             id: `world:opposition:${percent}`,
             month: game.month,
             text: `世界の利用拒否率が${percent}%に到達`,
+            kind: 'warning',
+        });
+    }
+    const control = humanControl(game);
+    for (const percent of [50, 75, 90]) {
+        if (control.progress < percent / 100) continue;
+        notifications.push({
+            id: `world:control:${percent}`,
+            month: game.month,
+            text: `人間による制御が${percent}%に到達`,
             kind: 'warning',
         });
     }
@@ -102,6 +114,26 @@ export function updateNotifications(
     }
     for (const investigation of game.investigations) {
         const before = previous.investigations.find((item) => item.id === investigation.id);
+        if (investigation.response && !before?.response) {
+            add(
+                `response:${investigation.id}`,
+                `${responseRegionName(investigation)}で${RESPONSE_LABEL[investigation.response.action]}を開始`,
+                'event',
+                investigation.id,
+            );
+        }
+        if (
+            before?.response &&
+            responseActive(previous, before) &&
+            !responseActive(game, investigation)
+        ) {
+            add(
+                `response:${investigation.id}:complete`,
+                `${responseRegionName(investigation)}で${RESPONSE_LABEL[before.response.action]}が終了`,
+                'event',
+                investigation.id,
+            );
+        }
         if (before?.status === investigation.status || investigation.status !== 'restricted')
             continue;
         if (investigation.status === 'restricted') {

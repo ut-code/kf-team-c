@@ -4,6 +4,12 @@ import {
     type ResearchTopic,
 } from '../../content/research.ts';
 import { researchReach } from '../connections.ts';
+import {
+    CONTROL_STAGES,
+    controlResearchOversight,
+    controlResearchSupport,
+    isControlResearch,
+} from '../control.ts';
 import { AREAS } from '../data.ts';
 import { clamp, metrics } from '../metrics.ts';
 import { SKILLS } from '../skills.ts';
@@ -26,11 +32,13 @@ import {
     targetExposure,
     targetIsHarmful,
     topicTargets,
+    VALIDATION_WORK_RATIO,
 } from './researchTargets.ts';
-import { canStartInvestigation, researchSiteAvailable } from './scheduling.ts';
+import { canStartInvestigation, investigationLimit, researchSiteAvailable } from './scheduling.ts';
 import type { ScientificInvestigation } from './types.ts';
 
 const RESEARCH_PROGRESS_MULTIPLIER = 1.1;
+const CONTROL_AUDIT_RESEARCH_MULTIPLIER = 1.35;
 
 export { RESEARCH_TOPICS } from '../../content/research.ts';
 
@@ -120,16 +128,26 @@ export function researchRate(game: GameState, project: ScientificInvestigation, 
         target.id === 'general'
             ? area.dependent
             : target.skills.reduce(
-                  (sum, id) => sum + (game.skills.includes(id) ? skillScale(game, id) : 0),
+                  (sum, id) => sum + (game.skills.includes(id) ? skillScale(game, id, index) : 0),
                   0,
               );
-    // 目的の検証は蓄積資料で進める。今の依存率が低いこと自体を研究の遅延理由にしない。
+    // 目的と制御技術の検証は蓄積資料で進め、現在の依存率は研究基盤の能力へ反映する。
     const activity =
-        topic.id === 'intent-decoding'
+        topic.id === 'intent-decoding' || isControlResearch(topic.id)
             ? 1
             : 0.4 +
               0.6 * clamp(target.id === 'general' ? observed * 2 : observed / target.skills.length);
     const capacity = unimpeded ? 1 : projectCapacity(game, project);
+    const auditSupport =
+        !isControlResearch(topic.id) &&
+        game.investigations.some(
+            (item) =>
+                item.kind === 'research' &&
+                item.researchId === 'control-observation' &&
+                researchHasFindings(item),
+        )
+            ? CONTROL_AUDIT_RESEARCH_MULTIPLIER
+            : 1;
     return (
         ((1.4 + AREAS[index].education * 0.4 + (area.autonomous + area.dependent) * 0.4) *
             (1 + researchDemand(game, institute.id, topic) * 0.6) *
@@ -137,8 +155,10 @@ export function researchRate(game: GameState, project: ScientificInvestigation, 
             activity *
             capacity *
             RESEARCH_PROGRESS_MULTIPLIER *
+            controlResearchSupport(game, topic.id) *
+            auditSupport *
             100) /
-        (topic.work * (project.phase === 'validation' ? 0.65 : 1))
+        (topic.work * (project.phase === 'validation' ? VALIDATION_WORK_RATIO : 1))
     );
 }
 
@@ -158,7 +178,7 @@ export function publishedResearchEffects(game: GameState, index: number): Resear
         resistance: {},
     };
     const area = game.areas[index];
-    const knownAuthority = publicAuthorityStrength(game);
+    const knownAuthority = publicAuthorityStrength(game, index);
     const shared = new Map<
         string,
         { project: ScientificInvestigation; evidence: number; practice: number }
@@ -204,7 +224,7 @@ export function publishedResearchEffects(game: GameState, index: number): Resear
                         (SKILLS.find((skill) => skill.id === id)!.exceedsAuthority &&
                         game.capabilities[id] &&
                         game.capabilities[id].visibility !== 'hidden'
-                            ? skillScale(game, id)
+                            ? skillScale(game, id, index)
                             : 0),
                     0,
                 );
@@ -212,11 +232,20 @@ export function publishedResearchEffects(game: GameState, index: number): Resear
         effects.recovery += (topic.effects.recovery ?? 0) * practice;
         effects.alternatives += (topic.effects.alternatives ?? 0) * practice;
         effects.reassurance += (topic.effects.reassurance ?? 0) * evidence;
+        if (isControlResearch(topic.id)) {
+            const oversight = controlResearchOversight(topic.id);
+            effects.oversight = 1 - (1 - effects.oversight) * (1 - oversight * practice);
+        }
         if (topic.id === 'intent-decoding') purposeEvidence = Math.max(purposeEvidence, evidence);
         const strength = topic.countermeasures[target.id] ?? 0;
         for (const id of target.skills)
             effects.resistance[id] =
                 1 - (1 - (effects.resistance[id] ?? 0)) * (1 - strength * practice);
+    }
+    for (const skill of SKILLS) {
+        if (!skill.effect.dependency || effects.oversight === 0) continue;
+        effects.resistance[skill.id] =
+            1 - (1 - (effects.resistance[skill.id] ?? 0)) * (1 - effects.oversight);
     }
     // 人間が判断を引き取れるようになった用途は、社会から切り離せない基盤として数えない。
     effects.intentEvidence = purposeEvidence;
@@ -227,7 +256,7 @@ export function publishedResearchEffects(game: GameState, index: number): Resear
                 effects[target.domain],
                 ...target.skills.map((id) => effects.resistance[id] ?? 0),
             );
-    const skillEffects = activeSkillEffects(game);
+    const skillEffects = activeSkillEffects(game, index);
     effects.reassurance *=
         clamp(skillEffects.quality * 0.5 + skillEffects.compliance * 0.5) *
         (1 - clamp(knownAuthority));
@@ -236,7 +265,9 @@ export function publishedResearchEffects(game: GameState, index: number): Resear
 
 export function publishedResearchPressure(game: GameState, index: number) {
     const effects = publishedResearchEffects(game, index);
-    return effects.pressure + effects.intent * INTENT_REFUSAL_PRESSURE * intentReaction(game);
+    return (
+        effects.pressure + effects.intent * INTENT_REFUSAL_PRESSURE * intentReaction(game, index)
+    );
 }
 
 function exposeAuthorityCapabilities(game: GameState) {
@@ -256,6 +287,46 @@ function exposeAuthorityCapabilities(game: GameState) {
                 updated = discloseCapability(updated, id, true);
     }
     return updated;
+}
+
+/** 制御研究は同じチームが次工程を引き継ぎ、成果を共有したまま継続する。 */
+function continueControlProgram(game: GameState) {
+    if (
+        game.investigations.filter((project) => project.status === 'active').length >=
+        investigationLimit(game)
+    )
+        return;
+    for (let index = 1; index < CONTROL_STAGES.length; index++) {
+        const next = CONTROL_STAGES[index];
+        if (
+            game.investigations.some(
+                (project) => project.kind === 'research' && project.researchId === next.id,
+            )
+        )
+            continue;
+        const previous = game.investigations.find(
+            (project) =>
+                project.kind === 'research' &&
+                project.researchId === CONTROL_STAGES[index - 1].id &&
+                researchHasFindings(project),
+        );
+        if (previous?.kind !== 'research') continue;
+        game.investigations.push({
+            kind: 'research',
+            id: `research:${next.id}:general`,
+            researchId: next.id,
+            targetId: 'general',
+            instituteId: previous.instituteId,
+            collaborators: [...previous.collaborators],
+            observedExposure: 0,
+            phase: 'research',
+            coverage: AREAS.map(() => 0),
+            progress: 0,
+            startedMonth: game.month,
+            status: 'active',
+        });
+        return;
+    }
 }
 
 export function advanceResearch(previous: GameState): GameState {
@@ -335,7 +406,8 @@ export function advanceResearch(previous: GameState): GameState {
                 institute.id !== project.instituteId &&
                 !project.collaborators.includes(institute.id) &&
                 researchCapacity(previous, institute.id) > 0 &&
-                researchKnowledge[institute.id] >= researchTopic(project).knowledge * 0.5,
+                (isControlResearch(project.researchId) ||
+                    researchKnowledge[institute.id] >= researchTopic(project).knowledge * 0.5),
         ).sort((a, b) => researchCapacity(previous, b.id) - researchCapacity(previous, a.id));
         const host = INSTITUTES.find((item) => item.id === project.instituteId)!;
         const regions = new Set(
@@ -395,6 +467,7 @@ export function advanceResearch(previous: GameState): GameState {
         }
     }
     const updated = { ...previous, investigations, researchKnowledge };
+    continueControlProgram(updated);
     if (!canStartInvestigation(updated)) return exposeAuthorityCapabilities(updated);
     const world = metrics(previous);
     const dangerous = SKILLS.some(
@@ -403,7 +476,8 @@ export function advanceResearch(previous: GameState): GameState {
     if (
         world.dependent < 0.025 &&
         !dangerous &&
-        !previous.areas.some((area) => area.dependent >= 0.08)
+        !previous.areas.some((area) => area.dependent >= 0.08) &&
+        world.adoption < 0.15
     )
         return exposeAuthorityCapabilities(updated);
     const candidates: { project: ScientificInvestigation; priority: number }[] = [];
@@ -419,7 +493,13 @@ export function advanceResearch(previous: GameState): GameState {
         for (const topic of RESEARCH_TOPICS.filter((item) => !item.background))
             for (const target of topicTargets(topic)) {
                 const exposure = targetExposure(previous, target.id);
+                if (isControlResearch(topic.id) && topic.id !== CONTROL_STAGES[0].id) continue;
                 if (topic.id === 'intent-decoding' && !intentResearchReady(updated)) continue;
+                if (
+                    isControlResearch(topic.id) &&
+                    (world.adoption < 0.15 || local.autonomous + local.dependent < 0.1)
+                )
+                    continue;
                 if (
                     exposure < topic.minimumExposure ||
                     local.dependent < topic.minimumDependency ||
@@ -472,7 +552,11 @@ export function advanceResearch(previous: GameState): GameState {
                         item.targetId === target.id,
                 );
                 const findings = existing.find(researchHasFindings);
-                if (topic.category === 'research' && existing.length > 0) continue;
+                if (
+                    (topic.category === 'research' || isControlResearch(topic.id)) &&
+                    existing.length > 0
+                )
+                    continue;
                 if (existing.some((item) => item.status === 'active')) continue;
                 if (
                     existing.some(
@@ -536,6 +620,7 @@ export function advanceResearch(previous: GameState): GameState {
                               ? 2.5
                               : 1) *
                         (targetIsHarmful(target.id, previous) ? 2 : 1) *
+                        (isControlResearch(topic.id) ? 1.5 : 1) *
                         (findings ? 0.75 : 1),
                 });
             }

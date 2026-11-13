@@ -33,7 +33,7 @@ export function skillSuppression(game: GameState, skills: Skill[]) {
         const resistance = publishedResearchEffects(game, i).resistance;
         for (const skill of skills) {
             const strength =
-                (skillScale(game, skill.id) *
+                (skillScale(game, skill.id, i) *
                     (skill.effect.dependency ?? 1) *
                     (skill.domain ? skillReadiness(game, i, skill) : 1) *
                     AREAS[i].population) /

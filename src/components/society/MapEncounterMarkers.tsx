@@ -22,7 +22,7 @@ export function MapEncounterMarkers({
 }: {
     encounters: MapEncounter[];
     view: MapView;
-    onSelect?: (id: string, anchorX?: number, anchorY?: number) => void;
+    onSelect?: (id: string) => void;
 }) {
     if (!view.width || !view.height) return null;
     const markers = encounters.flatMap((encounter) => {
@@ -54,14 +54,7 @@ export function MapEncounterMarkers({
                         style={{ left: point.x, top: point.y }}
                         aria-label={`${encounter.kind === 'regulation' ? '法律・規制' : '研究・調査'}：${encounter.title}`}
                         title={encounter.title}
-                        onClick={(event) => {
-                            const bounds = event.currentTarget.getBoundingClientRect();
-                            onSelect?.(
-                                encounter.id,
-                                bounds.left + bounds.width / 2,
-                                bounds.top + bounds.height / 2,
-                            );
-                        }}
+                        onClick={() => onSelect?.(encounter.id)}
                     >
                         <span
                             className="map-research-icon"

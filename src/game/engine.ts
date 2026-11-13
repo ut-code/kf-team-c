@@ -1,4 +1,5 @@
 import { networkUse, PERSONAL_LINKS } from './connections.ts';
+import { humanControl } from './control.ts';
 import { AREAS, DEFEAT_OPPOSITION, ORIGINS, WORLD_POPULATION } from './data.ts';
 import { dependencyDynamics } from './dependency.ts';
 import { earnedSkillPoints, INITIAL_SKILL_POINTS } from './economy.ts';
@@ -92,7 +93,6 @@ export function advanceMonth(
     ) => void,
 ): GameState {
     if (!previous.started || previous.outcome !== 'playing') return previous;
-    const effect = activeSkillEffects(previous);
     const home = ORIGINS.find((origin) => origin.area === previous.origin)!.home;
     const internetReach =
         previous.areas.reduce(
@@ -105,7 +105,6 @@ export function advanceMonth(
         skillExposure: observeSkillUse(previous),
         developmentProgress: advanceSkillDevelopment(previous),
     };
-    const publicAuthority = publicAuthorityStrength(previous);
     const flows = {
         adoption: 0,
         abandonment: 0,
@@ -116,6 +115,8 @@ export function advanceMonth(
         recovery: 0,
     };
     state.areas = previous.areas.map((area, i) => {
+        const effect = activeSkillEffects(previous, i);
+        const publicAuthority = publicAuthorityStrength(previous, i);
         const definition = AREAS[i];
         const unused = Math.max(0, 1 - area.autonomous - area.dependent - area.antiAI);
         const localUse = area.autonomous + area.dependent;
@@ -181,7 +182,7 @@ export function advanceMonth(
                 ));
         const researchPressure =
             research.pressure +
-            research.intent * INTENT_REFUSAL_PRESSURE * intentReaction(previous);
+            research.intent * INTENT_REFUSAL_PRESSURE * intentReaction(previous, i);
         const preparation = clamp(effect.quality * 0.5 + effect.compliance * 0.5);
         const nearbyOpposition =
             PERSONAL_LINKS[i].reduce(
@@ -195,7 +196,7 @@ export function advanceMonth(
         const sns = previous.skills.includes('sns-intervention')
             ? 1 -
               0.8 *
-                  skillScale(previous, 'sns-intervention') *
+                  skillScale(previous, 'sns-intervention', i) *
                   (1 - (research.resistance['sns-intervention'] ?? 0))
             : 1;
         const pressure =
@@ -207,7 +208,7 @@ export function advanceMonth(
                     prematureDelegation * area.autonomous * 0.003) +
             research.pressure +
             publicAuthority * localUse * 0.004 +
-            research.intent * INTENT_REFUSAL_PRESSURE * intentReaction(previous);
+            research.intent * INTENT_REFUSAL_PRESSURE * intentReaction(previous, i);
         const alternativeChoice = research.alternatives * recoveryDemand + independentChoice;
         const rejectedUnused = unused * (1 - Math.exp(-pressure * 0.45 - alternativeChoice));
         const rejectedUse = area.autonomous * (1 - Math.exp(-pressure * 0.6 - alternativeChoice));
@@ -284,6 +285,7 @@ export function advanceMonth(
     updated.earnedPoints = Math.max(previous.earnedPoints, earned);
     if (isCompleteDependency(after.dependent)) updated.outcome = 'victory';
     else if (after.antiAI >= DEFEAT_OPPOSITION) updated.outcome = 'autonomy';
+    else if (humanControl(updated).progress >= 1 - 1e-9) updated.outcome = 'controlled';
     else if (!hasVisibleUse(after.adoption)) {
         // 地図と同じ小数1桁表示で利用率が0.0%になったら、利用基盤を失ったと判定する。
         updated.areas = updated.areas.map((area) => ({ ...area, autonomous: 0, dependent: 0 }));
@@ -295,7 +297,7 @@ export function advanceMonth(
 /** 地域の固定係数を開示せず、攻略の手掛かりだけを示す。 */
 export function areaHint(state: GameState, index: number): string {
     const area = AREAS[index];
-    const effect = activeSkillEffects(state);
+    const effect = activeSkillEffects(state, index);
     if (
         effect.quality === 0 &&
         effect.spread === 0 &&

@@ -1,4 +1,5 @@
 import { BadgeCheck, Scale, Search, ShieldCheck } from 'lucide-react';
+import { CONTROL_STAGES, isControlResearch } from '../../game/control';
 import { researchTopic } from '../../game/secrecy/research';
 import { researchTarget } from '../../game/secrecy/researchTargets';
 import type { ScientificInvestigation } from '../../game/secrecy/types';
@@ -6,6 +7,8 @@ import type { ScientificInvestigation } from '../../game/secrecy/types';
 /** 同じ研究は地図・通知・詳細で同じ記号を使う。 */
 export function researchPresentation(project: ScientificInvestigation) {
     const topic = researchTopic(project);
+    if (isControlResearch(topic.id))
+        return { Icon: ShieldCheck, label: '制御技術', color: 'var(--accent)' };
     if (topic.category === 'regulation')
         return { Icon: Scale, label: '法規制', color: 'var(--warning)' };
     if (topic.field === 'safety')
@@ -22,6 +25,10 @@ export function researchPresentation(project: ScientificInvestigation) {
 export function researchEffectLabels(project: ScientificInvestigation) {
     const topic = researchTopic(project);
     const effects: string[] = [];
+    if (isControlResearch(topic.id)) effects.push(topic.effectDescription);
+    for (const stage of CONTROL_STAGES)
+        if (stage.supports.some((id) => id === topic.id))
+            effects.push(`「${stage.label}」の研究を加速`);
     const strength = topic.countermeasures[project.targetId] ?? 0;
     if (strength)
         effects.push(

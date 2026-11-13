@@ -54,21 +54,22 @@ export function WorldMetricsWidget({
                 <button
                     type="button"
                     className="countermeasure-trigger glass"
-                    aria-label="人間側の対策の詳細"
+                    aria-label="人間による制御の詳細"
+                    title="100%で人間の管理下に置かれ、敗北"
                     aria-expanded={countermeasuresOpen}
                     onClick={onCountermeasures}
                 >
                     <span>
                         <ShieldCheck size={15} />
-                        人間側の依存対策
+                        人間による制御
                     </span>
                     <strong>
-                        {countermeasureProgress >= 0.75 && values.dependent < 0.75 && (
-                            <TriangleAlert size={13} aria-label="対策が広がっています" />
+                        {countermeasureProgress >= 0.75 && (
+                            <TriangleAlert size={13} aria-label="人間による制御が完成間近です" />
                         )}
                         {Math.floor(protection * 100)}%
                     </strong>
-                    <progress aria-label="依存対策の浸透度" max={1} value={protection} />
+                    <progress aria-label="制御技術の完成度" max={1} value={protection} />
                 </button>
             )}
         </div>

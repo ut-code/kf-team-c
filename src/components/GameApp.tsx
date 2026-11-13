@@ -1,11 +1,13 @@
 import { Network, Radio, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { humanControl } from '../game/control';
 import { AREAS, STAGE_COLORS, STAGES, WORLD_POPULATION } from '../game/data';
 import { advanceMonth, areaHint, metrics } from '../game/engine';
 import { hasCountermeasureResearch, humanResponse } from '../game/humanResponse';
 import { instituteArea, instituteFor, investigationRate } from '../game/secrecy/investigations';
 import { researchTopic } from '../game/secrecy/research';
 import { researchPhaseLabel, researchTarget } from '../game/secrecy/researchTargets';
+import { responseActive } from '../game/secrecy/responses';
 import { mapScene } from '../map/config';
 import type { MapRegion } from '../map/types';
 import { useGameStore } from '../state/gameStore';
@@ -21,6 +23,7 @@ import { InvestigationPanel } from './society/InvestigationPanel';
 import type { MapEncounter } from './society/MapEncounterMarkers';
 import { SocietyPanel } from './society/SocietyPanel';
 import { useAnimationSpeed } from './useAnimationSpeed';
+import { useMapAnchor } from './useMapAnchor';
 import { WorldMap } from './WorldMap';
 import { WorldMetricsWidget } from './WorldMetricsWidget';
 import { WorldNews } from './WorldNews';
@@ -30,7 +33,7 @@ type Panel =
     | { kind: 'world' | 'sns' | 'countermeasures' }
     | { kind: 'skills'; skillId?: string }
     | { kind: 'region'; id: number }
-    | { kind: 'encounter'; id: string; anchor: { x: number; y: number } };
+    | { kind: 'encounter'; id: string };
 
 export function GameApp({
     regions,
@@ -50,10 +53,13 @@ export function GameApp({
     const countermeasuresOpen = visiblePanel?.kind === 'countermeasures';
     const response = useMemo(() => humanResponse(game), [game]);
     const projectedGame = useMemo(() => advanceMonth(game), [game]);
-    const projectedResponse = useMemo(() => humanResponse(projectedGame), [projectedGame]);
+    const control = useMemo(() => humanControl(game), [game]);
+    const projectedControl = useMemo(() => humanControl(projectedGame), [projectedGame]);
     const showCountermeasures = hasCountermeasureResearch(game);
     const worldOpen = visiblePanel?.kind === 'world';
     const selected = visiblePanel?.kind === 'region' ? visiblePanel.id : null;
+    const areaPanel = useRef<HTMLElement>(null);
+    useMapAnchor(areaPanel, selected === null ? undefined : AREAS[selected]);
     const encounterId = visiblePanel?.kind === 'encounter' ? visiblePanel.id : null;
     const closePanel = useCallback(() => {
         setPanel(null);
@@ -67,16 +73,7 @@ export function GameApp({
         setPanel(opened);
         useMapStore.getState().selectArea(opened?.kind === 'region' ? opened.id : null);
     };
-    const toggleEncounter = (
-        id: string,
-        anchorX = window.innerWidth / 2,
-        anchorY = window.innerHeight / 2,
-    ) =>
-        togglePanel({
-            kind: 'encounter',
-            id,
-            anchor: { x: anchorX, y: anchorY },
-        });
+    const toggleEncounter = (id: string) => togglePanel({ kind: 'encounter', id });
     const selectedInvestigation = game.investigations.find((item) => item.id === encounterId);
     const investigations = game.investigations.filter((item) => item.status === 'active');
     const mapEncounters: MapEncounter[] = [];
@@ -94,7 +91,13 @@ export function GameApp({
                 investigation.kind === 'research'
                     ? `${organization} · ${topic!.name} · ${researchPhaseLabel(investigation)} · ${researchTarget(investigation).name}`
                     : institute.name,
-            stage: investigation.kind === 'research' ? researchPhaseLabel(investigation) : '調査中',
+            stage: responseActive(game, investigation)
+                ? { cooperate: '検証協力中', pressure: '圧力下', limit: '限定運用中' }[
+                      investigation.response!.action
+                  ]
+                : investigation.kind === 'research'
+                  ? researchPhaseLabel(investigation)
+                  : '調査中',
             kind: regulation ? 'regulation' : 'investigation',
             location: institute,
             researchSpeed:
@@ -197,8 +200,8 @@ export function GameApp({
                 </div>
                 <WorldMetricsWidget
                     values={summary}
-                    countermeasureProgress={showCountermeasures ? response.protection : null}
-                    nextCountermeasureProgress={projectedResponse.protection}
+                    countermeasureProgress={showCountermeasures ? control.progress : null}
+                    nextCountermeasureProgress={projectedControl.progress}
                     countermeasuresOpen={countermeasuresOpen}
                     onCountermeasures={() => togglePanel({ kind: 'countermeasures' })}
                     paused={paused}
@@ -212,6 +215,7 @@ export function GameApp({
                 </div>
                 {area && (
                     <aside
+                        ref={areaPanel}
                         id="population-details"
                         className="area-card glass"
                         aria-label={selected === null ? '世界全体の状況' : '地域の状況'}
@@ -337,7 +341,6 @@ export function GameApp({
                             togglePanel({
                                 kind: 'encounter',
                                 id,
-                                anchor: { x: window.innerWidth / 2, y: window.innerHeight / 2 },
                             })
                         }
                     />
@@ -348,9 +351,6 @@ export function GameApp({
                         key={selectedInvestigation.id}
                         game={game}
                         id={selectedInvestigation.id}
-                        anchor={
-                            visiblePanel?.kind === 'encounter' ? visiblePanel.anchor : undefined
-                        }
                         onClose={closePanel}
                         onOpenSkill={(id) => togglePanel({ kind: 'skills', skillId: id })}
                     />

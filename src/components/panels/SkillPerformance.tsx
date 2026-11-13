@@ -1,5 +1,6 @@
 import { Brain, Clock3, Radio, Shield, Sparkles } from 'lucide-react';
 import { aiPerformance } from '../../game/aiPerformance';
+import { skillEffectiveness } from '../../game/skillEffectiveness';
 import { SKILLS } from '../../game/skills';
 import type { GameState } from '../../game/types';
 import { HumanResponse } from '../HumanResponse';
@@ -16,6 +17,7 @@ export function SkillPerformance({
 }) {
     const owned = SKILLS.filter((skill) => game.skills.includes(skill.id));
     const developing = owned.filter((skill) => game.developmentProgress[skill.id] < 1).length;
+    const effectiveness = skillEffectiveness(game);
     return (
         <div className="skill-performance-view">
             <section className="performance-overview" aria-labelledby="performance-overview">
@@ -82,6 +84,16 @@ export function SkillPerformance({
                                         {progress < 1 && (
                                             <small className="performance-skill-progress">
                                                 開発中 {Math.floor(progress * 100)}%
+                                            </small>
+                                        )}
+                                        {effectiveness[skill.id].effective < 0.995 && (
+                                            <small className="performance-skill-suppression">
+                                                抑制{' '}
+                                                {100 -
+                                                    Math.round(
+                                                        effectiveness[skill.id].effective * 100,
+                                                    )}
+                                                %
                                             </small>
                                         )}
                                     </span>

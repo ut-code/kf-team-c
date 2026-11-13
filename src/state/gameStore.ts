@@ -6,6 +6,8 @@ import {
     type NotificationState,
     updateNotifications,
 } from '../game/notifications';
+import { respondToInvestigation } from '../game/secrecy/responses';
+import type { InvestigationAction } from '../game/secrecy/types';
 import {
     createSocialFeed,
     emptySocialFeed,
@@ -26,6 +28,7 @@ interface GameStore {
     tick: () => void;
     speed: (value: number) => void;
     research: (id: string) => void;
+    respond: (id: string, action: InvestigationAction) => void;
 }
 export const useGameStore = create<GameStore>((set) => {
     const change = (update: (game: GameState) => GameState) =>
@@ -87,5 +90,6 @@ export const useGameStore = create<GameStore>((set) => {
             ),
         speed: (speed) => change((game) => ({ ...game, speed })),
         research: (id) => change((game) => learnSkill(game, id)),
+        respond: (id, action) => change((game) => respondToInvestigation(game, id, action)),
     };
 });

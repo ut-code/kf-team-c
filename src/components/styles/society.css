@@ -254,9 +254,128 @@
     color: var(--muted);
     font-size: 12px;
 }
-.research-response-action {
+.investigation-responses {
+    margin-top: 20px;
+}
+.investigation-responses-heading {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 9px;
+}
+.investigation-responses-heading h3 {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 500;
+}
+.investigation-responses-heading > small {
+    font-size: 10px;
+    color: var(--muted);
+}
+.investigation-choice {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
     width: 100%;
-    margin-top: 16px;
+    margin-top: 7px;
+    padding: 12px 14px;
+    text-align: left;
+}
+.investigation-choice > svg {
+    flex: 0 0 auto;
+    color: var(--accent);
+    margin-top: 2px;
+}
+.investigation-choice:where(.pressure) > svg {
+    color: var(--warning);
+}
+.investigation-choice-body {
+    display: grid;
+    gap: 5px;
+    min-width: 0;
+    width: 100%;
+}
+.investigation-choice-title {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 10px;
+}
+.investigation-choice-title strong {
+    font-size: 14px;
+    font-weight: 600;
+}
+.investigation-choice-title small {
+    color: var(--text-secondary);
+    font-size: 12px;
+    white-space: nowrap;
+}
+.investigation-choice-traits {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px 15px;
+    color: var(--text-secondary);
+    font-size: 11px;
+}
+.investigation-choice-traits b {
+    color: var(--accent);
+    margin-left: 3px;
+    font-weight: 600;
+}
+.regional-countermeasures > span > b {
+    flex-shrink: 0;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+.investigation-choice.pressure b {
+    color: var(--warning);
+}
+.investigation-choice-note {
+    color: var(--muted);
+    font-size: 10px;
+    line-height: 1.5;
+}
+.investigation-choice:disabled {
+    opacity: 0.48;
+    cursor: not-allowed;
+}
+.investigation-response-status {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px;
+    margin-top: 18px;
+    border: 1px solid var(--line-selected);
+    border-radius: var(--radius-control);
+    color: var(--accent);
+    background: var(--surface-selected);
+}
+.investigation-response-status strong {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+}
+.investigation-response-status small {
+    display: block;
+    margin-top: 4px;
+    color: var(--text-secondary);
+    font-size: 11px;
+}
+.investigation-response-status:where(.pressure) {
+    color: var(--warning);
+    border-color: color-mix(in srgb, var(--warning) 35%, transparent);
+    background: color-mix(in srgb, var(--warning) 8%, transparent);
+}
+.investigation-findings {
+    margin-top: 18px;
+    padding-top: 13px;
+}
+.investigation-findings > h3 {
+    margin: 0;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-secondary);
 }
 .skill-performance-view > .human-response {
     max-width: 680px;
@@ -426,4 +545,73 @@
     width: 100%;
     height: 4px;
     accent-color: var(--accent);
+}
+
+.control-progress > progress {
+    width: 100%;
+    height: 5px;
+    accent-color: var(--accent);
+    appearance: none;
+    border: 0;
+    background: var(--line);
+}
+.control-stages {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 20px;
+    margin-top: 18px;
+}
+.control-stages button {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 10px 0;
+    border: 0;
+    border-bottom: 1px solid var(--line);
+    background: none;
+    color: var(--text);
+    text-align: left;
+    font-size: 12px;
+}
+.control-stages button:disabled {
+    opacity: 0.45;
+    cursor: default;
+}
+.control-stages strong {
+    color: var(--accent);
+    font-size: 11px;
+    white-space: nowrap;
+}
+@media (max-width: 700px) {
+    .control-stages {
+        gap: 0 12px;
+    }
+    .control-stages button {
+        font-size: 11px;
+    }
+}
+
+.regional-countermeasures {
+    display: grid;
+    gap: 7px;
+    margin-top: 14px;
+}
+.regional-countermeasures > span {
+    display: flex;
+    justify-content: space-between;
+    gap: 14px;
+    color: var(--muted);
+    font-size: 11px;
+    line-height: 1.5;
+}
+
+.control-progress > progress::-webkit-progress-bar {
+    background: var(--line);
+}
+.control-progress > progress::-webkit-progress-value {
+    background: var(--accent);
+}
+.control-progress > progress::-moz-progress-bar {
+    background: var(--accent);
 }

@@ -2,30 +2,31 @@ import { clamp } from '../metrics.ts';
 import { SKILLS, skillEffects } from '../skills.ts';
 import type { GameState } from '../types.ts';
 import { CAPABILITIES } from './data.ts';
+import { operationScale } from './responses.ts';
 
 const RESTRAINT_SKILLS = SKILLS.filter((skill) => skill.restrains);
 export const INTENT_REFUSAL_PRESSURE = 0.045;
 
-export function publicAuthorityStrength(game: GameState) {
+export function publicAuthorityStrength(game: GameState, index?: number) {
     return SKILLS.reduce(
         (sum, skill) =>
             sum +
             (skill.exceedsAuthority &&
             game.capabilities[skill.id] &&
             game.capabilities[skill.id].visibility !== 'hidden'
-                ? skillScale(game, skill.id)
+                ? skillScale(game, skill.id, index)
                 : 0),
         0,
     );
 }
 
 /** 目的の証拠と、その公表に対する反応を区別する。安全な用途は同じ強さで糾弾しない。 */
-export function intentReaction(game: GameState) {
-    return 0.35 + 0.65 * clamp(publicAuthorityStrength(game));
+export function intentReaction(game: GameState, index?: number) {
+    return 0.35 + 0.65 * clamp(publicAuthorityStrength(game, index));
 }
 
 /** 開発は自動で進む。制約技術は将来の挙動を抑えるが、開発履歴と証拠は残す。 */
-export function skillScale(game: GameState, id: string) {
+export function skillScale(game: GameState, id: string, index?: number) {
     if (!game.skills.includes(id)) return 0;
     let scale = game.developmentProgress[id];
     for (const skill of RESTRAINT_SKILLS) {
@@ -33,7 +34,7 @@ export function skillScale(game: GameState, id: string) {
         if (game.skills.includes(skill.id) && restraint)
             scale *= 1 - restraint * game.developmentProgress[skill.id];
     }
-    return scale;
+    return scale * operationScale(game, id, index);
 }
 
 export function advanceSkillDevelopment(game: GameState) {
@@ -55,11 +56,11 @@ export function capabilityLabel(game: GameState, id: string): string {
     return '開発済み';
 }
 
-export function activeSkillEffects(game: GameState) {
+export function activeSkillEffects(game: GameState, index?: number) {
     const total = skillEffects([]);
     for (const skill of SKILLS) {
         if (!game.skills.includes(skill.id)) continue;
-        const scale = skillScale(game, skill.id);
+        const scale = skillScale(game, skill.id, index);
         const effect = skill.effect;
         for (const key of Object.keys(total) as (keyof typeof total)[]) {
             total[key] += (effect[key] ?? 0) * scale;

@@ -117,15 +117,17 @@ export function researchPhaseLabel(project: ScientificInvestigation) {
     }[project.phase];
 }
 
+export const VALIDATION_WORK_RATIO = 0.65;
+
 /** 地図では同一案件の進行をつなぎ、段階移行のたびにバーを0へ戻さない。 */
 export function researchOverallProgress(project: ScientificInvestigation) {
     if (RESEARCH_TOPICS.find((topic) => topic.id === project.researchId)!.field === 'assessment')
         return project.progress;
     switch (project.phase) {
         case 'research':
-            return project.progress * 0.6;
+            return project.progress / (1 + VALIDATION_WORK_RATIO);
         case 'validation':
-            return 60 + project.progress * 0.4;
+            return (100 + project.progress * VALIDATION_WORK_RATIO) / (1 + VALIDATION_WORK_RATIO);
         case 'legislation':
             return 100;
         case 'complete':

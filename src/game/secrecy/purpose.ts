@@ -55,7 +55,7 @@ export function intentLockIn(game: GameState, index: number, resistance: Record<
             sum +
             infrastructure[skill.id] *
                 established *
-                skillScale(game, skill.id) *
+                skillScale(game, skill.id, index) *
                 (1 - (resistance[skill.id] ?? 0)) *
                 skillReadiness(game, index, skill)
         );

@@ -4,7 +4,7 @@ import type { NewsRecord } from './society/news.ts';
 export type Branch = 'IQ' | 'EQ' | 'SYSTEM';
 export type SkillDomain = 'work' | 'personal' | 'learning';
 export type Stage = 0 | 1 | 2 | 3;
-export type Outcome = 'playing' | 'victory' | 'autonomy' | 'forgotten';
+export type Outcome = 'playing' | 'victory' | 'autonomy' | 'forgotten' | 'controlled';
 export type Language =
     | 'english'
     | 'spanish'

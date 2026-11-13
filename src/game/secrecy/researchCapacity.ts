@@ -1,8 +1,10 @@
+import { isControlResearch } from '../control.ts';
 import { AREAS } from '../data.ts';
-import { clamp } from '../metrics.ts';
+import { clamp, metrics } from '../metrics.ts';
 import type { GameState } from '../types.ts';
 import { activeSkillEffects } from './capabilities.ts';
 import { INSTITUTES } from './data.ts';
+import { responseResearchMultiplier } from './responses.ts';
 import type { ScientificInvestigation } from './types.ts';
 
 /** 独立した研究基盤。利用自体は研究を助けるが、高依存では検証能力を失う。 */
@@ -10,16 +12,31 @@ export function researchCapacity(game: GameState, instituteId: string) {
     const institute = INSTITUTES.find((item) => item.id === instituteId)!;
     const index = AREAS.findIndex((area) => area.id === institute.areaId);
     const area = game.areas[index];
-    const support = activeSkillEffects(game).researchSupport;
+    const support = activeSkillEffects(game, index).researchSupport;
     // 一般利用者の依存が半数を超えただけでは、独立した研究組織まで機能不全にしない。
     const independence = clamp((0.95 - area.dependent) / 0.12);
     return independence ** (1 + support * 4) * (1 + support * (area.autonomous + area.dependent));
 }
 
 export function projectCapacity(game: GameState, project: ScientificInvestigation) {
+    if (isControlResearch(project.researchId)) {
+        // 共同研究先も計画を主導できる。主幹だけの高依存で全体を停止させない。
+        const capacities = [
+            researchCapacity(game, project.instituteId) * responseResearchMultiplier(game, project),
+            ...project.collaborators.map((id) => researchCapacity(game, id)),
+        ].sort((a, b) => b - a);
+        // 現地の研究基盤に加え、社会に残る独立した検証者の割合で計画全体が減速する。
+        return (
+            Math.min(
+                1.8,
+                capacities[0] + capacities.slice(1).reduce((sum, value) => sum + value * 0.25, 0),
+            ) *
+            (1 - metrics(game).dependent)
+        );
+    }
     return Math.min(
         1.8,
-        researchCapacity(game, project.instituteId) +
+        researchCapacity(game, project.instituteId) * responseResearchMultiplier(game, project) +
             project.collaborators.reduce((sum, id) => sum + researchCapacity(game, id) * 0.25, 0),
     );
 }

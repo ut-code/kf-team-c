@@ -35,7 +35,7 @@ export function deployedDependency(
         if (!effect.dependency || !game.skills.includes(skill.id)) continue;
         const strength =
             effect.dependency *
-            skillScale(game, skill.id) *
+            skillScale(game, skill.id, index) *
             skillReadiness(game, index, skill) *
             (1 - (resistance[skill.id] ?? 0));
         deployed[DEPENDENCY_DOMAINS[skill.id]] += strength;
@@ -60,11 +60,12 @@ export function observeSkillUse(game: GameState) {
                         : skill.exceedsAuthority
                           ? 1
                           : utility * 0.04) *
+                    skillScale(game, skill.id, index) *
                     AREAS[index].population) /
                     WORLD_POPULATION,
             0,
         );
-        exposure[skill.id] += reach * skillScale(game, skill.id);
+        exposure[skill.id] += reach;
     }
     return exposure;
 }

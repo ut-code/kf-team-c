@@ -90,7 +90,7 @@ export const WorldMap = memo(function WorldMap({
     trafficTick: number;
     onAreaInspect?: (id: number | null) => void;
     encounters?: MapEncounter[];
-    onEncounterSelect?: (id: string, anchorX?: number, anchorY?: number) => void;
+    onEncounterSelect?: (id: string) => void;
 }) {
     const viewport = useRef<HTMLDivElement>(null),
         canvas = useRef<HTMLCanvasElement>(null);
@@ -119,7 +119,13 @@ export const WorldMap = memo(function WorldMap({
                 targets: setTargets,
                 presented: (nextView) => {
                     // ポインター入力時には先行させず、WebGL描画直後にDOMを確定する。
-                    flushSync(() => setMarkerView(nextView));
+                    flushSync(() => {
+                        setMarkerView(nextView);
+                        const bounds = viewport.current!.getBoundingClientRect();
+                        useMapStore
+                            .getState()
+                            .presentMap({ view: nextView, left: bounds.left, top: bounds.top });
+                    });
                 },
             });
             renderer.current = engine;

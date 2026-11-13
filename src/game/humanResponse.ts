@@ -1,4 +1,5 @@
 import { RESEARCH_TOPICS } from '../content/research.ts';
+import { isControlResearch } from './control.ts';
 import { AREAS, WORLD_POPULATION } from './data.ts';
 import { dependencyDynamics } from './dependency.ts';
 import { activeSkillEffects } from './secrecy/capabilities.ts';
@@ -24,7 +25,6 @@ function recoveryCoverage(game: GameState) {
 
 /** 現在の構成で生じる委任と回復の月次量。未来の人口を予測する値ではない。 */
 export function humanResponse(game: GameState, index?: number) {
-    const effect = activeSkillEffects(game);
     const recovery = recoveryCoverage(game);
     const protectionByArea = AREAS.map(() => 0);
     let converted = 0,
@@ -37,13 +37,20 @@ export function humanResponse(game: GameState, index?: number) {
     for (let i = 0; i < AREAS.length; i++) {
         if (index !== undefined && i !== index) continue;
         const weight = AREAS[i].population / total;
-        const dynamics = dependencyDynamics(game, i, effect, publishedResearchEffects(game, i));
+        const dynamics = dependencyDynamics(
+            game,
+            i,
+            activeSkillEffects(game, i),
+            publishedResearchEffects(game, i),
+        );
         converted += dynamics.converted * weight;
         restored += dynamics.restored * weight;
         potential += dynamics.potential * weight;
         effective += dynamics.effective * weight;
         const suppression =
-            dynamics.potential > 0 ? 1 - dynamics.effective / dynamics.potential : 0;
+            dynamics.potential > 0
+                ? 1 - dynamics.effective / dynamics.potential
+                : publishedResearchEffects(game, i).oversight;
         protectionByArea[i] = Math.max(recovery[i], suppression);
         autonomous += game.areas[i].autonomous * weight;
         protectedUse += game.areas[i].autonomous * protectionByArea[i] * weight;
@@ -64,6 +71,7 @@ export function hasCountermeasureResearch(game: GameState) {
         if (project.kind !== 'research') return false;
         const topic = RESEARCH_TOPICS.find((item) => item.id === project.researchId)!;
         return (
+            isControlResearch(topic.id) ||
             Object.keys(topic.countermeasures).length > 0 ||
             Boolean(topic.effects.recovery || topic.effects.alternatives)
         );

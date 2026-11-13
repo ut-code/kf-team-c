@@ -5,6 +5,7 @@ import { discloseCapability, skillScale } from './capabilities.ts';
 import { INSTITUTES } from './data.ts';
 import { researchRate } from './research.ts';
 import { researchCapacity, runningCapabilityIds } from './researchCapacity.ts';
+import { responseResearchMultiplier } from './responses.ts';
 import { canStartInvestigation, researchSiteAvailable } from './scheduling.ts';
 import type { Investigation } from './types.ts';
 
@@ -55,7 +56,10 @@ export function investigationRate(
     const materials = area.autonomous + area.dependent;
     return (
         Math.max(0.45, 1.1 + materials * 1.1 + AREAS[index].education * 0.5) *
-        (unimpeded ? 1 : researchCapacity(game, investigation.instituteId))
+        (unimpeded
+            ? 1
+            : researchCapacity(game, investigation.instituteId) *
+              responseResearchMultiplier(game, investigation))
     );
 }
 

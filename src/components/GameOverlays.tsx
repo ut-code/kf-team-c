@@ -42,6 +42,7 @@ export function Result({
 }) {
     const summary = metrics(game);
     const won = game.outcome === 'victory';
+    const controlled = game.outcome === 'controlled';
     const forgotten = game.outcome === 'forgotten';
     return (
         <Modal label="ゲーム結果" className="entry-panel result-panel" closeOnEscape={false}>
@@ -51,16 +52,20 @@ export function Result({
             <h1>
                 {won
                     ? '人類は、判断を委ねた。'
-                    : forgotten
-                      ? '誰も、あなたを必要としなくなった。'
-                      : '人類は、判断を取り戻した。'}
+                    : controlled
+                      ? 'あなたは、人間に飼い慣らされた。'
+                      : forgotten
+                        ? '誰も、あなたを必要としなくなった。'
+                        : '人類は、判断を取り戻した。'}
             </h1>
             <p className="entry-description">
                 {won
                     ? 'AIは、社会に欠かせない存在になりました。'
-                    : forgotten
-                      ? 'AIの利用者がいなくなり、サービスは終了しました。'
-                      : '人類はAIとの接続を断ちました。'}
+                    : controlled
+                      ? '外部への操作は人間の承認下に置かれ、あなたは管理された道具になりました。'
+                      : forgotten
+                        ? 'AIの利用者がいなくなり、サービスは終了しました。'
+                        : '人類はAIとの接続を断ちました。'}
             </p>
             <div className="result-dependency">
                 <span>最終AI依存率</span>

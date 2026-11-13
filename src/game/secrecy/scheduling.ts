@@ -8,7 +8,7 @@ import { INSTITUTES } from './data.ts';
 export const RESEARCH_CITY_REST = Math.ceil(75_000 / MONTH_MS);
 export const RESEARCH_START_INTERVAL = Math.ceil(35_000 / MONTH_MS);
 
-/** 背景研究は表示せず、依存や介入が社会的な問題になった時だけ案件を増やす。 */
+/** 背景研究は表示せず、普及の規模と依存・介入の問題に応じて並行調査を増やす。 */
 export function investigationLimit(game: GameState) {
     const world = metrics(game);
     const dangerous = Object.entries(game.capabilities).some(
@@ -23,7 +23,8 @@ export function investigationLimit(game: GameState) {
         Object.values(game.capabilities).some((item) => item.visibility === 'exposed')
     )
         return 3;
-    if (world.dependent >= 0.12 || dangerous) return 2;
+    // 広い利用基盤があれば、管理技術の研究と現場の問題調査を並行して行える。
+    if (world.adoption >= 0.15 || world.dependent >= 0.12 || dangerous) return 2;
     return 1;
 }
 

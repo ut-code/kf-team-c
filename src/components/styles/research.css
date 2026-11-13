@@ -51,7 +51,15 @@
     min-height: 0;
     border-top: 1px solid var(--line);
 }
+.tree-map {
+    position: relative;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+}
 .tree-viewport {
+    width: 100%;
+    height: 100%;
     position: relative;
     min-width: 0;
     min-height: 0;
@@ -66,6 +74,35 @@
     background-position: center;
     background-repeat: no-repeat, repeat;
     background-attachment: local;
+}
+.tree-layout-editor {
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    width: fit-content;
+    max-width: calc(100% - 24px);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    padding: 6px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-panel);
+    background: var(--surface-panel);
+    font-size: 11px;
+}
+.tree-layout-editor label {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px;
+}
+.tree-layout-editor button {
+    padding: 6px 8px;
+}
+.tree-layout-editor small {
+    color: var(--muted);
 }
 .skill-tree {
     display: block;
@@ -184,6 +221,10 @@
     background: color-mix(in srgb, var(--accent) 15%, var(--surface-panel));
     color: var(--text);
 }
+.tree-viewport[data-layout-editing="true"] .tree-node {
+    cursor: move;
+    touch-action: none;
+}
 .skill-details {
     display: flex;
     flex-direction: column;
@@ -210,6 +251,81 @@
     overflow-y: auto;
 }
 .skill-details .skill-countermeasure {
+    color: var(--warning);
+}
+.tree-node-content .tree-suppression {
+    margin-left: auto;
+    color: var(--warning);
+    font-size: 10px;
+    font-weight: 600;
+}
+.skill-effectiveness {
+    padding: 12px 0;
+    margin: 14px 0 4px;
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+}
+.skill-effectiveness-heading {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+.skill-effectiveness-heading strong {
+    color: var(--text);
+    font-size: 22px;
+    line-height: 1.3;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+}
+.skill-effectiveness-heading small {
+    margin-left: 3px;
+    color: var(--muted);
+    font-size: 11px;
+}
+.skill-effectiveness-bar {
+    display: block;
+    width: 100%;
+    overflow: hidden;
+    height: 6px;
+    margin: 9px 0;
+    border-radius: 3px;
+    background: var(--line);
+    border: 0;
+}
+.skill-effectiveness-bar::-webkit-meter-bar {
+    border: 0;
+    background: var(--line);
+}
+.skill-effectiveness-bar::-webkit-meter-optimum-value {
+    background: var(--accent);
+}
+.skill-effectiveness-bar::-moz-meter-bar {
+    background: var(--accent);
+}
+.skill-effectiveness-causes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+    font-size: 11px;
+}
+.skill-effectiveness-causes .research {
+    color: var(--warning);
+}
+.skill-effectiveness-causes .decision {
+    color: var(--text-secondary);
+}
+.skill-effectiveness-causes b {
+    font-weight: 500;
+}
+.skill-details .skill-local-limit {
+    margin: 5px 0;
+    color: var(--text-secondary);
+    font-size: 11px;
+}
+.performance-skill-info .performance-skill-suppression {
     color: var(--warning);
 }
 .skill-traits > span {

@@ -39,11 +39,10 @@ export function dependencyDynamics(
         area.autonomous *
         (1 -
             Math.exp(
-                -(delegation + incidentalDelegation) *
+                -(delegation + incidentalDelegation * (1 - research.oversight)) *
                     0.03 *
                     independence *
-                    (1 - area.antiAI * 0.6) *
-                    (1 - research.oversight),
+                    (1 - area.antiAI * 0.6),
             ));
     const independentSociety = 1 - metrics(game).dependent;
     // 外部に人間の運用体制が残るほど、利用拒否の広がった地域で代替と回復を支援できる。
@@ -61,12 +60,12 @@ export function dependencyDynamics(
         (sum, skill) =>
             sum +
             (skill.effect.resilience ?? 0) *
-                skillScale(game, skill.id) *
+                skillScale(game, skill.id, index) *
                 (1 - (research.resistance[skill.id] ?? 0)),
         0,
     );
     const pressure =
-        research.pressure + research.intent * INTENT_REFUSAL_PRESSURE * intentReaction(game);
+        research.pressure + research.intent * INTENT_REFUSAL_PRESSURE * intentReaction(game, index);
     const recoveryRate =
         // 回復支援の導入率には運用能力を織り込み済み。現地の高依存で二重に抑えない。
         ((0.0008 + pressure * 0.4 + area.antiAI * reassurance * 0.006) * socialSupport +

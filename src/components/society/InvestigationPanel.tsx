@@ -1,4 +1,5 @@
 import { Search, X } from 'lucide-react';
+import { controlResearchOversight } from '../../game/control';
 import { AREAS } from '../../game/data';
 import { CAPABILITIES } from '../../game/secrecy/data';
 import { instituteArea, instituteFor, investigationRate } from '../../game/secrecy/investigations';
@@ -12,6 +13,7 @@ import {
 import { SKILLS } from '../../game/skills';
 import type { GameState } from '../../game/types';
 import { Modal } from '../widgets';
+import { InvestigationResponses } from './InvestigationResponses';
 import { ResearchProgress } from './ResearchProgress';
 import { researchEffectLabels, researchPresentation } from './researchPresentation';
 
@@ -19,13 +21,11 @@ export function InvestigationPanel({
     game,
     id,
     onClose,
-    anchor,
     onOpenSkill,
 }: {
     game: GameState;
     id: string;
     onClose: () => void;
-    anchor?: { x: number; y: number };
     onOpenSkill: (id?: string) => void;
 }) {
     const project = game.investigations.find((item) => item.id === id);
@@ -52,7 +52,7 @@ export function InvestigationPanel({
         ? researchEffectLabels(scientific)
         : ['権限を超えた介入が明らかになり、利用拒否が広がる'];
     return (
-        <Modal modal={false} label={name} onClose={onClose} anchor={anchor}>
+        <Modal modal={false} label={name} onClose={onClose} mapLocation={institute}>
             <div className="investigation-panel">
                 <div className="society-heading">
                     <div className="contact-heading">
@@ -102,7 +102,11 @@ export function InvestigationPanel({
                         </>
                     )}
                 </div>
-                <section className="research-impact" aria-label="研究による効果">
+                <InvestigationResponses game={game} project={project} onClose={onClose} />
+                <section
+                    className="research-impact investigation-findings"
+                    aria-label="研究による効果"
+                >
                     <h3>
                         {findings
                             ? regulation
@@ -126,7 +130,9 @@ export function InvestigationPanel({
                     </ul>
                     {impact &&
                         scientific &&
-                        (impact.strength > 0 ||
+                        ((controlResearchOversight(topic!.id) > 0 &&
+                            topic!.id !== 'managed-deployment') ||
+                            impact.strength > 0 ||
                             topic!.effects.recovery ||
                             topic!.effects.alternatives) && (
                             <>
@@ -161,15 +167,6 @@ export function InvestigationPanel({
                             </>
                         )}
                 </section>
-                {active && (
-                    <button
-                        type="button"
-                        className="primary research-response-action"
-                        onClick={() => onOpenSkill(impact?.skills[0]?.id)}
-                    >
-                        スキルを見直す
-                    </button>
-                )}
             </div>
         </Modal>
     );

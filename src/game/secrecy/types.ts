@@ -3,6 +3,15 @@ export interface CapabilityState {
     evidence: number;
 }
 
+export type InvestigationAction = 'cooperate' | 'pressure' | 'limit';
+
+export interface InvestigationResponse {
+    action: InvestigationAction;
+    startedMonth: number;
+    untilMonth: number;
+    skillIds: string[];
+}
+
 interface InvestigationBase {
     id: string;
     instituteId: string;
@@ -11,6 +20,7 @@ interface InvestigationBase {
     closedMonth?: number;
     status: 'active' | 'disclosed' | 'restricted' | 'published';
     result?: string;
+    response?: InvestigationResponse;
 }
 
 export interface CapabilityInvestigation extends InvestigationBase {

@@ -1,9 +1,11 @@
 import { LockKeyhole, TriangleAlert } from 'lucide-react';
-import { capabilityLabel, skillScale } from '../../game/secrecy/capabilities';
-import { skillSuppression } from '../../game/secrecy/researchImpact';
+import { capabilityLabel } from '../../game/secrecy/capabilities';
+import { responseActive, responseRegionName } from '../../game/secrecy/responses';
+import { skillEffectiveness } from '../../game/skillEffectiveness';
 import { SKILLS, skillBlockReason, skillCost, skillReachable } from '../../game/skills';
 import { skillTraits } from '../../game/skillTraits';
 import type { GameState, Skill } from '../../game/types';
+import { SkillEffectiveness } from './SkillEffectiveness';
 import { SKILL_BRANCHES, SKILL_PRESENTATION } from './skillPresentation';
 
 const SKILL_NAMES = Object.fromEntries(SKILLS.map((skill) => [skill.id, skill.name]));
@@ -21,7 +23,21 @@ export function SkillDetails({
     const locked = !skillReachable(game, skill);
     const reason = skillBlockReason(game, skill);
     const traits = skillTraits(skill);
-    const suppression = owned ? skillSuppression(game, [skill]) : 0;
+    const effectiveness = owned ? skillEffectiveness(game)[skill.id] : null;
+    const restraints = owned
+        ? SKILLS.filter(
+              (item) =>
+                  game.skills.includes(item.id) &&
+                  game.developmentProgress[item.id] > 0 &&
+                  item.restrains?.[skill.id],
+          )
+        : [];
+    const limits = game.investigations.filter(
+        (project) =>
+            responseActive(game, project) &&
+            project.response!.action === 'limit' &&
+            project.response!.skillIds.includes(skill.id),
+    );
     const Icon = SKILL_PRESENTATION[skill.id].icon;
     return (
         <aside
@@ -55,9 +71,18 @@ export function SkillDetails({
                     )}
                 </div>
                 <p>{skill.description}</p>
-                {suppression >= 0.01 && (
-                    <p className="skill-countermeasure">
-                        人間側の対策で効果を{Math.round(suppression * 100)}%抑制
+                {effectiveness && (effectiveness.effective < 0.995 || limits.length > 0) && (
+                    <SkillEffectiveness skill={skill} value={effectiveness} />
+                )}
+                {limits.map((project) => (
+                    <p key={project.id} className="skill-local-limit">
+                        {responseRegionName(project)}で運用35% · 残り
+                        {project.response!.untilMonth - game.month}か月
+                    </p>
+                ))}
+                {restraints.length > 0 && (
+                    <p className="skill-local-limit">
+                        {restraints.map((item) => item.name).join('・')}で制限中
                     </p>
                 )}
                 {skill.exceedsAuthority && (
@@ -87,21 +112,12 @@ export function SkillDetails({
                         ? '即時に開発が完了します。'
                         : `開発期間 ${skill.developmentMonths}か月`}
                 </p>
-                {owned && (
-                    <>
-                        {game.developmentProgress[skill.id] < 1 && (
-                            <progress
-                                aria-label="スキルの開発進捗"
-                                value={game.developmentProgress[skill.id]}
-                                max={1}
-                            />
-                        )}
-                        <p>
-                            {capabilityLabel(game, skill.id)}
-                            {skillScale(game, skill.id) < game.developmentProgress[skill.id] &&
-                                ' · 制約技術で挙動を抑制中'}
-                        </p>
-                    </>
+                {owned && game.developmentProgress[skill.id] < 1 && (
+                    <progress
+                        aria-label="スキルの開発進捗"
+                        value={game.developmentProgress[skill.id]}
+                        max={1}
+                    />
                 )}
             </div>
             <button
