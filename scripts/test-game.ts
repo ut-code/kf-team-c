@@ -11,6 +11,7 @@ import {
 import { earnedSkillPoints, INITIAL_SKILL_POINTS } from '../src/game/economy.ts';
 import { advanceMonth, createGame, learnSkill, startGame } from '../src/game/engine.ts';
 import { metrics } from '../src/game/metrics.ts';
+import { createNotifications, updateNotifications } from '../src/game/notifications.ts';
 import { advanceSkillDevelopment, skillScale } from '../src/game/secrecy/capabilities.ts';
 import { INSTITUTES } from '../src/game/secrecy/data.ts';
 import { intentResearchReady } from '../src/game/secrecy/purpose.ts';
@@ -88,7 +89,13 @@ test('制約技術は過去の証拠とSPを返さず、開発に応じて以後
 
 test('基礎支給は普及しなくても続き、節目報酬は有限で再達成では増えない', () => {
     assert.ok(earnedSkillPoints(60_000 / MONTH_MS, 0, 0) > 0);
-    assert.equal(earnedSkillPoints(100_000, 1, 1), earnedSkillPoints(200_000, 1, 1));
+    assert.equal(earnedSkillPoints(297, 0, 0), 33);
+    assert.equal(earnedSkillPoints(306, 0, 0), 34);
+    assert.equal(earnedSkillPoints(360, 0, 0), 40);
+    assert.equal(
+        earnedSkillPoints(100_000, 1, 1) - earnedSkillPoints(100_000, 0, 0),
+        earnedSkillPoints(200_000, 1, 1) - earnedSkillPoints(200_000, 0, 0),
+    );
     const game = {
         ...startGame(createGame(), 0),
         month: 11,
@@ -100,6 +107,23 @@ test('基礎支給は普及しなくても続き、節目報酬は有限で再�
     assert.equal(
         next.skillPoints - game.skillPoints,
         earnedSkillPoints(next.month, next.peakAdoption, next.peakDependency) - game.earnedPoints,
+    );
+    const late = {
+        ...game,
+        month: 305,
+        earnedPoints: earnedSkillPoints(305, game.peakAdoption, game.peakDependency),
+    };
+    const paid = advanceMonth(late);
+    assert.equal(paid.skillPoints - late.skillPoints, 1);
+    const notifications = updateNotifications(late, paid, createNotifications(late));
+    assert.ok(notifications.items.some((item) => item.id === 'sp:regular:34'));
+    const following = advanceMonth(paid);
+    assert.equal(following.skillPoints, paid.skillPoints);
+    assert.equal(
+        updateNotifications(paid, following, notifications).items.filter(
+            (item) => item.id === 'sp:regular:34',
+        ).length,
+        1,
     );
 });
 

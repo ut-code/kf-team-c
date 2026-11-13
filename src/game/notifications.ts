@@ -5,7 +5,6 @@ import {
     DEPENDENCY_MILESTONES,
     MILESTONE_SP,
     REGULAR_SP_INTERVAL_MS,
-    REGULAR_SP_LIMIT,
 } from './economy.ts';
 import { metrics } from './metrics.ts';
 import { instituteArea } from './secrecy/investigations.ts';
@@ -86,14 +85,8 @@ export function updateNotifications(
         incoming.push({ id, month: game.month, text, kind, investigationId });
     };
     if (previous.areas !== game.areas) incoming.push(...milestoneNotifications(game));
-    const regular = Math.min(
-        REGULAR_SP_LIMIT,
-        Math.floor((game.month * MONTH_MS) / REGULAR_SP_INTERVAL_MS),
-    );
-    const beforeRegular = Math.min(
-        REGULAR_SP_LIMIT,
-        Math.floor((previous.month * MONTH_MS) / REGULAR_SP_INTERVAL_MS),
-    );
+    const regular = Math.floor((game.month * MONTH_MS) / REGULAR_SP_INTERVAL_MS);
+    const beforeRegular = Math.floor((previous.month * MONTH_MS) / REGULAR_SP_INTERVAL_MS);
     if (regular > beforeRegular)
         add(`sp:regular:${regular}`, `定期支給 · +${regular - beforeRegular} SP`, 'milestone');
     for (const id of game.skills.filter((id) => !previous.skills.includes(id))) {
