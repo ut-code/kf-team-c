@@ -208,7 +208,7 @@ export function GameApp({
                     expanded={worldOpen && selected === null && !snsOpen}
                     onToggle={() => togglePanel({ kind: 'world' })}
                 />
-                <WorldNews key={`news:${session}`} game={game} />
+                <WorldNews key={`news:${session}`} game={game} speed={blocked ? 0 : game.speed} />
                 <GameClock key={session} blocked={blocked} />
                 <div className="right-hud">
                     <NotificationFeed key={session} speed={blocked ? 0 : game.speed} />

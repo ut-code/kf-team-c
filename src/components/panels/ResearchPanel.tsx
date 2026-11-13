@@ -3,7 +3,6 @@ import { useState } from 'react';
 import { SKILLS } from '../../game/skills';
 import type { GameState } from '../../game/types';
 import { SkillDetails } from './SkillDetails';
-import { SkillPerformance } from './SkillPerformance';
 import { SkillTreeMap } from './SkillTreeMap';
 
 export function ResearchPanel({
@@ -18,7 +17,6 @@ export function ResearchPanel({
     initialSkill?: string;
 }) {
     const initial = initialSkill ? SKILLS.find((skill) => skill.id === initialSkill)! : SKILLS[0];
-    const [performanceOpen, setPerformanceOpen] = useState(false);
     const [selected, setSelected] = useState(initialSkill ? initial.id : 'reason');
     const skill = SKILLS.find((item) => item.id === selected)!;
     return (
@@ -28,22 +26,6 @@ export function ResearchPanel({
                     <Network size={22} aria-hidden="true" />
                     スキルツリー
                 </h1>
-                <nav className="skill-branch-tabs" aria-label="スキルツリーの表示">
-                    <button
-                        type="button"
-                        aria-pressed={!performanceOpen}
-                        onClick={() => setPerformanceOpen(false)}
-                    >
-                        開発
-                    </button>
-                    <button
-                        type="button"
-                        aria-pressed={performanceOpen}
-                        onClick={() => setPerformanceOpen(true)}
-                    >
-                        ステータス
-                    </button>
-                </nav>
                 <div className="research-budget">
                     <span>残り</span>
                     <strong>
@@ -60,20 +42,10 @@ export function ResearchPanel({
                     <X size={22} />
                 </button>
             </header>
-            {performanceOpen ? (
-                <SkillPerformance
-                    game={game}
-                    onSelectSkill={(id) => {
-                        setSelected(id);
-                        setPerformanceOpen(false);
-                    }}
-                />
-            ) : (
-                <div className="research-layout">
-                    <SkillTreeMap game={game} selectedId={selected} onSelect={setSelected} />
-                    <SkillDetails game={game} skill={skill} onResearch={onResearch} />
-                </div>
-            )}
+            <div className="research-layout">
+                <SkillTreeMap game={game} selectedId={selected} onSelect={setSelected} />
+                <SkillDetails game={game} skill={skill} onResearch={onResearch} />
+            </div>
         </section>
     );
 }

@@ -71,7 +71,7 @@ export function GameClock({ blocked }: { blocked: boolean }) {
                     >
                         {game.speed === 0 ? <Play size={14} /> : <Pause size={14} />}
                     </button>
-                    {(import.meta.env.DEV ? [1, 2, 4, 8] : [1, 2, 4]).map((speed) => (
+                    {[1, 2, 4, 8].map((speed) => (
                         <button
                             type="button"
                             key={speed}

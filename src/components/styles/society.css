@@ -377,10 +377,6 @@
     font-weight: 500;
     color: var(--text-secondary);
 }
-.skill-performance-view > .human-response {
-    max-width: 680px;
-    margin: 28px 0;
-}
 .investigation-progress {
     display: grid;
     grid-template-columns: 1fr auto;

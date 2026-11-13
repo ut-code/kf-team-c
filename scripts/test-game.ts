@@ -27,6 +27,7 @@ import { skillLayout } from '../src/game/skillLayout.ts';
 import { SKILLS, skillBlockReason } from '../src/game/skills.ts';
 import { advanceNews } from '../src/game/society/news.ts';
 import { createSocialFeed, updateSocialFeed } from '../src/game/society/socialFeed.ts';
+import { worldNews } from '../src/game/society/worldNews.ts';
 import type { GameState } from '../src/game/types.ts';
 
 test('開発ツリーには循環・欠落・重なるノードがなく、委任技術には研究対象がある', () => {
@@ -125,6 +126,42 @@ test('基礎支給は普及しなくても続き、節目報酬は有限で再�
         ).length,
         1,
     );
+});
+
+test('ニュースの発行・閲覧・履歴の有無はシミュレーションに影響しない', () => {
+    const initial = startGame(createGame(), 0);
+    const recorded = advanceNews(initial);
+    assert.equal(recorded.news.length, 1);
+    assert.deepEqual({ ...recorded, news: [] }, initial);
+    const frozen = structuredClone(recorded);
+    worldNews(recorded);
+    worldNews(recorded);
+    assert.deepEqual(recorded, frozen);
+
+    let withNews = recorded;
+    let withoutNews = initial;
+    for (let month = 0; month < 120; month++) {
+        withNews = advanceMonth(withNews);
+        withoutNews = advanceMonth({ ...withoutNews, news: [] });
+        assert.deepEqual({ ...withNews, news: [] }, { ...withoutNews, news: [] });
+    }
+    for (const id of [
+        'security-breach-1',
+        'security-breach-2',
+        'security-breach-3',
+        'breakthrough-discovery',
+        'discovery-followup',
+        'ai-campaign',
+        'ai-marriage',
+        'marriage-backlash',
+        'system-outage-2',
+        'system-outage-3',
+        'empathy-counselors',
+    ])
+        assert.ok(
+            WORLD_NEWS.some((article) => article.id === id),
+            id,
+        );
 });
 
 test('ニュースは実際の用途から一度だけ発生し、続報は先行報道を必要とする', () => {

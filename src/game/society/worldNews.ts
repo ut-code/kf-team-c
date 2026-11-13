@@ -13,6 +13,7 @@ export function worldNews(game: GameState) {
             ...record,
             title: article.title,
             summary: article.summary,
+            author: article.author,
             region: AREAS.find((area) => area.id === article.areaId)!.name,
         };
     });
@@ -33,6 +34,7 @@ export function worldNews(game: GameState) {
                 : `${region}の研究機関が「${topic.name}」の成果を公表`,
             summary: `${region}で${regulation ? `「${topic.name}」が成立した。` : `研究機関が「${topic.name}」の成果を公表した。`}${outcome}。${regulation ? '施行は地域ごとに進む。' : '研究機関は、現場での活用に向けた検証と成果の共有を進めている。'}`,
             region,
+            author: undefined,
         });
     }
     return articles.sort((a, b) => b.month - a.month || a.id.localeCompare(b.id));

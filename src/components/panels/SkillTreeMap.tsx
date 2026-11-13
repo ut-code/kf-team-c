@@ -1,5 +1,5 @@
 import { Check, LockKeyhole, Sparkles } from 'lucide-react';
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useRef } from 'react';
 import { capabilityLabel } from '../../game/secrecy/capabilities';
 import { skillEffectiveness } from '../../game/skillEffectiveness';
 import type { TreePoint } from '../../game/skillLayout';
@@ -7,6 +7,7 @@ import { skillBlockReason, skillCost, skillReachable } from '../../game/skills';
 import type { GameState } from '../../game/types';
 import { SKILL_PRESENTATION } from './skillPresentation';
 import { useSkillLayoutEditor } from './useSkillLayoutEditor';
+import { useSkillTreeViewport } from './useSkillTreeViewport';
 
 export function SkillTreeMap({
     game,
@@ -20,59 +21,22 @@ export function SkillTreeMap({
     const editor = useSkillLayoutEditor();
     const tree = editor.tree;
     const effectiveness = skillEffectiveness(game);
-    const viewport = useRef<HTMLDivElement>(null);
-    const [size, setSize] = useState({ width: 1, height: 1 });
-    useLayoutEffect(() => {
-        const element = viewport.current!;
-        const resize = () => setSize({ width: element.clientWidth, height: element.clientHeight });
-        resize();
-        const observer = new ResizeObserver(resize);
-        observer.observe(element);
-        return () => observer.disconnect();
-    }, []);
-    const canvasWidth = Math.max(tree.width, size.width);
-    const canvasHeight = Math.max(tree.height, size.height);
+    const { viewport, size, zoom, canvasWidth, canvasHeight, renderedWidth, renderedHeight } =
+        useSkillTreeViewport(tree.width, tree.height);
     const drag = useRef<{ x: number; y: number; left: number; top: number } | null>(null);
     const nodeDrag = useRef<{ id: string; x: number; y: number; point: TreePoint } | null>(null);
-    const previousCanvas = useRef<{
-        width: number;
-        height: number;
-        viewportWidth: number;
-        viewportHeight: number;
-    } | null>(null);
-    useLayoutEffect(() => {
-        if (size.width <= 1 || size.height <= 1) return;
-        const element = viewport.current!;
-        const previous = previousCanvas.current;
-        // 配置変更で描画範囲が広がっても、表示中の座標は動かさない。
-        element.scrollTo(
-            previous
-                ? element.scrollLeft +
-                      (canvasWidth - previous.width - size.width + previous.viewportWidth) / 2
-                : (canvasWidth - size.width) / 2,
-            previous
-                ? element.scrollTop +
-                      (canvasHeight - previous.height - size.height + previous.viewportHeight) / 2
-                : (canvasHeight - size.height) / 2,
-        );
-        previousCanvas.current = {
-            width: canvasWidth,
-            height: canvasHeight,
-            viewportWidth: size.width,
-            viewportHeight: size.height,
-        };
-    }, [canvasWidth, canvasHeight, size.width, size.height]);
     useLayoutEffect(() => {
         if (size.width <= 1 || size.height <= 1 || editor.editing) return;
         viewport
             .current!.querySelector(`[data-skill-id="${selectedId}"]`)
             ?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-    }, [selectedId, size.width, size.height, editor.editing]);
+    }, [selectedId, size.width, size.height, editor.editing, viewport]);
     return (
         <div className="tree-map">
-            <div
+            <section
                 ref={viewport}
                 className="tree-viewport"
+                aria-label="スキルツリー。ドラッグで移動、ホイールと2本指のピンチで拡大縮小。"
                 data-layout-editing={editor.editing}
                 onPointerDown={(event) => {
                     if (
@@ -105,7 +69,7 @@ export function SkillTreeMap({
                 <svg
                     viewBox={`${-canvasWidth / 2} ${-canvasHeight / 2} ${canvasWidth} ${canvasHeight}`}
                     className="skill-tree"
-                    style={{ width: canvasWidth, height: canvasHeight }}
+                    style={{ width: renderedWidth, height: renderedHeight }}
                     aria-label="AI機能の開発と接続を示すスキルツリー"
                 >
                     <title>スキルツリー</title>
@@ -179,8 +143,8 @@ export function SkillTreeMap({
                                         if (!start || start.id !== skill.id) return;
                                         event.stopPropagation();
                                         editor.move(skill.id, {
-                                            x: start.point.x + event.clientX - start.x,
-                                            y: start.point.y + event.clientY - start.y,
+                                            x: start.point.x + (event.clientX - start.x) / zoom,
+                                            y: start.point.y + (event.clientY - start.y) / zoom,
                                         });
                                     }}
                                     onPointerUp={() => {
@@ -218,7 +182,7 @@ export function SkillTreeMap({
                         );
                     })}
                 </svg>
-            </div>
+            </section>
             {import.meta.env.DEV && (
                 <div className="tree-layout-editor">
                     <label>

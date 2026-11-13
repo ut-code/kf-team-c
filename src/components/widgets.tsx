@@ -37,6 +37,10 @@ export function Modal({
             ref={dialog}
             className={`modal ${wide ? 'wide' : ''} ${modal ? '' : 'floating'} ${className}`}
             aria-label={label}
+            onKeyDown={(event) => {
+                // モーダルを閉じるキーを、背後のゲームパネルへ伝えない。
+                if (modal && event.key === 'Escape') event.stopPropagation();
+            }}
             onCancel={(event) => {
                 event.preventDefault();
                 if (closeOnEscape) onClose?.();
